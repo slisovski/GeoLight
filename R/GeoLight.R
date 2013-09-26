@@ -4,7 +4,7 @@
 #' This is a summary of all features of \bold{\code{GeoLight}}, a
 #' \code{R}-package for analyzing light based geolocator data.
 #'
-#' @name GeoLIght-package
+#' @name GeoLight-package
 #' @docType package
 #' @author Simeon Lisovski, Silke Bauer, Tamara Emmenegger
 #' @aliases GeoLight
@@ -260,7 +260,9 @@ if(summary==TRUE){i.sum.Cl(out)}
 
 return(out)
 
-} # end function
+}
+
+
 #' Threshold based geographical positioning
 #'
 #' Calculate the latitude and longitude from two subsequent twilight events
@@ -450,6 +452,8 @@ index[coord[,2]==999] <- TRUE
 cat(paste("Note: ",length(index[index==FALSE])," of ",length(index[coord[,2]!=999])," positions were filtered (",floor((length(index[index==FALSE])*100)/length(index[coord[,2]!=999]))," %)",sep=""))
 return(index)
 }
+
+
 #' Calculate the appropriate sun elevation angle for known location
 #'
 #' Function to calculate the sun elevation angle for light measurements at a
@@ -553,6 +557,8 @@ getElevation <- function(tFirst,tSecond,type,known.coord,plot=TRUE) {
 
  return(degElevation - 0.025)
  }
+
+
 #' Transformation of *.gle files
 #'
 #' Function to transform *.gle files derived by the software GeoLocator for
