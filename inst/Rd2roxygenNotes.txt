@@ -1,0 +1,226 @@
+##------ Thu Sep 26 12:27:25 2013 ------##
+parsed: calib1.Rd
+looking for the object 'calib*' in:
+  changeLight.R: not found
+  coord.R: not found
+  distanceFilter.R: not found
+  getElevation.R: not found
+  gleTrans.R: not found
+  glfTrans.R: not found
+  hillekstromcalib.R: not found
+  i.deg.R: not found
+  i.frac.R: not found
+  i.get.outliers.R: not found
+  i.JC2000.R: not found
+  i.julianDate.R: not found
+  i.loxodrom.dist.R: not found
+  i.preSelection.R: not found
+  i.rad.R: not found
+  i.radDeclination.R: not found
+  i.radEclipticLongitude.R: not found
+  i.radGMST.R: not found
+  i.radObliquity.R: not found
+  i.radRightAscension.R: not found
+  i.setToRange.R: not found
+  i.sum.cL.R: not found
+  i.sunelevation.R: not found
+  i.twilightEvents.R: not found
+  lightFilter.R: not found
+  loessFilter.R: not found
+  luxTrans.R: not found
+  schedule.R: not found
+  siteMap.R: not found
+  trip2kml.R: not found
+  tripMap.R: not found
+  twilightCalc.R: not found
+unmatched object 'calib*' written into GeoLight/R/GeoLight-package.R
+
+
+##------ Thu Sep 26 12:27:25 2013 ------##
+parsed: changeLight.Rd
+looking for the object 'changeLight' in:
+  changeLight.R: line 1
+GeoLight/R/changeLight.R updated
+
+
+##------ Thu Sep 26 12:27:25 2013 ------##
+parsed: coord.Rd
+looking for the object 'coord' in:
+  coord.R: line 1
+GeoLight/R/coord.R updated
+
+
+##------ Thu Sep 26 12:27:25 2013 ------##
+parsed: distanceFilter.Rd
+looking for the object 'distanceFilter' in:
+  distanceFilter.R: line 1
+GeoLight/R/distanceFilter.R updated
+
+
+##------ Thu Sep 26 12:27:25 2013 ------##
+parsed: GeoLight-package.Rd
+looking for the object 'GeoLight-package' in:
+  GeoLight-package.R: not found
+  GeoLight-package.r: not found
+  changeLight.R: not found
+  coord.R: not found
+  distanceFilter.R: not found
+  getElevation.R: not found
+  gleTrans.R: not found
+  glfTrans.R: not found
+  hillekstromcalib.R: not found
+  i.deg.R: not found
+  i.frac.R: not found
+  i.get.outliers.R: not found
+  i.JC2000.R: not found
+  i.julianDate.R: not found
+  i.loxodrom.dist.R: not found
+  i.preSelection.R: not found
+  i.rad.R: not found
+  i.radDeclination.R: not found
+  i.radEclipticLongitude.R: not found
+  i.radGMST.R: not found
+  i.radObliquity.R: not found
+  i.radRightAscension.R: not found
+  i.setToRange.R: not found
+  i.sum.cL.R: not found
+  i.sunelevation.R: not found
+  i.twilightEvents.R: not found
+  lightFilter.R: not found
+  loessFilter.R: not found
+  luxTrans.R: not found
+  schedule.R: not found
+  siteMap.R: not found
+  trip2kml.R: not found
+  tripMap.R: not found
+  twilightCalc.R: not found
+unmatched object 'GeoLight-package' written into GeoLight/R/GeoLight-package.R
+
+
+##------ Thu Sep 26 12:27:25 2013 ------##
+parsed: getElevation.Rd
+looking for the object 'getElevation' in:
+  getElevation.R: line 1
+GeoLight/R/getElevation.R updated
+
+
+##------ Thu Sep 26 12:27:25 2013 ------##
+parsed: gleTrans.Rd
+looking for the object 'gleTrans' in:
+  gleTrans.R: line 1
+GeoLight/R/gleTrans.R updated
+
+
+##------ Thu Sep 26 12:27:25 2013 ------##
+parsed: glfTrans.Rd
+looking for the object 'glfTrans' in:
+  glfTrans.R: line 1
+GeoLight/R/glfTrans.R updated
+
+
+##------ Thu Sep 26 12:27:25 2013 ------##
+parsed: HillEkstromCalib.Rd
+looking for the object 'HillEkstromCalib' in:
+  HillEkstromCalib.R: line 1
+GeoLight/R/HillEkstromCalib.R updated
+
+
+##------ Thu Sep 26 12:27:25 2013 ------##
+parsed: hoopoe1.Rd
+unmatched object 'hoopoe1' written into GeoLight/R/GeoLight-package.R
+
+
+##------ Thu Sep 26 12:27:25 2013 ------##
+parsed: hoopoe2.Rd
+looking for the object 'hoopoe2' in:
+  changeLight.R: not found
+  coord.R: not found
+  distanceFilter.R: not found
+  GeoLight-package.R: not found
+  getElevation.R: not found
+  gleTrans.R: not found
+  glfTrans.R: not found
+  hillekstromcalib.R: not found
+  i.deg.R: not found
+  i.frac.R: not found
+  i.get.outliers.R: not found
+  i.JC2000.R: not found
+  i.julianDate.R: not found
+  i.loxodrom.dist.R: not found
+  i.preSelection.R: not found
+  i.rad.R: not found
+  i.radDeclination.R: not found
+  i.radEclipticLongitude.R: not found
+  i.radGMST.R: not found
+  i.radObliquity.R: not found
+  i.radRightAscension.R: not found
+  i.setToRange.R: not found
+  i.sum.cL.R: not found
+  i.sunelevation.R: not found
+  i.twilightEvents.R: not found
+  lightFilter.R: not found
+  loessFilter.R: not found
+  luxTrans.R: not found
+  schedule.R: not found
+  siteMap.R: not found
+  trip2kml.R: not found
+  tripMap.R: not found
+  twilightCalc.R: not found
+unmatched object 'hoopoe2' written into GeoLight/R/GeoLight-package.R
+
+
+##------ Thu Sep 26 12:27:26 2013 ------##
+parsed: lightFilter.Rd
+looking for the object 'lightFilter' in:
+  lightFilter.R: line 1
+GeoLight/R/lightFilter.R updated
+
+
+##------ Thu Sep 26 12:27:26 2013 ------##
+parsed: loessFitler.Rd
+looking for the object 'loessFilter' in:
+  loessFilter.R: line 1
+GeoLight/R/loessFilter.R updated
+
+
+##------ Thu Sep 26 12:27:26 2013 ------##
+parsed: luxTrans.Rd
+looking for the object 'luxTrans' in:
+  luxTrans.R: line 1
+GeoLight/R/luxTrans.R updated
+
+
+##------ Thu Sep 26 12:27:26 2013 ------##
+parsed: schedule.Rd
+looking for the object 'schedule' in:
+  schedule.R: line 6
+GeoLight/R/schedule.R updated
+
+
+##------ Thu Sep 26 12:27:26 2013 ------##
+parsed: siteMap.Rd
+looking for the object 'siteMap' in:
+  siteMap.R: line 1
+GeoLight/R/siteMap.R updated
+
+
+##------ Thu Sep 26 12:27:26 2013 ------##
+parsed: trip2kml.Rd
+looking for the object 'trip2kml' in:
+  trip2kml.R: line 1
+GeoLight/R/trip2kml.R updated
+
+
+##------ Thu Sep 26 12:27:26 2013 ------##
+parsed: tripMap.Rd
+looking for the object 'tripMap' in:
+  tripMap.R: line 1
+GeoLight/R/tripMap.R updated
+
+
+##------ Thu Sep 26 12:27:26 2013 ------##
+parsed: twilightCalc.Rd
+looking for the object 'twilightCalc' in:
+  twilightCalc.R: line 1
+GeoLight/R/twilightCalc.R updated
+

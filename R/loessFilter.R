@@ -1,3 +1,20 @@
+#' Filter to remove outliers in defined sunrise and sunset times
+#' 
+#' This filter defines outliers based on residuals from a local polynomial
+#' regression fitting provcess (\code{\link{loess}}).
+#' 
+#' 
+#' @param tFirst date and time of sunrise/sunset (e.g. 2008-12-01 08:30)
+#' @param tSecond date and time of sunrise/sunset (e.g. 2008-12-01 17:30)
+#' @param type either 1 or 2, defining \code{tFirst} as sunrise or sunset
+#' respectively
+#' @param k a measure of how many interquartile ranges to take before saying
+#' that a particular twilight event is an outlier
+#' @param plot codelogical, if TRUE a plot indicating the filtered times will
+#' be produced.
+#' @return Logical \code{vector} matching positions that pass the filter.
+#' @author Simeon Lisovski & Eldar Rakhimberdiev
+#' @export loessFilter
 loessFilter <- function(tFirst, tSecond, type, k=3, plot=TRUE){
 	
 	tw <- data.frame(datetime=as.POSIXct(c(tFirst,tSecond),"UTC"),type=c(type,ifelse(type==1,2,1)))

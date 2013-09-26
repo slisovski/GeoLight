@@ -1,3 +1,21 @@
+#' Transformation of *.lux files
+#' 
+#' Transform *.lux files derived from \emph{Migrate Technology Ltd} geolocator
+#' deviced for further analyses in \bold{\code{GeoLight}}.
+#' 
+#' The *.lux files produced by \emph{Migrate Technology Ltd} are table with
+#' light intensity measurements over time. \code{luxTrans} produces a table
+#' with these measurements and transfer the data and time information into the
+#' format required by \bold{\code{GeoLight}} format (see:
+#' \code{\link{as.POSIXct}}).
+#' 
+#' @param file the full patch and filename with suffix of the *.lux file.
+#' @return A \code{data.frame} suitable for further use in
+#' \bold{\code{GeoLight}}.
+#' @author Simeon Lisovski
+#' @seealso \code{\link{gleTrans}} for transforming *.glf files produced by the
+#' software GeoLocator (\emph{Swiss Ornithological Institute})
+#' @export luxTrans
 luxTrans <-
 function(file="/path/file.lux") {
 	
