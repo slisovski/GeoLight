@@ -1,3 +1,15 @@
-# Export all names unless they start with a dot
-exportPattern("^[^i]")
-
+export(changeLight)
+export(coord)
+export(distanceFilter)
+export(getElevation)
+export(gleTrans)
+export(glfTrans)
+export(HillEkstromCalib)
+export(lightFilter)
+export(loessFilter)
+export(luxTrans)
+export(schedule)
+export(siteMap)
+export(trip2kml)
+export(tripMap)
+export(twilightCalc)
