@@ -1,0 +1,7 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+readme.md
+^vignettes/cache
+^vignettes/figure
+^vignettes/*.tex$
+

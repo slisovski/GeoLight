@@ -1,0 +1,92 @@
+CHANGES IN GeoLight VERSION 1.03
+
+OVERVIEW 
+
+   o We thank Eli Brigde, Michael Sumner and Eldar Rakhimberdiev for fruitful comments during a workshop.
+   o Version 1.03 provides one new filter function and some additional graphical output
+   o With the help of the users we could remove some bugs and improve the package significantly
+   
+ NEW FUNCTIONS
+
+   	o loessFilter
+	Filter to remove outliers based on residuals from a local
+	polynomial regression fitting process (loess). 
+
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+	o   twilightCalc
+	A new argument was added to the twilightCalc function: preSelection.
+	If preSelection=TRUE a routine will go trough all times where the light
+	intensity crosses the light threshold. Only the earliest in the morning
+	and the latest in the evening will be set as "choosen" for further
+	graphical examination. This usually results in a much faster interactive
+	process especially if the light intensity fluctuates much around the 
+	light threshold.	
+	
+	
+	o   getElevation
+	In addition to the already existing graph where the user gets an
+	overview of all defined twilight times within the calibration period
+	as well as the deviation from the optimal sun elevation, another plot shows
+	the sun elevaion curves for the calibration period at the known position
+	and the defined twilight events. The two graphs are highly redundant but
+	we think that the new graph gives a better impression about the distribution
+	of the defined twilight events and whether single twilight events should
+	be excluded from the calibration period (i.e. twilight events which do not
+	represent the sunrise or sunset).
+
+
+CHANGES IN GeoLight VERSION 1.02
+
+
+OVERVIEW 
+
+   o We thank all users providing helpful comments and helping to identify bugs
+   o Some modifications to internal code.
+  
+NEW FUNCTIONS
+
+   	o lightFilter
+	Filter to remove noise in light intensity measurements during the night
+
+
+
+CHANGES IN GeoLight VERSION 1.01
+
+
+OVERVIEW 
+
+   o We thank Eli Brigde for helpful comments.
+   o We thank Michael U. Kemp (Author from the RNCEP Package) to help us writing a code for exporting a trip into Google Earth
+   o James Fox provided details to write a transformation script for geolocator data from Migrate Technology Ltd.
+   o Some modifications to internal code.
+  
+NEW FUNCTIONS
+
+   	o luxTrans
+	Files with the siuffix .lux are derived from geolocators provided by Migrate Technology Ltd. 
+	luxTrans() produces a table with datetime and light recordings in a format 
+	required by GeoLight.
+	   	
+	o trip2kml
+	This function creates a .kml file from light intensity measurements over time that can ve viewed as a trip in Google Earth
+
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+	o   twilightCalc
+	Code to calculate the times were light recordings pass the light intensity threshold
+	were modified. Therewith wrong calculations from the first versions should not appear
+	anymore. The new code is also faster. Most important, the way how users can judge
+	the calculated twilight events has changed significantly. The function provides a
+	very similar plot (with some more details about the date and the time of the twilight events),
+	however wrong definitions can be deleted by clicking the first mouse buttom at the 
+	particular twiligth event (and vice verca). Clicking the second mouse bottom will move the
+	time series forwards (no backward moving is possible).
+
+	o   changeLight
+	The function got an additional argument: quantile! If this argument is specified e.g. 0.6, only
+	change points with higher probabilities than 60% of all calculated probabilites will be 
+	considered as changes in the movement behavior. The arguments rise.prob and set.prob will not be
+	considered if quantile is defined by a value.

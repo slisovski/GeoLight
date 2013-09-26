@@ -1,0 +1,10 @@
+citHeader("To cite the R package 'GeoLight' in publications use:")
+
+citEntry(entry="Article",
+              title = "GeoLight - processing and analysing light-based geolocation in R",
+              author = personList(as.person("Simeon Lisovski"),
+                                  as.person("Steffen Hahn")),
+              year = 2012,
+	      journal = "Methods in Ecology and Evolution",
+                   
+              textVersion = "Lisovski, S. and Hahn, S. (2013) GeoLight - processing and analysing light-based geolocation in R. Methods in Ecology and Evolution, 3, 1055-1059")

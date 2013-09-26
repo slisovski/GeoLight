@@ -1,0 +1,3 @@
+# Export all names unless they start with a dot
+exportPattern("^[^i]")
+
