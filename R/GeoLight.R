@@ -129,7 +129,7 @@ rise.prob<-as.numeric(round(as.numeric(quantile(tab1[tab1[,2]!=0,2],probs=quanti
 set.prob<-as.numeric(round(as.numeric(quantile(tab2[tab2[,2]!=0,2],probs=quantile,na.rm=TRUE)),digits=5))
 }
 
-if(plot==T){
+if(plot){
 	layout(matrix(c(4,1,2,3),nrow=4,byrow=T),heights=c(0.5,1,0.5,0.5))
 
 	par(mar=c(2,4.5,2,5),cex.lab=1.5,cex.axis=1.5,bty="o")
@@ -186,12 +186,12 @@ if(plot==T){
 	# start: Site selection procedure
 	site <- rep(0,nrow(comp))
 	date <- comp$date
-	if(comp$filt[1]==FALSE) site[1] <- 1
+	if(!comp$filt[1]) site[1] <- 1
 	for(i in 2:length(date)){
 
-	if(comp$filt[i]==FALSE & site[i-1]!=0) site[i] <- as.numeric(levels(as.factor(site))[length(levels(as.factor(site)))])
-	if(comp$filt[i]==FALSE & site[i-1]==0) site[i] <- as.numeric(levels(as.factor(site))[length(levels(as.factor(site)))])+1
-	if(comp$filt[i]==TRUE & abs(as.numeric(
+	if(!comp$filt[i] & site[i-1]!=0) site[i] <- as.numeric(levels(as.factor(site))[length(levels(as.factor(site)))])
+	if(!comp$filt[i] & site[i-1]==0) site[i] <- as.numeric(levels(as.factor(site))[length(levels(as.factor(site)))])+1
+	if(comp$filt[i]  & abs(as.numeric(
 						difftime(
 								min(date[site==as.numeric(levels(as.factor(site))[length(levels(as.factor(site)))])]),
 								max(date[site==as.numeric(levels(as.factor(site))[length(levels(as.factor(site)))])]),
@@ -240,7 +240,7 @@ for(i in 1:nrow(sc)){
 	out$site <- mdSite
 
 
-if(plot==T) {
+if(plot) {
 	par(mar=c(1,4.5,1,5),bty="o")
 		mig <- out$site
 		mig[mig>0] <- 1
@@ -256,7 +256,7 @@ out$migTable <- data.frame(site=letters[1:nrow(sc)],
 							P.end=round(comp$prob[rows][c(F,T)],4))
 
 
-if(summary==TRUE){i.sum.Cl(out)}
+if(summary){i.sum.Cl(out)}
 
 return(out)
 
@@ -317,7 +317,7 @@ coord <- function(tFirst,tSecond,type,degElevation=-6,site=FALSE,sites,note=TRUE
 
 	# --------------------------------------------------------
 	Break <- FALSE
-	if(site==TRUE){
+	if(site){
 		if(levels(as.factor(sites))!=length(degElevation)){
 			cat("Error: Length of degElevation and number of sites (incl. 0 for movement) are not equal.")
 		Break <- TRUE
@@ -331,7 +331,7 @@ coord <- function(tFirst,tSecond,type,degElevation=-6,site=FALSE,sites,note=TRUE
 	}
 	# --------------------------------------------------------
 
-	if(Break==FALSE){
+	if(!Break){
 
 		tFirst  <- as.POSIXct(tFirst, "UTC")
 		tSecond <- as.POSIXct(tSecond,"UTC")
@@ -396,7 +396,7 @@ coord <- function(tFirst,tSecond,type,degElevation=-6,site=FALSE,sites,note=TRUE
 		degLatitude[!index1&!index2&!index3] <- NA
 
 out <- matrix(c(degLongitude,degLatitude),length(degLongitude),2)
-if(note==TRUE) cat(paste("Note: Out of ",nrow(out)," twilight pairs, the calculation of ", nrow(out) - nrow(na.omit(out))," latitudes failed ","(",floor(((nrow(out)-nrow(na.omit(out)))*100)/nrow(out))," %)",sep=""))
+if(note) cat(paste("Note: Out of ",nrow(out)," twilight pairs, the calculation of ", nrow(out) - nrow(na.omit(out))," latitudes failed ","(",floor(((nrow(out)-nrow(na.omit(out)))*100)/nrow(out))," %)",sep=""))
 return(out)
 
 }
@@ -449,7 +449,7 @@ index[diffs>distance] <- FALSE
 index[coord[,2]==999] <- TRUE
 
 
-cat(paste("Note: ",length(index[index==FALSE])," of ",length(index[coord[,2]!=999])," positions were filtered (",floor((length(index[index==FALSE])*100)/length(index[coord[,2]!=999]))," %)",sep=""))
+cat(paste("Note: ",length(index[!index])," of ",length(index[coord[,2]!=999])," positions were filtered (",floor((length(index[!index])*100)/length(index[coord[,2]!=999]))," %)",sep=""))
 return(index)
 }
 
@@ -513,7 +513,7 @@ getElevation <- function(tFirst,tSecond,type,known.coord,plot=TRUE) {
  			x1 <- i.loxodrom.dist(coord[1],coord[2],coord[1],median(latNew[!is.na(latNew)]))
  		}
 
- if(plot==TRUE)
+ if(plot)
  	{
  	Tw <- as.POSIXct(subset(tab,type=1,select=c(tFirst))$tFirst,"UTC")
 
@@ -1320,7 +1320,7 @@ lightFilter <- function(light, baseline=NULL, iter=2){
 	forw=FALSE
 	if(any(light[seq(i,i+5)]==LightThreshold)) forw <- TRUE
 
-	if(back==TRUE & forw==TRUE) rep[i] <- TRUE
+	if(back & forw) rep[i] <- TRUE
 
 	}
 
@@ -1390,7 +1390,7 @@ if(length(del.dawn)>0) dawn$filter[!dawn$filter][del.dawn] <- TRUE
 if(length(del.dusk)>0) dusk$filter[!dusk$filter][del.dusk] <- TRUE
 }
 
-if(plot==TRUE){
+if(plot){
 par(mfrow=c(2,1),mar=c(3,3,0.5,3),oma=c(2,2,0,0))
 plot(dawn$datetime[dawn$type==1],dawn$hours[dawn$type==1],pch="+",cex=0.6,xlab="",ylab="",yaxt="n")
 lines(dawn$datetime[!dawn$filter], predict(loess(dawn$hours[!dawn$filter]~as.numeric(dawn$datetime[!dawn$filter]),span=0.1)) , type="l")
@@ -1408,7 +1408,7 @@ mtext("Sunset",4,line=1.2)
 mtext("Time",1,outer=T)
 mtext("Sunrise/Sunset hours (rescaled)",2,outer=T)
 }
-all <- rbind(subset(dusk,filter==TRUE),subset(dawn,filter==TRUE))
+all <- rbind(subset(dusk,filter),subset(dawn,filter))
 
 filter <- rep(FALSE,length(tFirst))
 	filter[tFirst%in%all$datetime | tSecond%in%all$datetime] <- TRUE
@@ -1580,7 +1580,7 @@ if(length(main)==0) main <- "" else main <- main
 colors <- c("firebrick1","forestgreen","orange","cornflowerblue","darkred","darkolivegreen3","darkorchid","black","chartreuse1","darkgrey","cyan2")
 
 
-if(add==FALSE) {
+if(!add) {
 	par(oma=c(5,3,0.5,0.5))
 	map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),fill=T,lwd=0.01,col=c("grey90"),add=F,mar=c(rep(0.5,4)))
 	map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),interior=TRUE,col=c("darkgrey"),add=TRUE)
@@ -1595,7 +1595,7 @@ if(length(col)==length(levels(site))) col <- col else col <- colors[1:length(lev
 
 sites <- length(levels(site[site!=0]))
 
-if(points==TRUE){
+if(points){
 	for(i in 1:sites){
 		points(coord[site==i,],cex=cex,pch=pch,col=col[i])
 	}
@@ -1842,7 +1842,7 @@ if(length(ylim)==0) range[3:4] <- range[3:4] else range[3:4] <- ylim
 if(length(main)==0) main <- "" else main <- main
 
 
-if(add==FALSE) {
+if(!add) {
 	par(oma=c(5,3,0,0))
 	map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),fill=T,lwd=0.01,col=c("grey90"),add=F,mar=c(rep(0.5,4)))
 	map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),interior=TRUE,col=c("darkgrey"),add=TRUE)
@@ -1856,7 +1856,7 @@ if(add==FALSE) {
 	points(coord,pch=3,cex=0.7)
 	lines(coord,lwd=0.5,col=col)
 
-if(equinox==TRUE){
+if(equinox){
 	nrow <- 1
 	repeat{
 		while(is.na(coord[nrow,2])==FALSE) {
@@ -1874,9 +1874,9 @@ if(equinox==TRUE){
 
 		lines(c(coord[start,1],coord[end,1]),c(coord[start,2],coord[end,2]),col="blue",lwd=3,lty=1)
 		}
-if(legend==TRUE) legend("bottomright",lty=c(0,1,1),pch=c(3,-1,-1),lwd=c(1,0.5,3),col=c("black",col,"blue"),c("Positions","Trip","Equinox"),bty="n",bg="grey90",border="grey90",cex=0.8)
+if(legend) legend("bottomright",lty=c(0,1,1),pch=c(3,-1,-1),lwd=c(1,0.5,3),col=c("black",col,"blue"),c("Positions","Trip","Equinox"),bty="n",bg="grey90",border="grey90",cex=0.8)
 } else {
-	if(legend==TRUE) legend("bottomright",lty=c(0,1),pch=c(3,-1),lwd=c(1,0.5),col=c("black",col,"blue"),c("Positions","Trip"),bty="n",bg="grey90",border="grey90",cex=0.8)
+	if(legend) legend("bottomright",lty=c(0,1),pch=c(3,-1),lwd=c(1,0.5),col=c("black",col,"blue"),c("Positions","Trip"),bty="n",bg="grey90",border="grey90",cex=0.8)
 	}
 
 }
@@ -1942,9 +1942,9 @@ twilightCalc <- function(datetime, light, LightThreshold=TRUE, preSelection=TRUE
 
 out <- i.preSelection(bas$datetime,bas$light, LightThreshold)[,-1]
 
-  if(preSelection==FALSE) out$mod <- 0
+  if(!preSelection) out$mod <- 0
 
-  if(ask==TRUE)
+  if(ask)
   {
     n   <- nrow(bas)
     nn  <- n%/%nsee + 1
@@ -2009,7 +2009,7 @@ if(is.numeric(maxLight))
 	opt$tSecond[opt$type==1] <- opt$tSecond[opt$type==1] - (maxLight*60)
 }
 
-  if(allTwilights==TRUE) {
+  if(allTwilights) {
   	results$consecTwilights <- opt
   	return(results)
   } else {
