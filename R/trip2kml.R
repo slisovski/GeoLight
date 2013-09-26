@@ -1,3 +1,40 @@
+#' Write a file which plots a trip in Google Earth
+#' 
+#' This function creates a .kml file from light intensity measurements over
+#' time that can ve viewed as a trip in Google Earth.
+#' 
+#' 
+#' @param file A character expression giving the whole path and the name of the
+#' resulting output file including the .kml extension.
+#' @param tFirst date and time of sunrise/sunset (e.g. 2008-12-01 08:30)
+#' @param tSecond date and time of sunrise/sunset (e.g. 2008-12-01 17:30)
+#' @param type either 1 or 2, defining \code{tFirst} as sunrise or sunset
+#' respectively
+#' @param degElevation sun elevation angle in degrees (e.g. -6 for "civil
+#' twilight"). Either a single value, a \code{vector} with the same length as
+#' \code{tFirst}.
+#' @param col.scheme the color scheme used for the points. Possible color
+#' schemes are: \code{\link{rainbow}}, \code{\link{heat.colors}},
+#' \code{\link{topo.colors}}, \code{\link{terrain.colors}}.
+#' @param point.alpha a \code{numerical value} indicating the transparency of
+#' the point colors on a scale from 0 (transparent) to 1 (opaque).
+#' @param cex \code{numerical value} for the size of the points.
+#' @param line.col An character expression (any of \code{\link{colors}} or
+#' hexadecimal notation), or numeric indicating the color of the line
+#' connecting the point locations.
+#' @return This function returns no data. It creates a .kml file in the in the
+#' defined path.
+#' @author Simeon Lisovski and Michael U. Kemp
+#' @examples
+#' 
+#' data(hoopoe2)
+#' attach(hoopoe2)
+#' filter <- distanceFilter(tFirst,tSecond,type,distance=30)
+#' trip2kml("trip.kml", tFirst[filter], tSecond[filter], type[filter], 
+#' 		degElevation=-6, col.scheme="heat.colors", cex=0.7, 
+#' 		line.col="goldenrod")
+#' 
+#' @export trip2kml
 trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat.colors", point.alpha=0.7, cex=1, line.col="goldenrod")
 {
 	if((length(tFirst)+length(type))!=(length(tSecond)+length(type))) stop("tFirst, tSecond and type must have the same length.")
