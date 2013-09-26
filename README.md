@@ -1,8 +1,5 @@
 # Analysis of light based geolocator data
 
-SGAT (pronounced "tags backwards") provides facilities for estimating
-broadscale animal motions from archival or satellite tag data.
-
 The GeoLight package provides basic functions for global positioning
 based on light intensity measurements over time.  Positioning process
 includes the determination of sun events, a discrimination of

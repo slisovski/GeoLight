@@ -4,7 +4,7 @@
 #' This is a summary of all features of \bold{\code{GeoLight}}, a
 #' \code{R}-package for analyzing light based geolocator data.
 #'
-#' @name SGAT-package
+#' @name GeoLIght-package
 #' @docType package
 #' @author Simeon Lisovski, Silke Bauer, Tamara Emmenegger
 #' @aliases GeoLight
