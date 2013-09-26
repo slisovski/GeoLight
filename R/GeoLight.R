@@ -987,7 +987,10 @@ res <- data.frame(raw,mod=1)
 res$mod[ind2] <- 0
 
 return(res)
-}i.rad <-
+}
+
+
+i.rad <-
 function(Deg) {
 
 #------------------------------------------------------------
@@ -1149,7 +1152,9 @@ i.sum.Cl <- function(object) {
 	} else {
 		cat("Error: List must be the output list of the changeLight function.")
 	}
-}i.sunelevation <-
+}
+
+i.sunelevation <-
 function(lon, lat, year, month, day, hour, min, sec){
 
 #-------------------------------------------------------------------------------
