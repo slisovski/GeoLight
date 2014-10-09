@@ -192,7 +192,7 @@ i.refracted <- function(zenith) {
 }
 
 
-##' @rdname refracted
+##' @rdname i.refracted
 ##' @export
 i.unrefracted <- function(zenith) {
   uniroot(function(x) i.refracted(x)-zenith,c(zenith,zenith+2))
@@ -316,7 +316,7 @@ i.twilight <- function(tm,lon,lat,rise,zenith=96,iters=3) {
 ##' 
 ##' 
 ##' @title Simple Threshold Geolocation Estimates
-##' @param x data.frame containing at least rFirst, tSecond and type (alternatively give each parameter separately).
+##' @param x data.frame containing at least \code{tFirst}, \code{tSecond} and \code{type} (alternatively give each parameter separately).
 ##' @param tFirst vector of sunrise/sunset times (e.g. 2008-12-01 08:30).
 ##' @param tSecond vector of of sunrise/sunset times (e.g. 2008-12-01 17:30).
 ##' @param type vector of either 1 or 2, defining \code{tFirst} as sunrise or sunset respectively.
@@ -410,8 +410,7 @@ coord <- function(x, tFirst, tSecond, type, degElevation = -6, tol = 0, note = T
 
 
 
-##' @rdname coord2
-##' @export
+
 coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
   
   # if noon, RadHourAngle = 0, if midnight RadHourAngle = pi
@@ -486,6 +485,24 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
     
     cbind(degLongitude, degLatitude)
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -732,6 +749,17 @@ if(summary){i.sum.Cl(out)}
 return(out)
 
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 
