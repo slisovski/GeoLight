@@ -1,21 +1,492 @@
-
-#' The GeoLight Package
+#' GeoLight: Solar Geolocation for Animal Tracking 
 #'
-#' This is a summary of all features of \bold{\code{GeoLight}}, a
-#' \code{R}-package for analyzing light based geolocator data.
+#' GeoLight is a package to derive geographical positions from
+#' light intensity pattern. Positioning and calibration methods are based 
+#' on the threshold-method (Ekstrom 2004, Lisovski et al. 2012).
+#' A changepoint model from the R package changepoint
+#' is implemented to distinguish between periods of residency and movement
+#' based on the sunrise and sunset times. Mapping functions are implemented.
 #'
 #' @name GeoLight-package
 #' @docType package
-#' @author Simeon Lisovski, Silke Bauer, Tamara Emmenegger
-#' @aliases GeoLight
-#' @section Details: \bold{\code{GeoLight}} is a package to derive geographical
-#' positions from daily light intensity pattern. Positioning and calibration
-#' methods are based on the threshold-method (Ekstrom 2004, Lisovski \emph{et
-#' al.} 2012). A changepoint model from the \code{R} package \code{changepoint}
-#' is implemented to distinguish between periods of residency and movement
-#' based on the sunrise and sunset times. Mapping functions are implemented
-#' using the \code{R} package \code{maps}.
+#' @author Simeon Lisovski, Michael Sumner, Simon Wotherspoon, Silke Bauer, Tamara Emmenegger
 NULL
+
+
+
+
+
+
+## Solar Zenith/Sunrise/Sunset calculations
+##
+## The functions presented here are based on code and the excel
+## spreadsheet from the NOAA site
+##
+##       http://www.esrl.noaa.gov/gmd/grad/solcalc/
+##
+
+
+##' Calculate solar time, the equation of time and solar declination
+##'
+##' The solar time, the equation of time and the sine and cosine of
+##' the solar declination are calculated for the times specified by
+##' \code{tm} using the same methods as
+##' \url{www.esrl.noaa.gov/gmd/grad/solcalc/}.
+##' @title Solar Time and Declination
+##' @param tm a vector of POSIXct times.
+##' @return A list containing the following vectors.
+##' \item{\code{solarTime}}{the solar time (degrees)}
+##' \item{\code{eqnTime}}{the equation of time (minutes of time)}
+##' \item{\code{sinSolarDec}}{sine of the solar declination}
+##' \item{\code{cosSolarDec}}{cosine of the solar declination}
+##' @seealso \code{\link{zenith}}
+##' @examples
+##' ## Current solar time
+##' solar(Sys.time())
+##' @export
+i.solar <- function(tm) {
+  
+  rad <- pi/180
+  
+  ## Time as Julian day (R form)
+  Jd <- as.numeric(tm)/86400.0+2440587.5
+  
+  ## Time as Julian century [G]
+  Jc <- (Jd-2451545)/36525
+  
+  ## The geometric mean sun longitude (degrees) [I]
+  L0 <- (280.46646+Jc*(36000.76983+0.0003032*Jc))%%360
+  
+  
+  ## Geometric mean anomaly for the sun (degrees) [J]
+  M <- 357.52911+Jc*(35999.05029-0.0001537*Jc)
+  
+  ## The eccentricity of earth's orbit [K]
+  e <- 0.016708634-Jc*(0.000042037+0.0000001267*Jc)
+  
+  ## Equation of centre for the sun (degrees) [L]
+  eqctr <- sin(rad*M)*(1.914602-Jc*(0.004817+0.000014*Jc))+
+    sin(rad*2*M)*(0.019993-0.000101*Jc)+
+    sin(rad*3*M)*0.000289
+  
+  ## The true longitude of the sun (degrees) [M]
+  lambda0 <- L0 + eqctr
+  
+  ## The apparent longitude of the sun (degrees) [P]
+  omega <- 125.04-1934.136*Jc
+  lambda <- lambda0-0.00569-0.00478*sin(rad*omega)
+  
+  
+  ## The mean obliquity of the ecliptic (degrees) [Q]
+  seconds <- 21.448-Jc*(46.815+Jc*(0.00059-Jc*(0.001813)))
+  obliq0 <- 23+(26+(seconds/60))/60
+  
+  ## The corrected obliquity of the ecliptic (degrees) [R]
+  omega <- 125.04-1934.136*Jc
+  obliq <- obliq0 + 0.00256*cos(rad*omega)
+  
+  ## The equation of time (minutes of time) [U,V]
+  y <- tan(rad*obliq/2)^2
+  eqnTime <- 4/rad*(y*sin(rad*2*L0) -
+                      2*e*sin(rad*M) +
+                      4*e*y*sin(rad*M)*cos(rad*2*L0) -
+                      0.5*y^2*sin(rad*4*L0) -
+                      1.25*e^2*sin(rad*2*M))
+  
+  ## The sun's declination (radians) [T]
+  solarDec <- asin(sin(rad*obliq)*sin(rad*lambda))
+  sinSolarDec <- sin(solarDec)
+  cosSolarDec <- cos(solarDec)
+  
+  ## Solar time unadjusted for longitude (degrees) [AB!!]
+  ## Am missing a mod 360 here, but is only used within cosine.
+  solarTime <- ((Jd-0.5)%%1*1440+eqnTime)/4
+  #solarTime <- ((Jd-2440587.5)*1440+eqnTime)/4
+  
+  ## Return solar constants
+  list(solarTime=solarTime,
+       eqnTime=eqnTime,
+       sinSolarDec=sinSolarDec,
+       cosSolarDec=cosSolarDec)
+}
+
+
+
+##' Calculate the solar zenith angle for given times and locations
+##'
+##' \code{zenith} uses the solar time and declination calculated by
+##' \code{solar} to compute the solar zenith angle for given times and
+##' locations, using the same methods as
+##' \url{www.esrl.noaa.gov/gmd/grad/solcalc/}.  This function does not
+##' adjust for atmospheric refraction see \code{\link{refracted}}.
+##' @title Solar Zenith Angle
+##' @param sun list of solar time and declination computed by \code{solar}.
+##' @param lon vector of longitudes.
+##' @param lat vector latitudes.
+##' @return A vector of solar zenith angles (degrees) for the given
+##' locations and times.
+##' @seealso \code{\link{solar}}
+##' @examples
+##' ## Approx location of Sydney Harbour Bridge
+##' lon <- 151.211
+##' lat <- -33.852
+##' ## Solar zenith angle for noon on the first of May 2000
+##' ## at the Sydney Harbour Bridge
+##' s <- solar(as.POSIXct("2000-05-01 12:00:00","EST"))
+##' zenith(s,lon,lat)
+##' @export
+i.zenith <- function(sun,lon,lat) {
+  
+  rad <- pi/180
+  
+  ## Suns hour angle (degrees) [AC!!]
+  hourAngle <- sun$solarTime+lon-180
+  #hourAngle <- sun$solarTime%%360+lon-180
+  
+  ## Cosine of sun's zenith [AD]
+  cosZenith <- (sin(rad*lat)*sun$sinSolarDec+
+                  cos(rad*lat)*sun$cosSolarDec*cos(rad*hourAngle))
+  
+  ## Limit to [-1,1] [!!]
+  cosZenith[cosZenith > 1] <- 1
+  cosZenith[cosZenith < -1] <- -1
+  
+  ## Ignore refraction correction
+  acos(cosZenith)/rad
+}
+
+
+
+##' Adjust the solar zenith angle for atmospheric refraction.
+##'
+##' Given a vector of solar zeniths computed by \code{\link{zenith}},
+##' \code{refracted} calculates the solar zeniths adjusted for the
+##' effect of atmospheric refraction.
+##'
+##' \code{unrefracted} is the inverse of \code{refracted}. Given a
+##' (single) solar zenith adjusted for the effect of atmospheric
+##' refraction, \code{unrefracted} calculates the solar zenith as
+##' computed by \code{\link{zenith}}.
+##'
+##' @title Atmospheric Refraction
+##' @param zenith zenith angle (degrees) to adjust.
+##' @return vector of zenith angles (degrees) adjusted for atmospheric
+##' refraction.
+##' @examples
+##' ## Refraction causes the sun to appears higher on the horizon
+##' refracted(85:92)
+##' ## unrefracted gives unadjusted zenith
+##' unrefracted(refracted(90))
+##' @export
+i.refracted <- function(zenith) {
+  rad <- pi/180
+  elev <- 90-zenith
+  te <- tan((rad)*elev)
+  ## Atmospheric Refraction [AF]
+  r <- ifelse(elev>85,0,
+              ifelse(elev>5,58.1/te-0.07/te^3+0.000086/te^5,
+                     ifelse(elev>-0.575,
+                            1735+elev*(-518.2+elev*(103.4+elev*(-12.79+elev*0.711))),-20.772/te)))
+  ## Corrected Zenith [90-AG]
+  zenith-r/3600
+}
+
+
+##' @rdname refracted
+##' @export
+i.unrefracted <- function(zenith) {
+  uniroot(function(x) i.refracted(x)-zenith,c(zenith,zenith+2))
+}  
+
+
+
+##' Estimate time of sunrise or sunset for a given location given the
+##' approximate solar time of twilight
+##'
+##' Solar declination and equation of time vary slowly over the day,
+##' and so the values of the Solar declination and equation of time at
+##' sunrise/sunset ca be caclulated approximately is an approximate
+##' time of sunrise/sunset is known. The sun's hour angle and hence
+##' sunrise/sunset for the required zenith can then be calculated from
+##' these approximations.
+##'
+##' Note this function returns the time of twilight in solar time.
+##' @title Solar Time of Sunrise and Sunset
+##' @param solar output of \code{solar} for approximate times of twilight.
+##' @param lon vector of longitudes.
+##' @param lat vector of latitudes.
+##' @param rise logical vector indicating whether to compute rise or set.
+##' @param zenith the solar zenith angle that defines twilight.
+##' @return a vector of twilight times in solar time (degrees)
+##' @seealso \code{\link{twilight}}
+##' @export
+i.twilight.solartime <- function(solar,lon,lat,rise,zenith=96) {
+  rad <- pi/180
+  cosz <- cos(rad*zenith)
+  cosHA <- (cosz-sin(rad*lat)*solar$sinSolarDec)/(cos(rad*lat)*solar$cosSolarDec)
+  ## Compute the sun's hour angle from its declination for this location
+  hourAngle <- ifelse(rise,360,0)+ifelse(rise,-1,1)*suppressWarnings(acos(cosHA)/rad)
+  ## Solar time of sunrise at this zenith angle, lon and lat
+  #(hourAngle+180-lon)%%360
+  #360*(solar$solarTime%/%360)+solarTime
+  solarTime <- (hourAngle+180-lon)%%360
+  (solarTime-solar$solarTime+180)%%360-180+solar$solarTime
+}
+
+
+
+##' Estimate time of sunrsie or sunset for a given day and location
+##'
+##' \code{twilight} uses an iterative algorithm to estimate times of
+##' sunrise and sunset.
+##'
+##' Note that these functions return the twilight that occurs on the
+##' same date GMT as \code{tm}, and so sunset may occur before
+##' sunrise, depending upon latitude.
+##'
+##' Solar declination and equation of time vary slowly over the day,
+##' and so the values of the Solar declination and equation of time at
+##' sunrise/sunset are well approximated by their values at 6AM/6PM
+##' local time. The sun's hour angle and hence sunrise/sunset for the
+##' required zenith can then be caclulates from these approximations.
+##' The calculation is then repeated using the approximate
+##' sunrise/sunset times to derive more accurate values of the Solar
+##' declination and equation of time and hence better approximations
+##' of sunrise/sunset.  The process is repreated and is accurate to
+##' less than 2 seconds within 2 or 3 iterations.
+##'
+##' \code{sunrise} and \code{sunset} are simple wrappers for \code{twilight}.
+##' @title Times of Sunrise and Sunset
+##' @param tm vector of approximate times of twilight.
+##' @param lon vector of longitudes.
+##' @param lat vector of latitudes.
+##' @param rise logical vector indicating whether to compute rise or set.
+##' @param zenith the solar zenith angle that defines twilight.
+##' @param iters number of iteratve refinements made to the initial
+##' approximation.
+##' @return a vector of twilight times.
+##' @examples
+##' ## Approx location of Santa Barbara
+##' lon <- -119.7022
+##' lat <- 34.4191
+##' ## Sunrise and sunset for 8th April 2013 at Santa Barbara
+##' day <- as.POSIXct("2013-04-08","GMT")
+##' sunrise(day,lon,lat)
+##' sunset(day,lon,lat)
+##' @export
+i.twilight <- function(tm,lon,lat,rise,zenith=96,iters=3) {
+  
+  ## Compute date
+  date <- as.POSIXlt(tm)
+  date$hour <- date$min <- date$sec <- 0
+  date <- as.POSIXct(date,"GMT")
+  
+  lon <- (lon+180)%%360-180
+  ## GMT equivalent of 6am or 6pm local time
+  twl <- date+240*(ifelse(rise,90,270)-lon)
+  ## Iteratively improve estimate
+  for(k in seq_len(iters)) {
+    s <- solar(twl)
+    s$solarTime <- s$solarTime%%360
+    solarTime <- 4*i.twilight.solartime(s,lon,lat,rise,zenith)-s$eqnTime
+    twl <- date+60*solarTime
+  }
+  twl
+}
+
+
+##' Estimate location from consecutive twilights
+##'
+##' This function estimates the location given the times at which 
+##' the observer sees two successive twilights.
+##' 
+##' Longitude is estimated by computing apparent time of local noon
+##' from sunrise and sunset, and determining the longitude for which
+##' this is noon. Latitude is estimated from the required zenith and
+##' the sun's hour angle for both sunrise and sunset, and averaged.
+##'
+##' When the solar declination is near zero (at the equinoxes)
+##' latitude estimates are extremely sensitive to errors.  Where the
+##' sine of the solar declination is less than \code{tol}, the
+##' latitude estimates are returned as \code{NA}.
+##' 
+##' The format (date and time) of \emph{tFirst} and \emph{tSecond} has to be
+##' "yyyy-mm-dd hh:mm" corresponding to Universal Time Zone UTC (see:
+##' \code{\link{as.POSIXct}}, \link[=Sys.timezone]{time zones})
+##' 
+##' 
+##' @title Simple Threshold Geolocation Estimates
+##' @param x data.frame containing at least rFirst, tSecond and type (alternatively give each parameter separately).
+##' @param tFirst vector of sunrise/sunset times (e.g. 2008-12-01 08:30).
+##' @param tSecond vector of of sunrise/sunset times (e.g. 2008-12-01 17:30).
+##' @param type vector of either 1 or 2, defining \code{tFirst} as sunrise or sunset respectively.
+##' @param degElevation the sun elevation angle (in degrees) that defines twilight (e.g. -6 for "civil
+##' twilight"). Either a single value, a \code{vector} with the same length as
+##' \code{tFirst} or \code{nrow(x)}.
+##' @param toll tolerance on the sine of the solar declination (only implemented in method 'NOAA').
+##' @param note \code{logical}, if TRUE a notation of how many positions could
+##' be calculated in proportion to the number of failures will be printed at the
+##' end.
+##' @param method Defines the method for the location estimates. 'NOAA' is based on
+##' code and the excel spreadsheet from the NOAA site (http://www.esrl.noaa.gov/gmd/grad/solcalc/),
+##' 'Montenbruck' is based on Montenbruck, O. & Pfleger, T. (2000) Astronomy on the Personal
+##' Computer. \emph{Springer}, Berlin.
+##' @return A matrix of coordinates in decimal degrees. First column are
+##' longitudes, expressed in degrees east of Greenwich. Second column contains
+##' the latitudes in degrees north the equator.
+##' @author Simeon Lisovski, Simon Wotherspoon, Michael Sumner
+##' @examples
+##' data(hoopoe2)
+##' crds <- coord(hoopoe2, degElevation=-6, tol = 2)
+##' ## tripMap(crds, xlim=c(-20,20), ylim=c(5,50), main="hoopoe2")
+##' @export   
+coord <- function(x, tFirst, tSecond, type, degElevation = -6, tol = 0, note = TRUE, method = "NOAA") {
+  
+  # initial argument check
+  if(all(!missing(x))) {
+    
+    if(class(x)!="data.frame") stop(sprintf("If argument x is provided it needs to be of class data.frame!"))
+    
+    if(all(ind <- c("tFirst", "tSecond", "type")%in%names(x))) {
+    
+      tFirst <- x$tFirst
+      tSecond <- x$tSecond
+      type <- x$type
+      
+    } else {
+      stop(sprintf(paste("The following columns in data frame x are missing with no default: ", 
+                         paste(c("tFirst", "tSecond", "type")[!ind], collapse = ", "), ".", sep = "")))
+    }
+      
+  } else {
+    if(any(ind <- c(missing(tFirst), missing(tSecond), missing(type)))) {
+      stop(sprintf(paste(paste(c("tFirst", "tSecond", "type")[ind], collapse = ", "), "is missing with no default.")))
+    }
+  }
+  
+  
+  tFirst <- as.POSIXct(tFirst,"GMT")
+  tSecond <- as.POSIXct(tSecond,"GMT")
+  rise <- ifelse(type==1, tFirst, tSecond)
+  set <- ifelse(type==1, tSecond, tFirst)
+  
+  if(method == "NOAA") {
+  rad <- pi/180
+  sr <- i.solar(rise)
+  ss <- i.solar(set)
+  cosz <- cos(rad*(90-degElevation))
+  lon <- -(sr$solarTime+ss$solarTime+ifelse(sr$solarTime<ss$solarTime,360,0))/2
+  lon <- (lon+180)%%360-180
+  
+  ## Compute latitude from sunrise
+  hourAngle <- sr$solarTime+lon-180
+  a <- sr$sinSolarDec
+  b <- sr$cosSolarDec*cos(rad*hourAngle)
+  x <- (a*cosz-sign(a)*b*suppressWarnings(sqrt(a^2+b^2-cosz^2)))/(a^2+b^2)
+  lat1 <- ifelse(abs(a)>tol,asin(x)/rad,NA)
+  
+  ## Compute latitude from sunset
+  hourAngle <- ss$solarTime+lon-180
+  a <- ss$sinSolarDec
+  b <- ss$cosSolarDec*cos(rad*hourAngle)
+  x <- (a*cosz-sign(a)*b*suppressWarnings(sqrt(a^2+b^2-cosz^2)))/(a^2+b^2)
+  lat2 <- ifelse(abs(a)>tol,asin(x)/rad,NA)
+  
+  ## Average latitudes
+  out <- cbind(lon=lon,lat=rowMeans(cbind(lat1,lat2),na.rm=TRUE))
+  } 
+  
+  if(method == "Montenbruck") {
+    
+    out <- coord2(tFirst, tSecond, type, degElevation)
+    
+  }
+  
+  
+  if(note) cat(paste("Note: Out of ", nrow(out)," twilight pairs, the calculation of ", sum(is.na(out[,2]))," latitudes failed ","(",
+                     floor(sum(is.na(out[,2])*100)/nrow(out))," %)",sep=""))
+  out
+}
+
+
+
+##' @rdname coord2
+##' @export
+coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
+  
+  # if noon, RadHourAngle = 0, if midnight RadHourAngle = pi
+  # --------------------------------------------------------
+  RadHourAngle <- numeric(length(type))
+  index1 <- type==1
+  if (sum(index1)>0) RadHourAngle[index1] <- 0
+  RadHourAngle[!index1] <- pi
+  # --------------------------------------------------------
+    
+    tFirst  <- as.POSIXct(tFirst, "UTC")
+    tSecond <- as.POSIXct(tSecond,"UTC")
+    
+    tSunTransit <- as.character(tFirst + as.numeric(difftime(tSecond,tFirst,units="secs")/2))
+    
+    index0 <- (nchar(tSunTransit) <= 10)
+    if(sum(index0)>0) tSunTransit[index0] <- as.character(paste(tSunTransit[index0]," ","00:00",sep=""))
+    
+    # Longitude
+    jD  <- i.julianDate(as.numeric(substring(tSunTransit,1,4)),as.numeric(substring(tSunTransit,6,7)),
+                        as.numeric(substring(tSunTransit,9,10)),as.numeric(substring(tSunTransit,12,13)),as.numeric(substring(tSunTransit,15,16)))
+    jD0 <- i.julianDate(as.numeric(substring(tSunTransit,1,4)),as.numeric(substring(tSunTransit,6,7)),
+                        as.numeric(substring(tSunTransit,9,10)),rep(0,length(tFirst)),rep(0,length(tFirst)))
+    jC  <- i.JC2000(jD)
+    jC0 <- i.JC2000(jD0)
+    
+    radObliquity         <- i.radObliquity(jC)
+    radEclipticLongitude <- i.radEclipticLongitude(jC)
+    radRightAscension    <- i.radRightAscension(radEclipticLongitude,radObliquity)
+    radGMST              <- i.radGMST(jD,jD0,jC,jC0)
+    
+    degLongitude <- i.setToRange(-180,180,i.deg(RadHourAngle + radRightAscension - radGMST))
+    
+    
+    # Latitude
+    jD  <- i.julianDate(as.numeric(substring(tFirst,1,4)),as.numeric(substring(tFirst,6,7)),
+                        as.numeric(substring(tFirst,9,10)),as.numeric(substring(tFirst,12,13)),
+                        as.numeric(substring(tFirst,15,16)))
+    jD0 <- i.julianDate(as.numeric(substring(tFirst,1,4)),as.numeric(substring(tFirst,6,7)),
+                        as.numeric(substring(tFirst,9,10)),rep(0,length(tFirst)),rep(0,length(tSecond)))
+    jC  <- i.JC2000(jD)
+    jC0 <- i.JC2000(jD0)
+    
+    
+    radElevation         <- if(length(degElevation)==1) rep(i.rad(degElevation),length(jD)) else i.rad(degElevation)
+    
+    sinElevation         <- sin(radElevation)
+    radObliquity         <- i.radObliquity(jC)
+    radEclipticLongitude <- i.radEclipticLongitude(jC)
+    radDeclination       <- i.radDeclination(radEclipticLongitude,radObliquity)
+    sinDeclination       <- sin(radDeclination)
+    cosDeclination       <- cos(radDeclination)
+    
+    radHourAngle         <- i.radGMST(jD,jD0,jC,jC0) + i.rad(degLongitude) - i.radRightAscension(radEclipticLongitude,radObliquity)
+    cosHourAngle         <- cos(radHourAngle)
+    
+    term1                <- sinElevation/(sqrt(sinDeclination^2 + (cosDeclination*cosHourAngle)^2))
+    term2                <- (cosDeclination*cosHourAngle)/sinDeclination
+    
+    degLatitude <- numeric(length(radElevation))
+    
+    index1  <- (abs(radElevation) > abs(radDeclination))
+    if (sum(index1)>0) degLatitude[index1] <- NA
+    
+    index2  <- (radDeclination > 0 & !index1)
+    if (sum(index2)>0)  degLatitude[index2] <- i.setToRange(-90,90,i.deg(asin(term1[index2])-atan(term2[index2])))
+    
+    index3  <- (radDeclination < 0 & !index1)
+    if (sum(index3)>0)  degLatitude[index3] <- i.setToRange(-90,90,i.deg(acos(term1[index3])+atan(1/term2[index3])))
+    
+    degLatitude[!index1&!index2&!index3] <- NA
+    
+    cbind(degLongitude, degLatitude)
+}
+
 
 
 
@@ -263,144 +734,8 @@ return(out)
 }
 
 
-#' Threshold based geographical positioning
-#'
-#' Calculate the latitude and longitude from two subsequent twilight events
-#' (sunrise/sunset)
-#'
-#' The format (date and time) of \emph{tFirst} and \emph{tSecond} has to be
-#' "yyyy-mm-dd hh:mm" corresponding to Universal Time Zone UTC (see:
-#' \code{\link{as.POSIXct}}, \link[=Sys.timezone]{time zones}).
-#'
-#' @param tFirst date and time of sunrise/sunset (e.g. 2008-12-01 08:30)
-#' @param tSecond date and time of sunrise/sunset (e.g. 2008-12-01 17:30)
-#' @param type either 1 or 2, defining \code{tFirst} as sunrise or sunset
-#' respectively
-#' @param degElevation sun elevation angle in degrees (e.g. -6 for "civil
-#' twilight"). Either a single value, a \code{vector} with the same length as
-#' \code{tFirst}. If site=TRUE a \code{vector} with a sun elevation angle for
-#' each site in numerical order of the sites (incl. 0 for movements).
-#' @param site \code{logical},if TRUE the a sun elevation angle for each site
-#' (incl. 0 dor movements) will be used for positioning
-#' @param sites a \code{numerical vector} assigning each row to a particular
-#' period. Stationary periods in numerical order and values >0,
-#' migration/movement periods 0.
-#' @param note \code{logical}, if TRUE a notation of how many positions could
-#' be calculated in proportion to the number of failures will be printed at the
-#' end.
-#' @return A matrix of coordinates in decimal degrees. First column are
-#' longitudes, expressed in degrees east of Greenwich. Second column contains
-#' the latitudes in degrees north the equator. If latitude can not be
-#' calculated (e.g. during equinox, at high latitudes) the function will return
-#' NA for the date.
-#' @author Simeon Lisovski
-#' @references Montenbruck, O. & Pfleger, T. (2000) Astronomy on the Personal
-#' Computer. \emph{Springer}, Berlin.
-#' @examples
-#'
-#' data(hoopoe2)
-#' attach(hoopoe2)
-#' coord <- coord(tFirst,tSecond,type,degElevation=-6)
-#' ## tripMap(coord,xlim=c(-20,20),ylim=c(5,50), main="hoopoe2")
-#'
-#' @export coord
-coord <- function(tFirst,tSecond,type,degElevation=-6,site=FALSE,sites,note=TRUE) {
 
 
-	# if noon, RadHourAngle = 0, if midnight RadHourAngle = pi
-	# --------------------------------------------------------
-	RadHourAngle <- numeric(length(type))
-	index1 <- type==1
-	if (sum(index1)>0) RadHourAngle[index1] <- 0
-	RadHourAngle[!index1] <- pi
-	# --------------------------------------------------------
-
-	# --------------------------------------------------------
-	Break <- FALSE
-	if(site){
-		if(levels(as.factor(sites))!=length(degElevation)){
-			cat("Error: Length of degElevation and number of sites (incl. 0 for movement) are not equal.")
-		Break <- TRUE
-		break
-		}
-	degEl <- rep(degElevation[1],length(tFirst))
-	for(i in 1:length(sites[site!=0])){
-		degEl[sites==i] <- 	degElevation[i]
-	}
-	degElevation <- degEl
-	}
-	# --------------------------------------------------------
-
-	if(!Break){
-
-		tFirst  <- as.POSIXct(tFirst, "UTC")
-		tSecond <- as.POSIXct(tSecond,"UTC")
-
-		tSunTransit <- as.character(tFirst + as.numeric(difftime(tSecond,tFirst,units="secs")/2))
-
-					   index0 <- (nchar(tSunTransit) <= 10)
-					   if(sum(index0)>0) tSunTransit[index0] <- as.character(paste(tSunTransit[index0]," ","00:00",sep=""))
-
-		# Longitude
-		jD  <- i.julianDate(as.numeric(substring(tSunTransit,1,4)),as.numeric(substring(tSunTransit,6,7)),
-						  as.numeric(substring(tSunTransit,9,10)),as.numeric(substring(tSunTransit,12,13)),as.numeric(substring(tSunTransit,15,16)))
-		jD0 <- i.julianDate(as.numeric(substring(tSunTransit,1,4)),as.numeric(substring(tSunTransit,6,7)),
-						  as.numeric(substring(tSunTransit,9,10)),rep(0,length(tFirst)),rep(0,length(tFirst)))
-		jC  <- i.JC2000(jD)
-		jC0 <- i.JC2000(jD0)
-
-		radObliquity         <- i.radObliquity(jC)
-		radEclipticLongitude <- i.radEclipticLongitude(jC)
-		radRightAscension    <- i.radRightAscension(radEclipticLongitude,radObliquity)
-		radGMST              <- i.radGMST(jD,jD0,jC,jC0)
-
-		degLongitude <- i.setToRange(-180,180,i.deg(RadHourAngle + radRightAscension - radGMST))
-
-
-		# Latitude
-		jD  <- i.julianDate(as.numeric(substring(tFirst,1,4)),as.numeric(substring(tFirst,6,7)),
-						  as.numeric(substring(tFirst,9,10)),as.numeric(substring(tFirst,12,13)),
-						  as.numeric(substring(tFirst,15,16)))
-		jD0 <- i.julianDate(as.numeric(substring(tFirst,1,4)),as.numeric(substring(tFirst,6,7)),
-						  as.numeric(substring(tFirst,9,10)),rep(0,length(tFirst)),rep(0,length(tSecond)))
-		jC  <- i.JC2000(jD)
-		jC0 <- i.JC2000(jD0)
-
-
-		radElevation         <- if(length(degElevation)==1) rep(i.rad(degElevation),length(jD)) else i.rad(degElevation)
-
-		sinElevation         <- sin(radElevation)
-		radObliquity         <- i.radObliquity(jC)
-		radEclipticLongitude <- i.radEclipticLongitude(jC)
-		radDeclination       <- i.radDeclination(radEclipticLongitude,radObliquity)
-		sinDeclination       <- sin(radDeclination)
-		cosDeclination       <- cos(radDeclination)
-
-		radHourAngle         <- i.radGMST(jD,jD0,jC,jC0) + i.rad(degLongitude) - i.radRightAscension(radEclipticLongitude,radObliquity)
-		cosHourAngle         <- cos(radHourAngle)
-
-		term1                <- sinElevation/(sqrt(sinDeclination^2 + (cosDeclination*cosHourAngle)^2))
-		term2                <- (cosDeclination*cosHourAngle)/sinDeclination
-
-		degLatitude <- numeric(length(radElevation))
-
-		index1  <- (abs(radElevation) > abs(radDeclination))
-		if (sum(index1)>0) degLatitude[index1] <- NA
-
-		index2  <- (radDeclination > 0 & !index1)
-		if (sum(index2)>0)  degLatitude[index2] <- i.setToRange(-90,90,i.deg(asin(term1[index2])-atan(term2[index2])))
-
-		index3  <- (radDeclination < 0 & !index1)
-		if (sum(index3)>0)  degLatitude[index3] <- i.setToRange(-90,90,i.deg(acos(term1[index3])+atan(1/term2[index3])))
-
-		degLatitude[!index1&!index2&!index3] <- NA
-
-out <- matrix(c(degLongitude,degLatitude),length(degLongitude),2)
-if(note) cat(paste("Note: Out of ",nrow(out)," twilight pairs, the calculation of ", nrow(out) - nrow(na.omit(out))," latitudes failed ","(",floor(((nrow(out)-nrow(na.omit(out)))*100)/nrow(out))," %)",sep=""))
-return(out)
-
-}
-}
 
 #' Filter for unrealistic positions within a track
 #'
@@ -1226,11 +1561,11 @@ theta.Gh <- theta.Gh-t.d*24
 
 theta.G <- theta.Gh * 15
 
-theta <- theta.G + lon      # Stundenwinkel des Frühlingspunktes
+theta <- theta.G + lon      # Stundenwinkel des Fr?hlingspunktes
 tau <- theta-alpha    # Stundenwinkel
 tau.rad <- tau/180*pi
 
-# Höhenwinkel h
+# H?henwinkel h
 h <- asin(cos(deklination.rad) * cos(tau.rad) * cos(lat/180*pi) + sin(deklination.rad) * sin(lat/180*pi))
 h.grad <- h/pi*180
 
