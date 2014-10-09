@@ -14,36 +14,6 @@ NULL
 
 
 
-
-
-
-## Solar Zenith/Sunrise/Sunset calculations
-##
-## The functions presented here are based on code and the excel
-## spreadsheet from the NOAA site
-##
-##       http://www.esrl.noaa.gov/gmd/grad/solcalc/
-##
-
-
-##' Calculate solar time, the equation of time and solar declination
-##'
-##' The solar time, the equation of time and the sine and cosine of
-##' the solar declination are calculated for the times specified by
-##' \code{tm} using the same methods as
-##' \url{www.esrl.noaa.gov/gmd/grad/solcalc/}.
-##' @title Solar Time and Declination
-##' @param tm a vector of POSIXct times.
-##' @return A list containing the following vectors.
-##' \item{\code{solarTime}}{the solar time (degrees)}
-##' \item{\code{eqnTime}}{the equation of time (minutes of time)}
-##' \item{\code{sinSolarDec}}{sine of the solar declination}
-##' \item{\code{cosSolarDec}}{cosine of the solar declination}
-##' @seealso \code{\link{zenith}}
-##' @examples
-##' ## Current solar time
-##' solar(Sys.time())
-##' @export
 i.solar <- function(tm) {
   
   rad <- pi/180
@@ -110,32 +80,7 @@ i.solar <- function(tm) {
        cosSolarDec=cosSolarDec)
 }
 
-
-
-##' Calculate the solar zenith angle for given times and locations
-##'
-##' \code{zenith} uses the solar time and declination calculated by
-##' \code{solar} to compute the solar zenith angle for given times and
-##' locations, using the same methods as
-##' \url{www.esrl.noaa.gov/gmd/grad/solcalc/}.  This function does not
-##' adjust for atmospheric refraction see \code{\link{refracted}}.
-##' @title Solar Zenith Angle
-##' @param sun list of solar time and declination computed by \code{solar}.
-##' @param lon vector of longitudes.
-##' @param lat vector latitudes.
-##' @return A vector of solar zenith angles (degrees) for the given
-##' locations and times.
-##' @seealso \code{\link{solar}}
-##' @examples
-##' ## Approx location of Sydney Harbour Bridge
-##' lon <- 151.211
-##' lat <- -33.852
-##' ## Solar zenith angle for noon on the first of May 2000
-##' ## at the Sydney Harbour Bridge
-##' s <- solar(as.POSIXct("2000-05-01 12:00:00","EST"))
-##' zenith(s,lon,lat)
-##' @export
-i.zenith <- function(sun,lon,lat) {
+i.zenith <- function(sun, lon, lat) {
   
   rad <- pi/180
   
@@ -155,29 +100,6 @@ i.zenith <- function(sun,lon,lat) {
   acos(cosZenith)/rad
 }
 
-
-
-##' Adjust the solar zenith angle for atmospheric refraction.
-##'
-##' Given a vector of solar zeniths computed by \code{\link{zenith}},
-##' \code{refracted} calculates the solar zeniths adjusted for the
-##' effect of atmospheric refraction.
-##'
-##' \code{unrefracted} is the inverse of \code{refracted}. Given a
-##' (single) solar zenith adjusted for the effect of atmospheric
-##' refraction, \code{unrefracted} calculates the solar zenith as
-##' computed by \code{\link{zenith}}.
-##'
-##' @title Atmospheric Refraction
-##' @param zenith zenith angle (degrees) to adjust.
-##' @return vector of zenith angles (degrees) adjusted for atmospheric
-##' refraction.
-##' @examples
-##' ## Refraction causes the sun to appears higher on the horizon
-##' refracted(85:92)
-##' ## unrefracted gives unadjusted zenith
-##' unrefracted(refracted(90))
-##' @export
 i.refracted <- function(zenith) {
   rad <- pi/180
   elev <- 90-zenith
@@ -191,36 +113,11 @@ i.refracted <- function(zenith) {
   zenith-r/3600
 }
 
-
-##' @rdname i.refracted
-##' @export
 i.unrefracted <- function(zenith) {
   uniroot(function(x) i.refracted(x)-zenith,c(zenith,zenith+2))
 }  
 
-
-
-##' Estimate time of sunrise or sunset for a given location given the
-##' approximate solar time of twilight
-##'
-##' Solar declination and equation of time vary slowly over the day,
-##' and so the values of the Solar declination and equation of time at
-##' sunrise/sunset ca be caclulated approximately is an approximate
-##' time of sunrise/sunset is known. The sun's hour angle and hence
-##' sunrise/sunset for the required zenith can then be calculated from
-##' these approximations.
-##'
-##' Note this function returns the time of twilight in solar time.
-##' @title Solar Time of Sunrise and Sunset
-##' @param solar output of \code{solar} for approximate times of twilight.
-##' @param lon vector of longitudes.
-##' @param lat vector of latitudes.
-##' @param rise logical vector indicating whether to compute rise or set.
-##' @param zenith the solar zenith angle that defines twilight.
-##' @return a vector of twilight times in solar time (degrees)
-##' @seealso \code{\link{twilight}}
-##' @export
-i.twilight.solartime <- function(solar,lon,lat,rise,zenith=96) {
+i.twilight.solartime <- function(solar, lon, lat, rise, zenith=96) {
   rad <- pi/180
   cosz <- cos(rad*zenith)
   cosHA <- (cosz-sin(rad*lat)*solar$sinSolarDec)/(cos(rad*lat)*solar$cosSolarDec)
@@ -233,48 +130,7 @@ i.twilight.solartime <- function(solar,lon,lat,rise,zenith=96) {
   (solarTime-solar$solarTime+180)%%360-180+solar$solarTime
 }
 
-
-
-##' Estimate time of sunrsie or sunset for a given day and location
-##'
-##' \code{twilight} uses an iterative algorithm to estimate times of
-##' sunrise and sunset.
-##'
-##' Note that these functions return the twilight that occurs on the
-##' same date GMT as \code{tm}, and so sunset may occur before
-##' sunrise, depending upon latitude.
-##'
-##' Solar declination and equation of time vary slowly over the day,
-##' and so the values of the Solar declination and equation of time at
-##' sunrise/sunset are well approximated by their values at 6AM/6PM
-##' local time. The sun's hour angle and hence sunrise/sunset for the
-##' required zenith can then be caclulates from these approximations.
-##' The calculation is then repeated using the approximate
-##' sunrise/sunset times to derive more accurate values of the Solar
-##' declination and equation of time and hence better approximations
-##' of sunrise/sunset.  The process is repreated and is accurate to
-##' less than 2 seconds within 2 or 3 iterations.
-##'
-##' \code{sunrise} and \code{sunset} are simple wrappers for \code{twilight}.
-##' @title Times of Sunrise and Sunset
-##' @param tm vector of approximate times of twilight.
-##' @param lon vector of longitudes.
-##' @param lat vector of latitudes.
-##' @param rise logical vector indicating whether to compute rise or set.
-##' @param zenith the solar zenith angle that defines twilight.
-##' @param iters number of iteratve refinements made to the initial
-##' approximation.
-##' @return a vector of twilight times.
-##' @examples
-##' ## Approx location of Santa Barbara
-##' lon <- -119.7022
-##' lat <- 34.4191
-##' ## Sunrise and sunset for 8th April 2013 at Santa Barbara
-##' day <- as.POSIXct("2013-04-08","GMT")
-##' sunrise(day,lon,lat)
-##' sunset(day,lon,lat)
-##' @export
-i.twilight <- function(tm,lon,lat,rise,zenith=96,iters=3) {
+i.twilight <- function(tm, lon, lat, rise, zenith=96, iters=3) {
   
   ## Compute date
   date <- as.POSIXlt(tm)
@@ -292,6 +148,30 @@ i.twilight <- function(tm,lon,lat,rise,zenith=96,iters=3) {
     twl <- date+60*solarTime
   }
   twl
+}
+
+i.argCheck <- function(y) {
+  
+  if(any(names(y)=="x")) {
+    
+    if(class(y$x)!="data.frame") stop(sprintf("If argument x is provided it needs to be of class data.frame!"))
+    
+    if(!all(ind <- c("tFirst", "tSecond", "type")%in%names(y$x))) {
+      
+      stop(sprintf(paste("The following columns in data frame x are missing with no default: ", 
+                         paste(c("tFirst", "tSecond", "type")[!ind], collapse = ", "), ".", sep = "")))
+      
+    } 
+    
+    y$x
+    
+  } else {
+    if(!all(ind <- c("tFirst", "tSecond", "type")%in%names(y))) {
+      stop(sprintf(paste(paste(c("tFirst", "tSecond", "type")[!ind], collapse = ", "), "is missing with no default.")))
+    } else {
+      data.frame(tFirst = y$tFirst, tSecond = y$tSecond, type = y$type)
+    }
+  }
 }
 
 
@@ -340,35 +220,14 @@ i.twilight <- function(tm,lon,lat,rise,zenith=96,iters=3) {
 ##' crds <- coord(hoopoe2, degElevation=-6, tol = 2)
 ##' ## tripMap(crds, xlim=c(-20,20), ylim=c(5,50), main="hoopoe2")
 ##' @export   
-coord <- function(x, tFirst, tSecond, type, degElevation = -6, tol = 0, note = TRUE, method = "NOAA") {
+coord  <- function(x, tFirst, tSecond, type, degElevation = -6, tol = 0, note = TRUE, method = "NOAA") {
   
-  # initial argument check
-  if(all(!missing(x))) {
-    
-    if(class(x)!="data.frame") stop(sprintf("If argument x is provided it needs to be of class data.frame!"))
-    
-    if(all(ind <- c("tFirst", "tSecond", "type")%in%names(x))) {
-    
-      tFirst <- x$tFirst
-      tSecond <- x$tSecond
-      type <- x$type
-      
-    } else {
-      stop(sprintf(paste("The following columns in data frame x are missing with no default: ", 
-                         paste(c("tFirst", "tSecond", "type")[!ind], collapse = ", "), ".", sep = "")))
-    }
-      
-  } else {
-    if(any(ind <- c(missing(tFirst), missing(tSecond), missing(type)))) {
-      stop(sprintf(paste(paste(c("tFirst", "tSecond", "type")[ind], collapse = ", "), "is missing with no default.")))
-    }
-  }
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))])   
   
-  
-  tFirst <- as.POSIXct(tFirst,"GMT")
-  tSecond <- as.POSIXct(tSecond,"GMT")
-  rise <- ifelse(type==1, tFirst, tSecond)
-  set <- ifelse(type==1, tSecond, tFirst)
+  tFirst <- as.POSIXct(tab$tFirst,"GMT")
+  tSecond <- as.POSIXct(tab$tSecond,"GMT")
+  rise <- ifelse(tab$type==1, tFirst, tSecond)
+  set <- ifelse(tab$type==1, tSecond, tFirst)
   
   if(method == "NOAA") {
   rad <- pi/180
@@ -407,10 +266,6 @@ coord <- function(x, tFirst, tSecond, type, degElevation = -6, tol = 0, note = T
                      floor(sum(is.na(out[,2])*100)/nrow(out))," %)",sep=""))
   out
 }
-
-
-
-
 coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
   
   # if noon, RadHourAngle = 0, if midnight RadHourAngle = pi
@@ -488,20 +343,52 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 
 
 
+##' Calculate the appropriate sun elevation angle for known location
+##'
+##' Function to calculate the median sun elevation angle for light measurements at a
+##' known location and the choosen light threshold.
+##'
+##'
+##' @param tFirst date and time of sunrise/sunset (e.g. 2008-12-01 08:30)
+##' @param tSecond date and time of sunrise/sunset (e.g. 2008-12-01 17:30)
+##' @param type either 1 or 2, defining tFirst as sunrise or sunset respectively
+##' @param known.coord a \code{SpatialPoint} or \code{matrix} object, containing
+##' known x and y coordinates (in that order) for the selected measurement
+##' period.
+##' @param plot \code{logical}, if TRUE a plot will be produced.
+##' @author Simeon Lisovski
+##' @references Lisovski, S., Hewson, C.M, Klaassen, R.H.G., Korner-Nievergelt,
+##' F., Kristensen, M.W & Hahn, S. (2012) Geolocation by light: Accuracy and
+##' precision affected by environmental factors. \emph{Methods in Ecology and
+##' Evolution}, DOI: 10.1111/j.2041-210X.2012.00185.x.
+##' @examples
+##' data(calib2)
+##' known.coord <- c(7.1,46.3)
+##' getElevation(tFirst,tSecond,type,known.coord)
+##' @export getElevation
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+getElevation <- function(x, tFirst, tSecond, type, known.coord, plot=TRUE) {
+  
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))]) 
+  
+  sun <- i.solar(as.POSIXct(tab[,1], "GMT"))
+  z   <- 90-i.refracted(i.zenith(sun, known.coord[1], known.coord[2]))
+  
+  
+  seq1 <- seq(min(z)-0.1, max(z)+0.1, by = 0.5)
+  fit <- fitdistr(z-(min(seq1)-0.01), "log-Normal")
+  
+  
+  hist(z, freq=F)
+  abline(v = median(z))
+  plot(seq(0, 10, length = 100), dlnorm(seq(0, 10, length = 100), fit$estimate[1], fit$estimate[2]))
+  
+  # fitdistr(c(0,rlnorm(100, 0.2, 0.1)), "log-Normal")
+  # library(MASS)
+  # fitdistr(rlnorm(100, 4, 0.1), "log-Normal") 
+ 
+median(z)
+}
 
 
 
@@ -815,111 +702,6 @@ index[coord[,2]==999] <- TRUE
 cat(paste("Note: ",length(index[!index])," of ",length(index[coord[,2]!=999])," positions were filtered (",floor((length(index[!index])*100)/length(index[coord[,2]!=999]))," %)",sep=""))
 return(index)
 }
-
-
-#' Calculate the appropriate sun elevation angle for known location
-#'
-#' Function to calculate the sun elevation angle for light measurements at a
-#' known location
-#'
-#'
-#' @param tFirst date and time of sunrise/sunset (e.g. 2008-12-01 08:30)
-#' @param tSecond date and time of sunrise/sunset (e.g. 2008-12-01 17:30)
-#' @param type either 1 or 2, defining tFirst as sunrise or sunset respectively
-#' @param known.coord a \code{SpatialPoint} or \code{matrix} object, containing
-#' known x and y coordinates (in that order) for the selected measurement
-#' period.
-#' @param plot \code{logical}, if TRUE a plot will be produced.
-#' @author Simeon Lisovski
-#' @references Lisovski, S., Hewson, C.M, Klaassen, R.H.G., Korner-Nievergelt,
-#' F., Kristensen, M.W & Hahn, S. (2012) Geolocation by light: Accuracy and
-#' precision affected by environmental factors. \emph{Methods in Ecology and
-#' Evolution}, DOI: 10.1111/j.2041-210X.2012.00185.x.
-#' @examples
-#'
-#' data(calib2)
-#' attach(calib2)
-#' known.coord <- c(7.1,46.3)
-#' getElevation(tFirst,tSecond,type,known.coord)
-#'
-#' @export getElevation
-getElevation <- function(tFirst,tSecond,type,known.coord,plot=TRUE) {
-
-
- 	table <- data.frame(tFirst=as.POSIXct(as.character(tFirst),"UTC"),tSecond = as.POSIXct(as.character(tSecond),"UTC"),type=as.numeric(type))
-
- coord <- known.coord
- tab <- table
- degElevation <- ifelse(coord[2]<0,-12,12)
-
- 	lat0   <- coord(tab[,1],tab[,2],tab[,3],degElevation,note=F)[,2]
- 	while(length(lat0[!is.na(lat0)])!=nrow(tab)){
- 		degElevation <- degElevation - ifelse(coord[2]<0,-0.025,+0.025)
- 		lat0  <- coord(tab[,1],tab[,2],tab[,3],degElevation,note=F)[,2]
- 	}
-
-
-
-
- 	lat1   <- coord(tab[,1],tab[,2],tab[,3],degElevation,note=F)[,2]
- 	x0 <- i.loxodrom.dist(coord[1],coord[2],coord[1],median(lat1[!is.na(lat1)]))
-  	degElevation <- degElevation - ifelse(coord[2]<0,-0.025,+0.025)
-  	lat2   <- coord(tab[,1],tab[,2],tab[,3],degElevation,note=F)[,2]
-  	x1 <- i.loxodrom.dist(coord[1],coord[2],coord[1],median(lat2[!is.na(lat2)]))
-
- 	while(x0 > x1)
- 		{
- 			degElevation <- degElevation - ifelse(coord[2]<0,-0.025,+0.025)
- 			if(degElevation==ifelse(coord[2]<0,10,-10)) break
- 			x0 <- x1
- 			latNew <- coord(tab[,1],tab[,2],tab[,3],degElevation,note=F)[,2]
- 			x1 <- i.loxodrom.dist(coord[1],coord[2],coord[1],median(latNew[!is.na(latNew)]))
- 		}
-
- if(plot)
- 	{
- 	Tw <- as.POSIXct(subset(tab,type=1,select=c(tFirst))$tFirst,"UTC")
-
- 	SElev <- i.sunelevation(coord[1],coord[2],as.numeric(substring(Tw,1,4)),as.numeric(substring(Tw,6,7)),
-         as.numeric(substring(Tw,9,10)),as.numeric(substring(Tw,12,13)),as.numeric(substring(Tw,15,16)),0)
-
- 	layout(matrix(c(1,2,3,3),nrow=2,ncol=2,byrow=TRUE))
- 	par(oma=c(0.2,0.2,2,0.2))
- 	par(mar=c(6,4,6,1),bty="n",yaxt="n",xaxt="s")
-
- 	plot(SElev[as.numeric(substring(Tw,12,13)) %in% 0:12],
-         jitter(rep(1,length(SElev[as.numeric(substring(Tw,12,13)) %in% 0:12])),0.2),pch=20,
-         cex=1,xlim=c(-10,max(SElev)+3),ylim=c(0.9,1.1),ylab="",xlab="",main="Sunrise",cex.main=1.1,font.main=3)
- 	mtext("Light intensity threshold (jitter)",side=2,cex=1.1,font=6)
- 	arrows(-9.8,1,-8.64,1,length=0.1)
- 	abline(v=-6,lty=2,lwd=0.3)
- 	abline(v=degElevation,lty=2,lwd=2,col="orange")
-
-
- 	par(mar=c(6,1,6,3),bty="n",yaxt="n",xaxt="s")
- 	plot(SElev[as.numeric(substring(Tw,12,13)) %in% 13:23],
-       jitter(rep(1,length(SElev[as.numeric(substring(Tw,12,13)) %in% 13:23])),0.2),
-       pch=1,cex=0.7,xlim=c(max(SElev)+3,-10),ylim=c(0.9,1.1),xlab="",main="Sunset",cex.main=1.1,font.main=3)
- 	abline(v=-6,lty=2,lwd=0.3)
- 	abline(v=degElevation,lty=2,lwd=2,col="orange")
-
- 	legend("topleft",lty=c(2,2,2),lwd=c(0.3,2,2),col=c("black","transparent","orange"),
-       c("- 6 degrees","",paste("getElevation\n",round(degElevation-0.025,3)," degrees",sep="")),bg="white",box.col="white",cex=.9)
-
- 	mtext("Twilight times over sun elevation angles",line=0, adj=0.52, cex=1.5,col="black", outer=TRUE)
-
- 	par(bty="o",mar=c(6,6,1,1),yaxt="s")
- 	t <- seq(tab$tFirst[1],tab$tSecond[nrow(tab)],by=60)
- 	plot(t,i.sunelevation(coord[1],coord[2],as.POSIXlt(t)$year+1900,as.POSIXlt(t)$mo+1,as.POSIXlt(t)$mday,as.POSIXlt(t)$hour,as.POSIXlt(t)$min,as.POSIXlt(t)$sec),type="l",
- 		xaxt="n",xlab="",ylab="Sun elevation angle")
- 	abline(h=degElevation,lty=2,col="grey80")
- 	points(c(tab$tFirst,tab$tSecond),rep(degElevation,(nrow(tab)*2)),pch="+",col="darkgreen",cex=2)
-	t2 <- seq(tab$tFirst[1],tab$tSecond[nrow(tab)],by=2*24*60*60)
-	axis(1,at=t2,labels=as.character(as.Date(t2)))
- 	}
-
- return(degElevation - 0.025)
- }
 
 
 #' Transformation of *.gle files
