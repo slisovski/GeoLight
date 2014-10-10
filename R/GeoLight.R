@@ -776,7 +776,7 @@ index[diffs>distance] <- FALSE
 index[crds[,2]==999] <- TRUE
 
 
-cat(paste("Note: ",length(index[!index])," of ",length(index[crds[,2]!=999])," positions were filtered (",floor((length(index[!index])*100)/length(index[coord[,2]!=999]))," %)",sep=""))
+cat(paste("Note: ",length(index[!index])," of ",length(index[crds[,2]!=999])," positions were filtered (",floor((length(index[!index])*100)/length(index[crds[,2]!=999]))," %)",sep=""))
 index
 }
 
@@ -1556,7 +1556,7 @@ loessFilter <- function(x, tFirst, tSecond, type, k = 3, plot = TRUE){
 
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))])
   
-	tw <- data.frame(datetime = c(as.POSIXct(tab$tFirst, tz = "GMT"), as.POSIXct(tab$tSecond, tz = "GMT")), 
+	tw <- data.frame(datetime = .POSIXct(c(as.POSIXct(tab$tFirst, tz = "GMT"), as.POSIXct(tab$tSecond, tz = "GMT")), "GMT"), 
                    type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
 	tw <- tw[!duplicated(tw$datetime),]
 	tw <- tw[order(tw[,1]),]
