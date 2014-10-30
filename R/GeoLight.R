@@ -631,7 +631,7 @@ index[diffs>distance] <- FALSE
 index[crds[,2]==999] <- TRUE
 
 
-cat(paste("Note: ",length(index[!index])," of ",length(index[crds[,2]!=999])," positions were filtered (",floor((length(index[!index])*100)/length(index[coord[,2]!=999]))," %)",sep=""))
+cat(paste("Note: ",length(index[!index])," of ",length(index[crds[,2]!=999])," positions were filtered (",floor((length(index[!index])*100)/length(index[crds[,2]!=999]))," %)",sep=""))
 index
 }
 
@@ -1720,7 +1720,16 @@ i.preSelection <- function(datetime, light, LightThreshold){
 	dt <- cut(datetime,"1 hour")
 	st <- as.POSIXct(levels(dt),"UTC")
 
+<<<<<<< HEAD
 	raw <- data.frame(datetime=dt,light=light)
+=======
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))])
+  
+	tw <- data.frame(datetime = .POSIXct(c(as.POSIXct(tab$tFirst, tz = "GMT"), as.POSIXct(tab$tSecond, tz = "GMT")), "GMT"), 
+                   type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
+	tw <- tw[!duplicated(tw$datetime),]
+	tw <- tw[order(tw[,1]),]
+>>>>>>> FETCH_HEAD
 
 	h  <- tapply(light,dt,max)
 	df1 <- data.frame(datetime=st+(30*60),light=as.numeric(h))
@@ -1828,6 +1837,7 @@ i.sum.Cl <- function(object) {
 
 i.sunelevation <- function(lon, lat, year, month, day, hour, min, sec){
 
+<<<<<<< HEAD
 datetime<-paste(year,"-", month,"-", day, " ", hour, ":", min, ":", sec, sep="")
 gmt<-as.POSIXct(strptime(datetime, "%Y-%m-%d %H:%M:%S"), "UTC")
 n <- gmt - as.POSIXct(strptime("2000-01-01 12:00:00", "%Y-%m-%d %H:%M:%S"), "UTC")
@@ -1847,6 +1857,340 @@ g.rad <- g*pi/180
 t.l <- floor(L/360)
 L <- L - 360 * t.l
 L.rad <- L*pi/180
+=======
+#' Draws sites of residency and adds a convex hull
+#'
+#' Draw a map (from the \code{R} Package \code{maps}) showing the defined
+#' stationary sites
+#'
+#'
+#' @param crds a \code{SpatialPoints} or \code{matrix} object, containing x
+#' and y coordinates (in that order).
+#' @param site a \code{numerical vector} assigning each row to a particular
+#' period. Stationary periods in numerical order and values >0,
+#' migration/movement periods 0.
+#' @param points \code{logical}; if \code{TRUE}, the points of each site will
+#' also be plottet.
+#' @param map.range some possibilities to choose defined areas ("World
+#' (default)", "EuroAfrica","America","AustralAsia").
+#' @param ... Arguments to be passed to methods, such as graphical parameters (see par).
+#' @author Simeon Lisovski
+#' @examples
+#'
+#' data(hoopoe2)
+#' crds <- coord(hoopoe2, degElevation = -6)
+#' filter <- distanceFilter(hoopoe2, distance = 30)
+#' site <- changeLight(hoopoe2, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, summary = FALSE)$site
+#' siteMap(crds[filter,], site[filter], xlim=c(-20,20), ylim=c(0,60), lwd=2, pch=20, cex=0.5, main="hoopoe2")
+#'
+#' @export siteMap
+siteMap <- function(crds, site, points = TRUE, map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ...) {
+  
+  args <- list(...)
+  
+  if(all(map.range==c("EuroAfrica", "AustralAsia", "America", "World")) & sum(names(args)%in%c("xlim", "ylim"))!=2) {
+    range <- c(-180, 180, -80, 90)
+  } 
+  if(all(map.range=="EuroAfrica")) range <- c(-24, 55, -55, 70)
+  if(all(map.range=="AustralAsia")) range <- c(60, 190, -55, 78)
+  if(all(map.range=="America")) range <- c(-170, -20, -65, 78)
+  if(all(map.range=="World")) range <- c(-180, 180, -75, 90)
+  
+  if(sum(names(args)%in%c("xlim", "ylim"))==2) range <- c(args$xlim, args$ylim)
+  
+  # colors for sites
+  colors <- rainbow(length(unique(site)))[sample(1:(length(unique(site))), length(unique(site)))]
+  
+  if(sum(names(args)%in%"add")==1) add <- args$add else add = FALSE
+  
+  if(!add) {
+    opar <- par(oma=c(5, 3, 0.5, 0.5))
+    map(xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), fill=T, lwd=0.01, col=c("grey90"), add=F, mar=c(rep(0.5,4)))
+    map(xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), interior=TRUE, col=c("darkgrey"), add=TRUE)
+    mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, ""), side=1,line=2.2,font=3)
+    mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, ""), side=2,line=2.5,font=3)
+    map.axes()
+    
+    mtext(ifelse(sum(names(args)%in%"main")==1, args$main, ""), line=0.6, cex=1.2)
+  }
+  
+  
+  if(points) {points(crds[site>0, ], 
+                     cex = ifelse(sum(names(args)%in%"cex")==1, args$cex, 0.5),
+                     pch = ifelse(sum(names(args)%in%"pch")==1, args$pch, 16),
+                     col = colors[as.numeric(site)]
+  )}
+  
+  
+  
+  for(j in unique(site)){
+    if(j>0){
+      X <- na.omit(crds[site==j,])
+      
+      hpts <- chull(X)
+      hpts <- c(hpts,hpts[1])
+      lines(X[hpts,], 
+            lty = ifelse(sum(names(args)%in%"lty")==1, args$lty, 1),
+            lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 8),
+            col = colors[j])
+    }
+  }
+  
+legend("bottomright", letters[1:max(site)], 
+  pch = ifelse(sum(names(args)%in%"pch")==1, args$pch, 16),
+  col=colors[1:max(as.numeric(site))])
+
+par(opar)
+}
+
+
+
+##' Write a file which plots a trip in Google Earth
+##'
+##' This function creates a .kml file from light intensity measurements over
+##' time that can ve viewed as a trip in Google Earth.
+##'
+##'
+##' @param file A character expression giving the whole path and the name of the
+##' resulting output file including the .kml extension.
+##' @param tFirst date and time of sunrise/sunset (e.g. 2008-12-01 08:30)
+##' @param tSecond date and time of sunrise/sunset (e.g. 2008-12-01 17:30)
+##' @param type either 1 or 2, defining \code{tFirst} as sunrise or sunset
+##' respectively
+##' @param degElevation sun elevation angle in degrees (e.g. -6 for "civil
+##' twilight"). Either a single value, a \code{vector} with the same length as
+##' \code{tFirst}.
+##' @param col.scheme the color scheme used for the points. Possible color
+##' schemes are: \code{\link{rainbow}}, \code{\link{heat.colors}},
+##' \code{\link{topo.colors}}, \code{\link{terrain.colors}}.
+##' @param point.alpha a \code{numerical value} indicating the transparency of
+##' the point colors on a scale from 0 (transparent) to 1 (opaque).
+##' @param cex \code{numerical value} for the size of the points.
+##' @param line.col An character expression (any of \code{\link{colors}} or
+##' hexadecimal notation), or numeric indicating the color of the line
+##' connecting the point locations.
+##' @return This function returns no data. It creates a .kml file in the in the
+##' defined path.
+##' @author Simeon Lisovski and Michael U. Kemp
+##' @examples
+##'
+##' data(hoopoe2)
+##' filter <- distanceFilter(hoopoe2,distance=30)
+##' trip2kml("trip.kml", tFirst[filter], tSecond[filter], type[filter],
+##' 		degElevation=-6, col.scheme="heat.colors", cex=0.7,
+##' 		line.col="goldenrod")
+##'
+##' @export trip2kml
+trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat.colors", point.alpha=0.7, cex=1, line.col="goldenrod")
+{
+	if((length(tFirst)+length(type))!=(length(tSecond)+length(type))) stop("tFirst, tSecond and type must have the same length.")
+
+	coord   <- coord(tFirst,tSecond,type,degElevation,note=F)
+		index <- !is.na(coord[,2])
+	datetime <- as.POSIXct(strptime(paste(ifelse(type==1,substring(tFirst,1,10),substring(tSecond,1,10)),
+				" ",ifelse(type==1,"12:00:00","00:00:00"),sep=""),format="%Y-%m-%d %H:%M:%S"),"UTC")
+
+	coord   <- coord[index,]
+	longitude <- coord[,1]
+	latitude <- coord[,2]
+
+	date <- unlist(strsplit(as.character(datetime[index]), split = " "))[seq(1,
+        ((length(datetime[index]) * 2) - 1), by = 2)]
+    time <- unlist(strsplit(as.character(datetime[index]), split = " "))[seq(2,
+        ((length(datetime[index]) * 2)), by = 2)]
+
+	if(length(!is.na(coord[,2]))<1) stop("Calculation of coordinates results in zero spatial information.")
+
+	if ((col.scheme%in% c("rainbow", "heat.colors", "terrain.colors", "topo.colors",
+						  "cm.colors"))==F) stop("The col.scheme has been misspecified.")
+
+	seq   <- seq(as.POSIXct(datetime[1]),as.POSIXct(datetime[length(datetime)]),by=12*60*60)
+	index2<- ifelse(!is.na(merge(data.frame(d=datetime[index],t=TRUE),data.frame(d=seq,t=FALSE),by="d",all.y=T)[,2]),TRUE,FALSE)
+
+	usable.colors <- strsplit(eval(parse(text = paste(col.scheme,
+            "(ifelse(length(index2) < 1000, length(index2), 1000), alpha=point.alpha)",
+            sep = ""))), split = "")[index2]
+
+	usable.line.color <- strsplit(rgb(col2rgb(line.col)[1,
+        1], col2rgb(line.col)[2, 1], col2rgb(line.col)[3,
+        1], col2rgb(line.col, alpha = 1)[4, 1], maxColorValue = 255),
+        split = "")
+
+	date <- unlist(strsplit(as.character(datetime), split = " "))[seq(1,
+        ((length(datetime) * 2) - 1), by = 2)]
+    time <- unlist(strsplit(as.character(datetime), split = " "))[seq(2,
+        ((length(datetime) * 2)), by = 2)]
+    scaling.parameter <- rep(cex, length(latitude))
+
+    data.variables <- NULL
+    filename <- file
+    write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", filename)
+    write("<kml xmlns=\"http://www.opengis.net/kml/2.2\">", filename,
+        append = TRUE)
+    write("<Document>", filename, append = TRUE)
+    write(paste("<name>", filename, "</name>", sep = " "),
+        filename, append = TRUE)
+
+    write("  <open>1</open>", filename, append = TRUE)
+    write("\t<description>", filename, append = TRUE)
+    write("\t  <![CDATA[Generated using <a href=\"http://simeonlisovski.wordpress.com/geolight\">GeoLight</a>]]>",
+        filename, append = TRUE)
+    write("\t</description>", filename, append = TRUE)
+    write("<Folder>", filename, append = TRUE)
+    write("  <name>Points</name>", filename, append = TRUE)
+    write("<open>0</open>", filename, append = TRUE)
+    for (i in 1:length(latitude)) {
+        write("<Placemark id='point'>", filename, append = TRUE)
+        write(paste("<name>", as.character(as.Date(datetime[i])), "</name>", sep = ""),
+            filename, append = TRUE)
+        write("  <TimeSpan>", filename, append = TRUE)
+        write(paste("    <begin>", date[i], "T", time[i], "Z</begin>",
+            sep = ""), filename, append = TRUE)
+        write(paste("    <end>", date[ifelse(i == length(latitude),
+            i, i + 1)], "T", time[ifelse(i == length(latitude),
+            i, i + 1)], "Z</end>", sep = ""), filename, append = TRUE)
+        write("  </TimeSpan>", filename, append = TRUE)
+        write("<visibility>1</visibility>", filename, append = TRUE)
+        write("<description>", filename, append = TRUE)
+        write(paste("<![CDATA[<TABLE border='1'><TR><TD><B>Variable</B></TD><TD><B>Value</B></TD></TR><TR><TD>Date/Time</TD><TD>",
+                datetime[i], "</TD></TR><TR><TD>lat long</TD><TD>",
+                paste(latitude[i], longitude[i], sep = " "),
+                "</TABLE>]]>", sep = "", collapse = ""), filename,
+                append = TRUE)
+        write("</description>", filename, append = TRUE)
+        write("\t<Style>", filename, append = TRUE)
+        write("\t<IconStyle>", filename, append = TRUE)
+        write(paste("\t\t<color>", paste(noquote(usable.colors[[i]][c(8,
+            9, 6, 7, 4, 5, 2, 3)]), collapse = ""), "</color>",
+            sep = ""), filename, append = TRUE)
+        write(paste("  <scale>", scaling.parameter[i], "</scale>",
+            sep = ""), filename, append = TRUE)
+        write("\t<Icon>", filename, append = TRUE)
+        write("\t\t<href>http://maps.google.com/mapfiles/kml/pal2/icon26.png</href>",
+            filename, append = TRUE)
+        write("\t</Icon>", filename, append = TRUE)
+        write("\t</IconStyle>", filename, append = TRUE)
+        write("\t</Style>", filename, append = TRUE)
+        write("\t<Point>", filename, append = TRUE)
+        write(paste("\t<altitudeMode>", "relativeToGround", "</altitudeMode>",
+            sep = ""), filename, append = TRUE)
+        write("<tesselate>1</tesselate>", filename, append = TRUE)
+        write("<extrude>1</extrude>", filename, append = TRUE)
+        write(paste("\t  <coordinates>", longitude[i], ",", latitude[i],
+            ",", 1,
+            "</coordinates>", sep = ""), filename, append = TRUE)
+        write("\t</Point>", filename, append = TRUE)
+        write(" </Placemark>", filename, append = TRUE)
+    }
+
+    write("</Folder>", filename, append = TRUE)
+    write("<Placemark>", filename, append = TRUE)
+    write("  <name>Line Path</name>", filename, append = TRUE)
+    write("  <Style>", filename, append = TRUE)
+    write("    <LineStyle>", filename, append = TRUE)
+    write(paste("\t<color>", paste(noquote(usable.line.color[[1]][c(8,
+        9, 6, 7, 4, 5, 2, 3)]), collapse = ""), "</color>", sep = ""),
+        filename, append = TRUE)
+
+
+    write(paste("      <width>1</width>", sep = ""), filename,
+        append = TRUE)
+    write("    </LineStyle>", filename, append = TRUE)
+    write("  </Style>", filename, append = TRUE)
+    write("  <LineString>", filename, append = TRUE)
+    write("    <extrude>0</extrude>", filename, append = TRUE)
+    write("    <tessellate>1</tessellate>", filename, append = TRUE)
+    write(paste("\t<altitudeMode>clampToGround</altitudeMode>",
+        sep = ""), filename, append = TRUE)
+    write(paste("     <coordinates>", noquote(paste(longitude,
+        ",", latitude, sep = "", collapse = " ")), "</coordinates>",
+        sep = ""), filename, append = TRUE)
+    write("    </LineString>", filename, append = TRUE)
+    write("</Placemark>", filename, append = TRUE)
+    write("</Document>", filename, append = TRUE)
+    write("</kml>", filename, append = TRUE)
+}
+
+#' Draw the positions and the trip on a map
+#'
+#' Draw a map (from the \code{R} Package \code{maps}) with calculated positions
+#' connected by a line
+#'
+#'
+#' @param coord a \code{SpatialPoints} or \code{matrix} object, containing x
+#' and y coordinates (in that order).
+#' @param equinox logical; if \code{TRUE}, the equinox period(s) is shown as a
+#' broken blue line.
+#' @param map.range some possibilities to choose defined areas (default:
+#' "World").
+#' @param ... Arguments to be passed to methods, such as graphical parameters (see par).
+#' @param legend \code{logical}; if \code{TRUE}, a legend will be added to the plot.
+#' @author Simeon Lisovski
+#' @examples
+#'
+#' data(hoopoe2)
+#' crds <- coord(hoopoe2, degElevation = -6)
+#' tripMap(crds, xlim = c(-20,20), ylim = c(0,60), main="hoopoe2")
+#'
+#' @export tripMap
+tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","America","World"), legend = TRUE, ...) {
+
+  args <- list(...)
+  
+  if(all(map.range==c("EuroAfrica", "AustralAsia", "America", "World")) & sum(names(args)%in%c("xlim", "ylim"))!=2) {
+    range <- c(-180, 180, -80, 90)
+  } 
+  if(all(map.range=="EuroAfrica")) range <- c(-24, 55, -55, 70)
+  if(all(map.range=="AustralAsia")) range <- c(60, 190, -55, 78)
+  if(all(map.range=="America")) range <- c(-170, -20, -65, 78)
+  if(all(map.range=="World")) range <- c(-180, 180, -75, 90)
+  
+  if(sum(names(args)%in%c("xlim", "ylim"))==2) range <- c(args$xlim, args$ylim)
+
+  if(sum(names(args)%in%"add")==1) add <- args$add else add = FALSE
+  
+  if(!add) {
+	par(oma=c(5,3,0,0))
+	map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),fill=T,lwd=0.01,col=c("grey90"),add=F,mar=c(rep(0.5,4)))
+	map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),interior=TRUE,col=c("darkgrey"),add=TRUE)
+	mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude"), side=1, line=2.2, font=3)
+	mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude"), side=2, line=2.5, font=3)
+	map.axes()
+
+	mtext(ifelse(sum(names(args)%in%"main")==1, args$main, ""), line=0.6, cex=1.2)
+	}
+
+	points(crds, 
+		pch = ifelse(sum(names(args)%in%"pch")==1, args$pch, 3),
+		cex = ifelse(sum(names(args)%in%"cex")==1, args$cex, 0.7))
+	lines(crds,
+		lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 0.5),
+		col = ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"))
+
+if(equinox){
+	nrow <- 1
+	repeat{
+		while(is.na(crds[nrow,2])==FALSE) {
+			nrow <- nrow + 1
+			if(nrow==nrow(crds)) break
+			}
+			if(nrow==nrow(crds)) break
+			start   <- nrow-1
+		while(is.na(crds[nrow,2])) {
+			nrow <- nrow + 1
+			if(nrow==nrow(crds)) break
+			}
+			if(nrow==nrow(crds)) break
+			end    <- nrow
+
+		lines(c(crds[start,1], crds[end,1]),c(crds[start,2], crds[end,2]), col="blue", lwd=3, lty=1)
+		}
+
+if(legend) legend("bottomright", lty=c(0,1,1), pch=c(3,-1,-1), lwd=c(1,0.5,3), col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),c("Positions","Trip","Equinox"),bty="n",bg="grey90",border="grey90",cex=0.8)
+} else {
+ if(legend) 	  legend("bottomright",lty=c(0,1),pch=c(3,-1),lwd=c(1,0.5),col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),c("Positions","Trip"),bty="n",bg="grey90",border="grey90",cex=0.8)
+}
+>>>>>>> FETCH_HEAD
 
 # ecliptical length of sun
 LAMBDA <- L + 1.915 * sin(g.rad) + 0.02*sin(2*g.rad)
