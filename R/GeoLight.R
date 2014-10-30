@@ -116,153 +116,8 @@
 NULL
 
 
-# Functions exportet from SGAT
-i.solar <- function(tm) {
-  
-  rad <- pi/180
-  
-  ## Time as Julian day (R form)
-  Jd <- as.numeric(tm)/86400.0+2440587.5
-  
-  ## Time as Julian century [G]
-  Jc <- (Jd-2451545)/36525
-  
-  ## The geometric mean sun longitude (degrees) [I]
-  L0 <- (280.46646+Jc*(36000.76983+0.0003032*Jc))%%360
-  
-  
-  ## Geometric mean anomaly for the sun (degrees) [J]
-  M <- 357.52911+Jc*(35999.05029-0.0001537*Jc)
-  
-  ## The eccentricity of earth's orbit [K]
-  e <- 0.016708634-Jc*(0.000042037+0.0000001267*Jc)
-  
-  ## Equation of centre for the sun (degrees) [L]
-  eqctr <- sin(rad*M)*(1.914602-Jc*(0.004817+0.000014*Jc))+
-    sin(rad*2*M)*(0.019993-0.000101*Jc)+
-    sin(rad*3*M)*0.000289
-  
-  ## The true longitude of the sun (degrees) [M]
-  lambda0 <- L0 + eqctr
-  
-  ## The apparent longitude of the sun (degrees) [P]
-  omega <- 125.04-1934.136*Jc
-  lambda <- lambda0-0.00569-0.00478*sin(rad*omega)
-  
-  
-  ## The mean obliquity of the ecliptic (degrees) [Q]
-  seconds <- 21.448-Jc*(46.815+Jc*(0.00059-Jc*(0.001813)))
-  obliq0 <- 23+(26+(seconds/60))/60
-  
-  ## The corrected obliquity of the ecliptic (degrees) [R]
-  omega <- 125.04-1934.136*Jc
-  obliq <- obliq0 + 0.00256*cos(rad*omega)
-  
-  ## The equation of time (minutes of time) [U,V]
-  y <- tan(rad*obliq/2)^2
-  eqnTime <- 4/rad*(y*sin(rad*2*L0) -
-                      2*e*sin(rad*M) +
-                      4*e*y*sin(rad*M)*cos(rad*2*L0) -
-                      0.5*y^2*sin(rad*4*L0) -
-                      1.25*e^2*sin(rad*2*M))
-  
-  ## The sun's declination (radians) [T]
-  solarDec <- asin(sin(rad*obliq)*sin(rad*lambda))
-  sinSolarDec <- sin(solarDec)
-  cosSolarDec <- cos(solarDec)
-  
-  ## Solar time unadjusted for longitude (degrees) [AB!!]
-  ## Am missing a mod 360 here, but is only used within cosine.
-  solarTime <- ((Jd-0.5)%%1*1440+eqnTime)/4
-  #solarTime <- ((Jd-2440587.5)*1440+eqnTime)/4
-  
-  ## Return solar constants
-  list(solarTime=solarTime,
-       eqnTime=eqnTime,
-       sinSolarDec=sinSolarDec,
-       cosSolarDec=cosSolarDec)
-}
 
-i.zenith <- function(sun, lon, lat) {
-  
-  rad <- pi/180
-  
-  ## Suns hour angle (degrees) [AC!!]
-  hourAngle <- sun$solarTime+lon-180
-  #hourAngle <- sun$solarTime%%360+lon-180
-  
-  ## Cosine of sun's zenith [AD]
-  cosZenith <- (sin(rad*lat)*sun$sinSolarDec+
-                  cos(rad*lat)*sun$cosSolarDec*cos(rad*hourAngle))
-  
-  ## Limit to [-1,1] [!!]
-  cosZenith[cosZenith > 1] <- 1
-  cosZenith[cosZenith < -1] <- -1
-  
-  ## Ignore refraction correction
-  acos(cosZenith)/rad
-}
 
-i.refracted <- function(zenith) {
-  rad <- pi/180
-  elev <- 90-zenith
-  te <- tan((rad)*elev)
-  ## Atmospheric Refraction [AF]
-  r <- ifelse(elev>85,0,
-              ifelse(elev>5,58.1/te-0.07/te^3+0.000086/te^5,
-                     ifelse(elev>-0.575,
-                            1735+elev*(-518.2+elev*(103.4+elev*(-12.79+elev*0.711))),-20.772/te)))
-  ## Corrected Zenith [90-AG]
-  zenith-r/3600
-}
-
-i.unrefracted <- function(zenith) {
-  uniroot(function(x) i.refracted(x)-zenith,c(zenith,zenith+2))
-}  
-
-i.twilight.solartime <- function(solar, lon, lat, rise, zenith=96) {
-  rad <- pi/180
-  cosz <- cos(rad*zenith)
-  cosHA <- (cosz-sin(rad*lat)*solar$sinSolarDec)/(cos(rad*lat)*solar$cosSolarDec)
-  ## Compute the sun's hour angle from its declination for this location
-  hourAngle <- ifelse(rise,360,0)+ifelse(rise,-1,1)*suppressWarnings(acos(cosHA)/rad)
-  ## Solar time of sunrise at this zenith angle, lon and lat
-  #(hourAngle+180-lon)%%360
-  #360*(solar$solarTime%/%360)+solarTime
-  solarTime <- (hourAngle+180-lon)%%360
-  (solarTime-solar$solarTime+180)%%360-180+solar$solarTime
-}
-
-i.twilight <- function(tm, lon, lat, rise, zenith=96, iters=3) {
-  
-  ## Compute date
-  date <- as.POSIXlt(tm)
-  date$hour <- date$min <- date$sec <- 0
-  date <- as.POSIXct(date,"GMT")
-  
-  lon <- (lon+180)%%360-180
-  ## GMT equivalent of 6am or 6pm local time
-  twl <- date+240*(ifelse(rise,90,270)-lon)
-  ## Iteratively improve estimate
-  for(k in seq_len(iters)) {
-    s <- i.solar(twl)
-    s$solarTime <- s$solarTime%%360
-    solarTime <- 4*i.twilight.solartime(s,lon,lat,rise,zenith)-s$eqnTime
-    twl <- date+60*solarTime
-  }
-  twl
-}
-
-i.geolight.convert <- function(tFirst,tSecond,type) {
-  tm <- .POSIXct(c(as.POSIXct(tFirst,"GMT"),
-                   as.POSIXct(tSecond,"GMT")),"GMT")
-  keep <- !duplicated(tm)
-  tm <- tm[keep]
-  rise <- c(type==1,type!=1)[keep]
-  ord <- order(tm)
-  data.frame(Twilight=tm[ord],Rise=rise[ord])
-}
-# end functions from SGAT
 
 i.argCheck <- function(y) {
   
@@ -1062,407 +917,6 @@ par(opar)
 	return(HECalib)
 }
 
-i.JC2000 <- function(jD) {
-
-#--------------------------------------------------------------------------------------------------------
-# jD: julian Date
-#--------------------------------------------------------------------------------------------------------
-
-options(digits=10)
-
-
-	  	jC<- (jD - 2451545)/36525
-
-return(jC)
-
-			  }
-
-i.deg <- function(Rad) {
-
-#------------------------------------------------------------
-# Deg: 	The input angle in radian
-#------------------------------------------------------------
-
-options(digits=10)
-
-
-     return(Rad * (180/pi))
-
-}
-
-i.frac <- function(In) {
-
-#------------------------------------------------------------
-# In: 	numerical Number
-#------------------------------------------------------------
-
-options(digits=10)
-
-
-   	return(In - floor(In))
-
-}
-
-i.get.outliers<-function(residuals, k=3) {
-	x <- residuals
-	# x is a vector of residuals
-	# k is a measure of how many interquartile ranges to take before saying that point is an outlier
-	# it looks like 3 is a good preset for k
-	QR<-quantile(x, probs = c(0.25, 0.75))
-	IQR<-QR[2]-QR[1]
-	Lower.band<-QR[1]-(k*IQR)
-	Upper.Band<-QR[2]+(k*IQR)
-	delete<-which(x<Lower.band |  x>Upper.Band)
-	return(as.vector(delete))
-}
-
-i.julianDate <- function(year,month,day,hour,min) {
-
-#--------------------------------------------------------------------------------------------------------
-# Year:		Year as numeric e.g. 2010
-# Month:	Month as numeric e.g.   1
-# Day:		Day as numeric e.g.		1
-# Hour:		Hour as numeric e.g.   12
-# Min:		Minunte as numeric e.g. 0
-#--------------------------------------------------------------------------------------------------------
-
-	options(digits=15)
-
-			fracOfDay	<- hour/24 + min/1440
-
-			# Julian date (JD)
-			# ------------------------------------
-
-      		index1 <- month <= 2
-			if(sum(index1) > 0)
-				{
-					year[index1]  <- year[index1] -1
-					month[index1] <- month[index1] +12
-				}
-
-     		index2 <- (year*10000)+(month*100)+day <= 15821004
-
-      		JD <- numeric(length(year))
-			if(sum(index2)>0)
-				{
-					JD[index2] <- floor(365.25*(year[index2]+4716)) + floor(30.6001*(month[index2]+1)) + day[index2] + fracOfDay[index2] - 1524.5
-				}
-		  	index3 <- year*10000+month*100+day >= 15821015
-      		if (sum(index3)>0)
-				{
-					a <- floor(year/100)
-					b <- 2 - a + floor(a/4)
-
-					JD[index3] <- floor(365.25*(year[index3]+4716)) + floor(30.6001*(month[index3]+1)) + day[index3] + fracOfDay[index3] + b[index3] - 1524.5
-				}
-        	JD[!index2&!index3] <- 1
-
-return(JD)
-
-}
-
-i.loxodrom.dist <- function(x1, y1, x2, y2, epsilon=0.0001){
-dis<-numeric(length(x1))
-rerde<-6368
-deltax<-abs(x2*pi/180-x1*pi/180)
-deltay<-abs(y2*pi/180-y1*pi/180)
-tga<-deltax/(log(tan(pi/4+y2*pi/360))-log(tan(pi/4+y1*pi/360)))
-
-dis[abs(x1-x2)<epsilon&abs(y1-y2)<epsilon]<-0
-dis[abs(y1-y2)<epsilon&(abs(x1-x2)>epsilon)]<-abs(cos(y1[abs(y1-y2)<epsilon&(abs(x1-x2)>epsilon)]*pi/180)*deltax[abs(y1-y2)<epsilon&(abs(x1-x2)>epsilon)])
-dis[(tga<0)&(abs(x1-x2)>epsilon)&(abs(y1-y2)>epsilon)]<-abs(deltay[(tga<0)&(abs(x1-x2)>epsilon)&(abs(y1-y2)>epsilon)]/cos((pi-atan(tga[(tga<0)&(abs(x1-x2)>epsilon)&(abs(y1-y2)>epsilon)]))))
-dis[(tga>=0)&(abs(x1-x2)>epsilon)&(y1-y2>epsilon)]<--deltay[(tga>=0)&(abs(x1-x2)>epsilon)&(y1-y2>epsilon)]/cos(atan(tga[(tga>=0)&(abs(x1-x2)>epsilon)&(y1-y2>epsilon)]))
-dis[(tga>=0)&(abs(x1-x2)>epsilon)&(y2-y1>epsilon)]<-abs(deltay[(tga>=0)&(abs(x1-x2)>epsilon)&(y2-y1>epsilon)]/cos(atan(tga[(tga>=0)&(abs(x1-x2)>epsilon)&(y2-y1>epsilon)])))
-dis[(abs(x1-x2)<epsilon)&(y2-y1>epsilon)]<-abs(deltay[(abs(x1-x2)<epsilon)&(y2-y1>epsilon)]/cos(atan(tga[(abs(x1-x2)<epsilon)&(y2-y1>epsilon)])))
-dis[(abs(x1-x2)<epsilon)&(y1-y2>epsilon)]<-abs(deltay[(abs(x1-x2)<epsilon)&(y1-y2>epsilon)]/cos(atan(tga[(abs(x1-x2)<epsilon)&(y1-y2>epsilon)])))
-dis*rerde
-}
-
-i.preSelection <- function(datetime, light, LightThreshold){
-
-	dt <- cut(datetime,"1 hour")
-	st <- as.POSIXct(levels(dt),"UTC")
-
-	raw <- data.frame(datetime=dt,light=light)
-
-	h  <- tapply(light,dt,max)
-	df1 <- data.frame(datetime=st+(30*60),light=as.numeric(h))
-
-    smooth <- i.twilightEvents(df1[,1], df1[,2], LightThreshold)
-    		  smooth <- data.frame(id=1:nrow(smooth),smooth)
-	raw    <- i.twilightEvents(datetime, light, LightThreshold)
-			  raw <- data.frame(id=1:nrow(raw),raw)
-
-  ind2 <- rep(NA,nrow(smooth))
-  for(i in 1:nrow(smooth)){
-  	tmp <- subset(raw,datetime>=(smooth[i,2]-(90*60)) & datetime<=(smooth[i,2]+(90*60)))
-
-  	if(smooth[i,3]==1) ind3 <- tmp$id[which.min(tmp[,2])]
-  	if(smooth[i,3]==2) ind3 <- tmp$id[which.max(tmp[,2])]
-  ind2[i] <- ind3
-  }
-
-
-res <- data.frame(raw,mod=1)
-res$mod[ind2] <- 0
-
-return(res)
-}
-
-i.rad <- function(Deg) {
-
-#------------------------------------------------------------
-# Deg: 	The input angle in degrees
-#------------------------------------------------------------
-
-options(digits=10)
-
-
-   	return(Deg * (pi/180))
-
-}
-
-i.radDeclination <- function(radEclipticalLength,radObliquity) {
-
-#-------------------------------------------------------------------------------------------------------------------
-# RadEclipticLength: The angle between an object's rotational axis, and a line perpendicular to its orbital plane.
-# EadObliquity:
-#-------------------------------------------------------------------------------------------------------------------
-
-options(digits=10)
-
-	dec <- asin(sin(radObliquity)*sin(radEclipticalLength))
-
-return(dec)
-
-}
-
-i.radEclipticLongitude <- function(jC) {
-
-#-------------------------------------------------------------------------------------------------------------------
-# jC: Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00
-#-------------------------------------------------------------------------------------------------------------------
-
-
-
-	options(digits=10)
-
-  	radMeanAnomaly <- 2*pi*i.frac(0.993133 + 99.997361*jC)
-	EclipticLon    <- 2*pi*i.frac(0.7859452 + radMeanAnomaly/(2*pi) + (6893*sin(radMeanAnomaly) + 72*sin(2*radMeanAnomaly) + 6191.2*jC) / 1296000)
-
-return(EclipticLon)
-
-}
-
-i.radGMST <- function(jD,jD0,jC,jC0) {
-
-#--------------------------------------------------------------------------------------------------------
-# jD:  Julian Date with Hour and Minute
-# jD0: Julan Date at t 0 UT
-# jC:  Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00)
-# jC0: Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00) at t 0 UT
-#--------------------------------------------------------------------------------------------------------
-
-options(digits=10)
-
-
-		UT  <- 86400 * (jD-jD0)
-		st0 <- 24110.54841 + 8640184.812866*jC0 + 1.0027379093*UT + (0.093104 - 0.0000062*jC0)*jC0*jC0
-		gmst<- (((2*pi)/86400)*(st0%%86400))
-
-return(gmst)
-
-}
-
-i.radObliquity <- function(jC) {
-
-#--------------------------------------------------------------------------------------------------------
-# jC: Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00)
-#--------------------------------------------------------------------------------------------------------
-
-options(digits=10)
-
-
-degObliquity <- 23.43929111 - (46.8150 + (0.00059 - 0.001813 *jC)*jC) *jC/3600
-radObliquity <- i.rad(degObliquity)
-
-return(radObliquity)
-
-}
-
-i.radRightAscension <- function(RadEclipticalLength,RadObliquity) {
-
-#-------------------------------------------------------------------------------------------------------------------
-# RadEclipticLength: The angle between an object's rotational axis, and a line perpendicular to its orbital plane.
-# EadObliquity:
-#-------------------------------------------------------------------------------------------------------------------
-
-options(digits=10)
-
-	index1 <- (cos(RadEclipticalLength) < 0)
-
-	res <- numeric(length(RadEclipticalLength))
-	if (sum(index1)>0)
-		{
-			res[index1] <- (atan((cos(RadObliquity[index1])*sin(RadEclipticalLength[index1]))/cos(RadEclipticalLength[index1])) + pi)
-		}
-
-	index2 <- (cos(RadEclipticalLength) >= 0)
-	if (sum(index2)>0)
-		{
-			res[index2] <- (atan((cos(RadObliquity[index2])*sin(RadEclipticalLength[index2]))/cos(RadEclipticalLength[index2])))
-		}
-
-
-return(res)
-
-}
-
-i.setToRange <- function(Start,Stop,Angle) {
-
-#-------------------------------------------------------------------------------------------------------------------
-# Start:	 Minimal value of the range in degrees
-# Stop: 	 Maximal value of the range in degrees
-# Angle:	 The angle that should be fit to the range
-#-------------------------------------------------------------------------------------------------------------------
-
-options(digits=15)
-
-		angle <- Angle
-		range <- Stop - Start
-
-
-
-			index1 <- angle >= Stop
-			if (sum(index1, na.rm = T)>0) angle[index1] <- angle[index1] - (floor((angle[index1]-Stop)/range)+1)*range
-
-			index2 <- angle < Start
-			if(sum(index2, na.rm = T)>0) angle[index2] <- angle[index2]  + ceiling(abs(angle[index2] -Start)/range)*range
-
-return(angle)
-
-}
-
-i.sum.Cl <- function(object) {
-
-	if(all(names(object)%in%c("riseProb","setProb","rise.prob","set.prob","site","migTable"))){
-		cat("\n")
-		cat("Probability threshold(s):")
-		cat(rep("\n",2))
-		if(!is.na(object$rise.prob)) cat(paste("	Sunrise: ",object$rise.prob))
-		if(!is.na(object$set.prob)) cat(paste("	Sunset: ",object$set.prob))
-		cat(rep("\n",3))
-		cat("Migration schedule table:")
-		cat(rep("\n",2))
-
-		print(object$migTable,quote=FALSE)
-	} else {
-		cat("Error: List must be the output list of the changeLight function.")
-	}
-}
-
-i.sunelevation <- function(lon, lat, year, month, day, hour, min, sec){
-
-#-------------------------------------------------------------------------------
-# lon: longitude in decimal coordinates
-# lat: latitude in decimal coordinates
-# year: numeric, e.g. 2006 (GMT)
-# month: numeric, e.g. 8  (GMT)
-# day: numeric, e.g. 6   (GMT)
-# hour:  numeric e.g. 6  (GMT)
-# min: numeric, e.g. 0   (GMT)
-# sec: numeric, e.g.     (GMT)
-#-------------------------------------------------------------------------------
-
-datetime<-paste(year,"-", month,"-", day, " ", hour, ":", min, ":", sec, sep="")
-gmt<-as.POSIXct(strptime(datetime, "%Y-%m-%d %H:%M:%S"), "UTC")
-n <- gmt - as.POSIXct(strptime("2000-01-01 12:00:00", "%Y-%m-%d %H:%M:%S"), "UTC")
-
-# mean ecliptical length of sun
-L <- 280.46 + 0.9856474 * n
-L <- as.numeric(L)
-
-# Anomalie
-g <- 357.528 + 0.9856003 * n
-g <- as.numeric(g)
-
-t.v <- floor(g/360)
-g <- g - 360*t.v
-g.rad <- g*pi/180
-
-t.l <- floor(L/360)
-L <- L - 360 * t.l
-L.rad <- L*pi/180
-
-# ecliptical length of sun
-LAMBDA <- L + 1.915 * sin(g.rad) + 0.02*sin(2*g.rad)
-LAMBDA.rad <- LAMBDA*pi/180
-
-# coordinates of equator
-epsilon <- 23.439 - 0.0000004 * n
-epsilon.rad <- as.numeric(epsilon)*pi/180
-
-alpha.rad <- atan(cos(epsilon.rad)*sin(LAMBDA.rad)/cos(LAMBDA.rad))
-
-
-alpha.rad <- ifelse(cos(LAMBDA.rad)<0, alpha.rad+pi, alpha.rad)
-alpha <- alpha.rad*180/pi
-
-deklination.rad <- asin(sin(epsilon.rad) * sin(LAMBDA.rad))
-deklination <- deklination.rad*180/pi
-
-# angle h
-tag<-paste(year,"-", month,"-", day, " 00:00:00", sep="")
-JD0<-as.POSIXct(strptime(tag, "%Y-%m-%d %H:%M:%S"), "GMT")
-JD0 <- JD0 - as.POSIXct(strptime("2000-01-01 12:00:00", "%Y-%m-%d %H:%M:%S"), "GMT")
-T0 <- JD0/36525
-
-Time <- hour  + min/60  + sec/60/100
-theta.Gh <- 6.697376 + 2400.05134 * T0 + 1.002738 * Time
-theta.Gh <- as.numeric(theta.Gh)
-
-t.d <- floor(theta.Gh/24)
-theta.Gh <- theta.Gh-t.d*24
-
-theta.G <- theta.Gh * 15
-
-theta <- theta.G + lon      # Stundenwinkel des Fr?hlingspunktes
-tau <- theta-alpha    # Stundenwinkel
-tau.rad <- tau/180*pi
-
-# H?henwinkel h
-h <- asin(cos(deklination.rad) * cos(tau.rad) * cos(lat/180*pi) + sin(deklination.rad) * sin(lat/180*pi))
-h.grad <- h/pi*180
-
-# correction because of refraction
-R <- 1.02/(tan((h.grad+10.3/(h.grad+5.11))/180*pi))
-hR.grad <- h.grad + R/60
-return(hR.grad)
-}
-
-i.twilightEvents <- function(datetime, light, LightThreshold){
-
-   df <- data.frame(datetime, light)
-
-   ind1 <- which((df$light[-nrow(df)] < LightThreshold & df$light[-1] > LightThreshold) |
-    			 (df$light[-nrow(df)] > LightThreshold & df$light[-1] < LightThreshold) |
-  				  df$light[-nrow(df)] == LightThreshold)
-
-   bas1 <- cbind(df[ind1,],df[ind1+1,])
-  		  bas1 <- bas1[bas1[,2]!=bas1[,4],]
-
-  x1 <- as.numeric(unclass(bas1[,1])); x2 <- as.numeric(unclass(bas1[,3]))
-  y1 <- bas1[,2]; y2 <- bas1[,4]
-  m <- (y2-y1)/(x2-x1)
-  b <- y2-(m*x2)
-
-  xnew <- (LightThreshold - b)/m
-  type <- ifelse(bas1[,2]<bas1[,4],1,2)
-  res  <- data.frame(datetime=as.POSIXct(xnew, origin="1970-01-01", tz="UTC"),type)
-
-return(res)
-
-}
 
 
 #' Filter to remove noise in light intensity measurements during the night
@@ -2183,6 +1637,292 @@ if(is.numeric(maxLight))
   return (opt)}
 }
 
+###################################
+### Functions hidden in namespace #
+###################################
+
+i.JC2000 <- function(jD) {
+	options(digits=10)
+	jC<- (jD - 2451545)/36525
+	jC
+}
+
+i.deg <- function(Rad) {
+	options(digits=10)
+    Rad * (180/pi)
+}
+
+i.frac <- function(In) {
+	options(digits=10)
+  	In - floor(In)
+}
+
+i.get.outliers<-function(residuals, k=3) {
+	x <- residuals
+	QR  <- quantile(x, probs = c(0.25, 0.75))
+	IQR <- QR[2]-QR[1]
+	Lower.band <- QR[1]-(k*IQR)
+	Upper.Band <- QR[2]+(k*IQR)
+	delete <- which(x<Lower.band |  x>Upper.Band)
+	as.vector(delete)
+}
+
+i.julianDate <- function(year, month, day, hour, min) {
+	options(digits=15)
+	fracOfDay	<- hour/24 + min/1440
+
+      		index1 <- month <= 2
+			if(sum(index1) > 0)
+				{
+					year[index1]  <- year[index1] -1
+					month[index1] <- month[index1] +12
+				}
+
+     		index2 <- (year*10000)+(month*100)+day <= 15821004
+
+      		JD <- numeric(length(year))
+			if(sum(index2)>0)
+				{
+					JD[index2] <- floor(365.25*(year[index2]+4716)) + floor(30.6001*(month[index2]+1)) + day[index2] + fracOfDay[index2] - 1524.5
+				}
+		  	index3 <- year*10000+month*100+day >= 15821015
+      		if (sum(index3)>0)
+				{
+					a <- floor(year/100)
+					b <- 2 - a + floor(a/4)
+
+					JD[index3] <- floor(365.25*(year[index3]+4716)) + floor(30.6001*(month[index3]+1)) + day[index3] + fracOfDay[index3] + b[index3] - 1524.5
+				}
+        	JD[!index2&!index3] <- 1
+
+JD
+}
+
+i.loxodrom.dist <- function(x1, y1, x2, y2, epsilon=0.0001){
+dis<-numeric(length(x1))
+rerde<-6368
+deltax<-abs(x2*pi/180-x1*pi/180)
+deltay<-abs(y2*pi/180-y1*pi/180)
+tga<-deltax/(log(tan(pi/4+y2*pi/360))-log(tan(pi/4+y1*pi/360)))
+
+dis[abs(x1-x2)<epsilon&abs(y1-y2)<epsilon]<-0
+dis[abs(y1-y2)<epsilon&(abs(x1-x2)>epsilon)]<-abs(cos(y1[abs(y1-y2)<epsilon&(abs(x1-x2)>epsilon)]*pi/180)*deltax[abs(y1-y2)<epsilon&(abs(x1-x2)>epsilon)])
+dis[(tga<0)&(abs(x1-x2)>epsilon)&(abs(y1-y2)>epsilon)]<-abs(deltay[(tga<0)&(abs(x1-x2)>epsilon)&(abs(y1-y2)>epsilon)]/cos((pi-atan(tga[(tga<0)&(abs(x1-x2)>epsilon)&(abs(y1-y2)>epsilon)]))))
+dis[(tga>=0)&(abs(x1-x2)>epsilon)&(y1-y2>epsilon)]<--deltay[(tga>=0)&(abs(x1-x2)>epsilon)&(y1-y2>epsilon)]/cos(atan(tga[(tga>=0)&(abs(x1-x2)>epsilon)&(y1-y2>epsilon)]))
+dis[(tga>=0)&(abs(x1-x2)>epsilon)&(y2-y1>epsilon)]<-abs(deltay[(tga>=0)&(abs(x1-x2)>epsilon)&(y2-y1>epsilon)]/cos(atan(tga[(tga>=0)&(abs(x1-x2)>epsilon)&(y2-y1>epsilon)])))
+dis[(abs(x1-x2)<epsilon)&(y2-y1>epsilon)]<-abs(deltay[(abs(x1-x2)<epsilon)&(y2-y1>epsilon)]/cos(atan(tga[(abs(x1-x2)<epsilon)&(y2-y1>epsilon)])))
+dis[(abs(x1-x2)<epsilon)&(y1-y2>epsilon)]<-abs(deltay[(abs(x1-x2)<epsilon)&(y1-y2>epsilon)]/cos(atan(tga[(abs(x1-x2)<epsilon)&(y1-y2>epsilon)])))
+dis*rerde
+}
+
+i.preSelection <- function(datetime, light, LightThreshold){
+
+	dt <- cut(datetime,"1 hour")
+	st <- as.POSIXct(levels(dt),"UTC")
+
+	raw <- data.frame(datetime=dt,light=light)
+
+	h  <- tapply(light,dt,max)
+	df1 <- data.frame(datetime=st+(30*60),light=as.numeric(h))
+
+    smooth <- i.twilightEvents(df1[,1], df1[,2], LightThreshold)
+    		  smooth <- data.frame(id=1:nrow(smooth),smooth)
+	raw    <- i.twilightEvents(datetime, light, LightThreshold)
+			  raw <- data.frame(id=1:nrow(raw),raw)
+
+  ind2 <- rep(NA,nrow(smooth))
+  for(i in 1:nrow(smooth)){
+  	tmp <- subset(raw,datetime>=(smooth[i,2]-(90*60)) & datetime<=(smooth[i,2]+(90*60)))
+
+  	if(smooth[i,3]==1) ind3 <- tmp$id[which.min(tmp[,2])]
+  	if(smooth[i,3]==2) ind3 <- tmp$id[which.max(tmp[,2])]
+  ind2[i] <- ind3
+  }
+
+
+res <- data.frame(raw,mod=1)
+res$mod[ind2] <- 0
+
+res
+}
+
+i.rad <- function(Deg) {
+	options(digits=10)
+Deg * (pi/180)
+}
+
+i.radDeclination <- function(radEclipticalLength,radObliquity) {
+	options(digits=10)
+	dec <- asin(sin(radObliquity)*sin(radEclipticalLength))
+    dec
+}
+
+i.radEclipticLongitude <- function(jC) {
+	options(digits=10)
+  	radMeanAnomaly <- 2*pi*i.frac(0.993133 + 99.997361*jC)
+	EclipticLon    <- 2*pi*i.frac(0.7859452 + radMeanAnomaly/(2*pi) + (6893*sin(radMeanAnomaly) + 72*sin(2*radMeanAnomaly) + 6191.2*jC) / 1296000)
+EclipticLon
+}
+
+i.radGMST <- function(jD,jD0,jC,jC0) {
+		options(digits=10)
+		UT  <- 86400 * (jD-jD0)
+		st0 <- 24110.54841 + 8640184.812866*jC0 + 1.0027379093*UT + (0.093104 - 0.0000062*jC0)*jC0*jC0
+		gmst<- (((2*pi)/86400)*(st0%%86400))
+gmst
+}
+
+i.radObliquity <- function(jC) {
+	options(digits=10)
+	degObliquity <- 23.43929111 - (46.8150 + (0.00059 - 0.001813 *jC)*jC) *jC/3600
+	radObliquity <- i.rad(degObliquity)
+radObliquity
+}
+
+i.radRightAscension <- function(RadEclipticalLength,RadObliquity) {
+	options(digits=10)
+	index1 <- (cos(RadEclipticalLength) < 0)
+	res <- numeric(length(RadEclipticalLength))
+	if (sum(index1)>0)
+		{
+			res[index1] <- (atan((cos(RadObliquity[index1])*sin(RadEclipticalLength[index1]))/cos(RadEclipticalLength[index1])) + pi)
+		}
+	index2 <- (cos(RadEclipticalLength) >= 0)
+	if (sum(index2)>0)
+		{
+			res[index2] <- (atan((cos(RadObliquity[index2])*sin(RadEclipticalLength[index2]))/cos(RadEclipticalLength[index2])))
+		}
+res
+}
+
+
+i.setToRange <- function(Start,Stop,Angle) {
+		options(digits=15)
+		angle <- Angle
+		range <- Stop - Start
+			index1 <- angle >= Stop
+			if (sum(index1, na.rm = T)>0) angle[index1] <- angle[index1] - (floor((angle[index1]-Stop)/range)+1)*range
+
+			index2 <- angle < Start
+			if(sum(index2, na.rm = T)>0) angle[index2] <- angle[index2]  + ceiling(abs(angle[index2] -Start)/range)*range
+angle
+}
+
+i.sum.Cl <- function(object) {
+
+	if(all(names(object)%in%c("riseProb","setProb","rise.prob","set.prob","site","migTable"))){
+		cat("\n")
+		cat("Probability threshold(s):")
+		cat(rep("\n",2))
+		if(!is.na(object$rise.prob)) cat(paste("	Sunrise: ",object$rise.prob))
+		if(!is.na(object$set.prob)) cat(paste("	Sunset: ",object$set.prob))
+		cat(rep("\n",3))
+		cat("Migration schedule table:")
+		cat(rep("\n",2))
+
+		print(object$migTable,quote=FALSE)
+	} else {
+		cat("Error: List must be the output list of the changeLight function.")
+	}
+}
+
+i.sunelevation <- function(lon, lat, year, month, day, hour, min, sec){
+
+datetime<-paste(year,"-", month,"-", day, " ", hour, ":", min, ":", sec, sep="")
+gmt<-as.POSIXct(strptime(datetime, "%Y-%m-%d %H:%M:%S"), "UTC")
+n <- gmt - as.POSIXct(strptime("2000-01-01 12:00:00", "%Y-%m-%d %H:%M:%S"), "UTC")
+
+# mean ecliptical length of sun
+L <- 280.46 + 0.9856474 * n
+L <- as.numeric(L)
+
+# Anomalie
+g <- 357.528 + 0.9856003 * n
+g <- as.numeric(g)
+
+t.v <- floor(g/360)
+g <- g - 360*t.v
+g.rad <- g*pi/180
+
+t.l <- floor(L/360)
+L <- L - 360 * t.l
+L.rad <- L*pi/180
+
+# ecliptical length of sun
+LAMBDA <- L + 1.915 * sin(g.rad) + 0.02*sin(2*g.rad)
+LAMBDA.rad <- LAMBDA*pi/180
+
+# coordinates of equator
+epsilon <- 23.439 - 0.0000004 * n
+epsilon.rad <- as.numeric(epsilon)*pi/180
+
+alpha.rad <- atan(cos(epsilon.rad)*sin(LAMBDA.rad)/cos(LAMBDA.rad))
+
+
+alpha.rad <- ifelse(cos(LAMBDA.rad)<0, alpha.rad+pi, alpha.rad)
+alpha <- alpha.rad*180/pi
+
+deklination.rad <- asin(sin(epsilon.rad) * sin(LAMBDA.rad))
+deklination <- deklination.rad*180/pi
+
+# angle h
+tag<-paste(year,"-", month,"-", day, " 00:00:00", sep="")
+JD0<-as.POSIXct(strptime(tag, "%Y-%m-%d %H:%M:%S"), "GMT")
+JD0 <- JD0 - as.POSIXct(strptime("2000-01-01 12:00:00", "%Y-%m-%d %H:%M:%S"), "GMT")
+T0 <- JD0/36525
+
+Time <- hour  + min/60  + sec/60/100
+theta.Gh <- 6.697376 + 2400.05134 * T0 + 1.002738 * Time
+theta.Gh <- as.numeric(theta.Gh)
+
+t.d <- floor(theta.Gh/24)
+theta.Gh <- theta.Gh-t.d*24
+
+theta.G <- theta.Gh * 15
+
+theta <- theta.G + lon
+tau <- theta-alpha
+tau.rad <- tau/180*pi
+
+h <- asin(cos(deklination.rad) * cos(tau.rad) * cos(lat/180*pi) + sin(deklination.rad) * sin(lat/180*pi))
+h.grad <- h/pi*180
+
+# correction because of refraction
+R <- 1.02/(tan((h.grad+10.3/(h.grad+5.11))/180*pi))
+
+
+h.grad + R/60
+}
+
+
+i.twilightEvents <- function(datetime, light, LightThreshold){
+
+   df <- data.frame(datetime, light)
+
+   ind1 <- which((df$light[-nrow(df)] < LightThreshold & df$light[-1] > LightThreshold) |
+    			 (df$light[-nrow(df)] > LightThreshold & df$light[-1] < LightThreshold) |
+  				  df$light[-nrow(df)] == LightThreshold)
+
+   bas1 <- cbind(df[ind1,],df[ind1+1,])
+  		  bas1 <- bas1[bas1[,2]!=bas1[,4],]
+
+  x1 <- as.numeric(unclass(bas1[,1])); x2 <- as.numeric(unclass(bas1[,3]))
+  y1 <- bas1[,2]; y2 <- bas1[,4]
+  m <- (y2-y1)/(x2-x1)
+  b <- y2-(m*x2)
+
+  xnew <- (LightThreshold - b)/m
+  type <- ifelse(bas1[,2]<bas1[,4],1,2)
+data.frame(datetime=as.POSIXct(xnew, origin="1970-01-01", tz="UTC"),type)
+}
+
+## _______________________________
+
+##################################################
+### Description of Datasets included in GeoLight #
+##################################################
+
+
 #' Example data for calibration: Light intensities and twilight events
 #'
 #' Light intensity measurements over time (calib1) recorded at the rooftop of
@@ -2255,3 +1995,160 @@ NULL
 #' # points(coord,col="brown",cex=0.5,pch=20)
 #'
 NULL
+
+## ____________________________________________
+
+
+#########################################################################################
+### Functions from R package SGAT: will be removed after SGAT will be available on CRAN #
+#########################################################################################
+
+i.solar <- function(tm) {
+  
+  rad <- pi/180
+  
+  ## Time as Julian day (R form)
+  Jd <- as.numeric(tm)/86400.0+2440587.5
+  
+  ## Time as Julian century [G]
+  Jc <- (Jd-2451545)/36525
+  
+  ## The geometric mean sun longitude (degrees) [I]
+  L0 <- (280.46646+Jc*(36000.76983+0.0003032*Jc))%%360
+  
+  
+  ## Geometric mean anomaly for the sun (degrees) [J]
+  M <- 357.52911+Jc*(35999.05029-0.0001537*Jc)
+  
+  ## The eccentricity of earth's orbit [K]
+  e <- 0.016708634-Jc*(0.000042037+0.0000001267*Jc)
+  
+  ## Equation of centre for the sun (degrees) [L]
+  eqctr <- sin(rad*M)*(1.914602-Jc*(0.004817+0.000014*Jc))+
+    sin(rad*2*M)*(0.019993-0.000101*Jc)+
+    sin(rad*3*M)*0.000289
+  
+  ## The true longitude of the sun (degrees) [M]
+  lambda0 <- L0 + eqctr
+  
+  ## The apparent longitude of the sun (degrees) [P]
+  omega <- 125.04-1934.136*Jc
+  lambda <- lambda0-0.00569-0.00478*sin(rad*omega)
+  
+  
+  ## The mean obliquity of the ecliptic (degrees) [Q]
+  seconds <- 21.448-Jc*(46.815+Jc*(0.00059-Jc*(0.001813)))
+  obliq0 <- 23+(26+(seconds/60))/60
+  
+  ## The corrected obliquity of the ecliptic (degrees) [R]
+  omega <- 125.04-1934.136*Jc
+  obliq <- obliq0 + 0.00256*cos(rad*omega)
+  
+  ## The equation of time (minutes of time) [U,V]
+  y <- tan(rad*obliq/2)^2
+  eqnTime <- 4/rad*(y*sin(rad*2*L0) -
+                      2*e*sin(rad*M) +
+                      4*e*y*sin(rad*M)*cos(rad*2*L0) -
+                      0.5*y^2*sin(rad*4*L0) -
+                      1.25*e^2*sin(rad*2*M))
+  
+  ## The sun's declination (radians) [T]
+  solarDec <- asin(sin(rad*obliq)*sin(rad*lambda))
+  sinSolarDec <- sin(solarDec)
+  cosSolarDec <- cos(solarDec)
+  
+  ## Solar time unadjusted for longitude (degrees) [AB!!]
+  ## Am missing a mod 360 here, but is only used within cosine.
+  solarTime <- ((Jd-0.5)%%1*1440+eqnTime)/4
+  #solarTime <- ((Jd-2440587.5)*1440+eqnTime)/4
+  
+  ## Return solar constants
+  list(solarTime=solarTime,
+       eqnTime=eqnTime,
+       sinSolarDec=sinSolarDec,
+       cosSolarDec=cosSolarDec)
+}
+
+i.zenith <- function(sun, lon, lat) {
+  
+  rad <- pi/180
+  
+  ## Suns hour angle (degrees) [AC!!]
+  hourAngle <- sun$solarTime+lon-180
+  #hourAngle <- sun$solarTime%%360+lon-180
+  
+  ## Cosine of sun's zenith [AD]
+  cosZenith <- (sin(rad*lat)*sun$sinSolarDec+
+                  cos(rad*lat)*sun$cosSolarDec*cos(rad*hourAngle))
+  
+  ## Limit to [-1,1] [!!]
+  cosZenith[cosZenith > 1] <- 1
+  cosZenith[cosZenith < -1] <- -1
+  
+  ## Ignore refraction correction
+  acos(cosZenith)/rad
+}
+
+i.refracted <- function(zenith) {
+  rad <- pi/180
+  elev <- 90-zenith
+  te <- tan((rad)*elev)
+  ## Atmospheric Refraction [AF]
+  r <- ifelse(elev>85,0,
+              ifelse(elev>5,58.1/te-0.07/te^3+0.000086/te^5,
+                     ifelse(elev>-0.575,
+                            1735+elev*(-518.2+elev*(103.4+elev*(-12.79+elev*0.711))),-20.772/te)))
+  ## Corrected Zenith [90-AG]
+  zenith-r/3600
+}
+
+i.unrefracted <- function(zenith) {
+  uniroot(function(x) i.refracted(x)-zenith,c(zenith,zenith+2))
+}  
+
+i.twilight.solartime <- function(solar, lon, lat, rise, zenith=96) {
+  rad <- pi/180
+  cosz <- cos(rad*zenith)
+  cosHA <- (cosz-sin(rad*lat)*solar$sinSolarDec)/(cos(rad*lat)*solar$cosSolarDec)
+  ## Compute the sun's hour angle from its declination for this location
+  hourAngle <- ifelse(rise,360,0)+ifelse(rise,-1,1)*suppressWarnings(acos(cosHA)/rad)
+  ## Solar time of sunrise at this zenith angle, lon and lat
+  #(hourAngle+180-lon)%%360
+  #360*(solar$solarTime%/%360)+solarTime
+  solarTime <- (hourAngle+180-lon)%%360
+  (solarTime-solar$solarTime+180)%%360-180+solar$solarTime
+}
+
+i.twilight <- function(tm, lon, lat, rise, zenith=96, iters=3) {
+  
+  ## Compute date
+  date <- as.POSIXlt(tm)
+  date$hour <- date$min <- date$sec <- 0
+  date <- as.POSIXct(date,"GMT")
+  
+  lon <- (lon+180)%%360-180
+  ## GMT equivalent of 6am or 6pm local time
+  twl <- date+240*(ifelse(rise,90,270)-lon)
+  ## Iteratively improve estimate
+  for(k in seq_len(iters)) {
+    s <- i.solar(twl)
+    s$solarTime <- s$solarTime%%360
+    solarTime <- 4*i.twilight.solartime(s,lon,lat,rise,zenith)-s$eqnTime
+    twl <- date+60*solarTime
+  }
+  twl
+}
+
+i.geolight.convert <- function(tFirst,tSecond,type) {
+  tm <- .POSIXct(c(as.POSIXct(tFirst,"GMT"),
+                   as.POSIXct(tSecond,"GMT")),"GMT")
+  keep <- !duplicated(tm)
+  tm <- tm[keep]
+  rise <- c(type==1,type!=1)[keep]
+  ord <- order(tm)
+  data.frame(Twilight=tm[ord],Rise=rise[ord])
+}
+
+## ______________________________________________________________________________________
+
+
