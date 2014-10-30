@@ -116,154 +116,6 @@
 NULL
 
 
-# Functions exportet from SGAT
-i.solar <- function(tm) {
-  
-  rad <- pi/180
-  
-  ## Time as Julian day (R form)
-  Jd <- as.numeric(tm)/86400.0+2440587.5
-  
-  ## Time as Julian century [G]
-  Jc <- (Jd-2451545)/36525
-  
-  ## The geometric mean sun longitude (degrees) [I]
-  L0 <- (280.46646+Jc*(36000.76983+0.0003032*Jc))%%360
-  
-  
-  ## Geometric mean anomaly for the sun (degrees) [J]
-  M <- 357.52911+Jc*(35999.05029-0.0001537*Jc)
-  
-  ## The eccentricity of earth's orbit [K]
-  e <- 0.016708634-Jc*(0.000042037+0.0000001267*Jc)
-  
-  ## Equation of centre for the sun (degrees) [L]
-  eqctr <- sin(rad*M)*(1.914602-Jc*(0.004817+0.000014*Jc))+
-    sin(rad*2*M)*(0.019993-0.000101*Jc)+
-    sin(rad*3*M)*0.000289
-  
-  ## The true longitude of the sun (degrees) [M]
-  lambda0 <- L0 + eqctr
-  
-  ## The apparent longitude of the sun (degrees) [P]
-  omega <- 125.04-1934.136*Jc
-  lambda <- lambda0-0.00569-0.00478*sin(rad*omega)
-  
-  
-  ## The mean obliquity of the ecliptic (degrees) [Q]
-  seconds <- 21.448-Jc*(46.815+Jc*(0.00059-Jc*(0.001813)))
-  obliq0 <- 23+(26+(seconds/60))/60
-  
-  ## The corrected obliquity of the ecliptic (degrees) [R]
-  omega <- 125.04-1934.136*Jc
-  obliq <- obliq0 + 0.00256*cos(rad*omega)
-  
-  ## The equation of time (minutes of time) [U,V]
-  y <- tan(rad*obliq/2)^2
-  eqnTime <- 4/rad*(y*sin(rad*2*L0) -
-                      2*e*sin(rad*M) +
-                      4*e*y*sin(rad*M)*cos(rad*2*L0) -
-                      0.5*y^2*sin(rad*4*L0) -
-                      1.25*e^2*sin(rad*2*M))
-  
-  ## The sun's declination (radians) [T]
-  solarDec <- asin(sin(rad*obliq)*sin(rad*lambda))
-  sinSolarDec <- sin(solarDec)
-  cosSolarDec <- cos(solarDec)
-  
-  ## Solar time unadjusted for longitude (degrees) [AB!!]
-  ## Am missing a mod 360 here, but is only used within cosine.
-  solarTime <- ((Jd-0.5)%%1*1440+eqnTime)/4
-  #solarTime <- ((Jd-2440587.5)*1440+eqnTime)/4
-  
-  ## Return solar constants
-  list(solarTime=solarTime,
-       eqnTime=eqnTime,
-       sinSolarDec=sinSolarDec,
-       cosSolarDec=cosSolarDec)
-}
-
-i.zenith <- function(sun, lon, lat) {
-  
-  rad <- pi/180
-  
-  ## Suns hour angle (degrees) [AC!!]
-  hourAngle <- sun$solarTime+lon-180
-  #hourAngle <- sun$solarTime%%360+lon-180
-  
-  ## Cosine of sun's zenith [AD]
-  cosZenith <- (sin(rad*lat)*sun$sinSolarDec+
-                  cos(rad*lat)*sun$cosSolarDec*cos(rad*hourAngle))
-  
-  ## Limit to [-1,1] [!!]
-  cosZenith[cosZenith > 1] <- 1
-  cosZenith[cosZenith < -1] <- -1
-  
-  ## Ignore refraction correction
-  acos(cosZenith)/rad
-}
-
-i.refracted <- function(zenith) {
-  rad <- pi/180
-  elev <- 90-zenith
-  te <- tan((rad)*elev)
-  ## Atmospheric Refraction [AF]
-  r <- ifelse(elev>85,0,
-              ifelse(elev>5,58.1/te-0.07/te^3+0.000086/te^5,
-                     ifelse(elev>-0.575,
-                            1735+elev*(-518.2+elev*(103.4+elev*(-12.79+elev*0.711))),-20.772/te)))
-  ## Corrected Zenith [90-AG]
-  zenith-r/3600
-}
-
-i.unrefracted <- function(zenith) {
-  uniroot(function(x) i.refracted(x)-zenith,c(zenith,zenith+2))
-}  
-
-i.twilight.solartime <- function(solar, lon, lat, rise, zenith=96) {
-  rad <- pi/180
-  cosz <- cos(rad*zenith)
-  cosHA <- (cosz-sin(rad*lat)*solar$sinSolarDec)/(cos(rad*lat)*solar$cosSolarDec)
-  ## Compute the sun's hour angle from its declination for this location
-  hourAngle <- ifelse(rise,360,0)+ifelse(rise,-1,1)*suppressWarnings(acos(cosHA)/rad)
-  ## Solar time of sunrise at this zenith angle, lon and lat
-  #(hourAngle+180-lon)%%360
-  #360*(solar$solarTime%/%360)+solarTime
-  solarTime <- (hourAngle+180-lon)%%360
-  (solarTime-solar$solarTime+180)%%360-180+solar$solarTime
-}
-
-i.twilight <- function(tm, lon, lat, rise, zenith=96, iters=3) {
-  
-  ## Compute date
-  date <- as.POSIXlt(tm)
-  date$hour <- date$min <- date$sec <- 0
-  date <- as.POSIXct(date,"GMT")
-  
-  lon <- (lon+180)%%360-180
-  ## GMT equivalent of 6am or 6pm local time
-  twl <- date+240*(ifelse(rise,90,270)-lon)
-  ## Iteratively improve estimate
-  for(k in seq_len(iters)) {
-    s <- i.solar(twl)
-    s$solarTime <- s$solarTime%%360
-    solarTime <- 4*i.twilight.solartime(s,lon,lat,rise,zenith)-s$eqnTime
-    twl <- date+60*solarTime
-  }
-  twl
-}
-
-i.geolight.convert <- function(tFirst,tSecond,type) {
-  tm <- .POSIXct(c(as.POSIXct(tFirst,"GMT"),
-                   as.POSIXct(tSecond,"GMT")),"GMT")
-  keep <- !duplicated(tm)
-  tm <- tm[keep]
-  rise <- c(type==1,type!=1)[keep]
-  ord <- order(tm)
-  data.frame(Twilight=tm[ord],Rise=rise[ord])
-}
-# end functions from SGAT
-
 i.argCheck <- function(y) {
   
   if(any(names(y)=="x")) {
@@ -2235,3 +2087,158 @@ NULL
 #' # points(coord,col="brown",cex=0.5,pch=20)
 #'
 NULL
+
+
+
+##################################################################
+###### Functions temporarily imported from R Package SGAT ########
+##################################################################
+
+i.solar <- function(tm) {
+  
+  rad <- pi/180
+  
+  ## Time as Julian day (R form)
+  Jd <- as.numeric(tm)/86400.0+2440587.5
+  
+  ## Time as Julian century [G]
+  Jc <- (Jd-2451545)/36525
+  
+  ## The geometric mean sun longitude (degrees) [I]
+  L0 <- (280.46646+Jc*(36000.76983+0.0003032*Jc))%%360
+  
+  
+  ## Geometric mean anomaly for the sun (degrees) [J]
+  M <- 357.52911+Jc*(35999.05029-0.0001537*Jc)
+  
+  ## The eccentricity of earth's orbit [K]
+  e <- 0.016708634-Jc*(0.000042037+0.0000001267*Jc)
+  
+  ## Equation of centre for the sun (degrees) [L]
+  eqctr <- sin(rad*M)*(1.914602-Jc*(0.004817+0.000014*Jc))+
+    sin(rad*2*M)*(0.019993-0.000101*Jc)+
+    sin(rad*3*M)*0.000289
+  
+  ## The true longitude of the sun (degrees) [M]
+  lambda0 <- L0 + eqctr
+  
+  ## The apparent longitude of the sun (degrees) [P]
+  omega <- 125.04-1934.136*Jc
+  lambda <- lambda0-0.00569-0.00478*sin(rad*omega)
+  
+  
+  ## The mean obliquity of the ecliptic (degrees) [Q]
+  seconds <- 21.448-Jc*(46.815+Jc*(0.00059-Jc*(0.001813)))
+  obliq0 <- 23+(26+(seconds/60))/60
+  
+  ## The corrected obliquity of the ecliptic (degrees) [R]
+  omega <- 125.04-1934.136*Jc
+  obliq <- obliq0 + 0.00256*cos(rad*omega)
+  
+  ## The equation of time (minutes of time) [U,V]
+  y <- tan(rad*obliq/2)^2
+  eqnTime <- 4/rad*(y*sin(rad*2*L0) -
+                      2*e*sin(rad*M) +
+                      4*e*y*sin(rad*M)*cos(rad*2*L0) -
+                      0.5*y^2*sin(rad*4*L0) -
+                      1.25*e^2*sin(rad*2*M))
+  
+  ## The sun's declination (radians) [T]
+  solarDec <- asin(sin(rad*obliq)*sin(rad*lambda))
+  sinSolarDec <- sin(solarDec)
+  cosSolarDec <- cos(solarDec)
+  
+  ## Solar time unadjusted for longitude (degrees) [AB!!]
+  ## Am missing a mod 360 here, but is only used within cosine.
+  solarTime <- ((Jd-0.5)%%1*1440+eqnTime)/4
+  #solarTime <- ((Jd-2440587.5)*1440+eqnTime)/4
+  
+  ## Return solar constants
+  list(solarTime=solarTime,
+       eqnTime=eqnTime,
+       sinSolarDec=sinSolarDec,
+       cosSolarDec=cosSolarDec)
+}
+
+i.zenith <- function(sun, lon, lat) {
+  
+  rad <- pi/180
+  
+  ## Suns hour angle (degrees) [AC!!]
+  hourAngle <- sun$solarTime+lon-180
+  #hourAngle <- sun$solarTime%%360+lon-180
+  
+  ## Cosine of sun's zenith [AD]
+  cosZenith <- (sin(rad*lat)*sun$sinSolarDec+
+                  cos(rad*lat)*sun$cosSolarDec*cos(rad*hourAngle))
+  
+  ## Limit to [-1,1] [!!]
+  cosZenith[cosZenith > 1] <- 1
+  cosZenith[cosZenith < -1] <- -1
+  
+  ## Ignore refraction correction
+  acos(cosZenith)/rad
+}
+
+i.refracted <- function(zenith) {
+  rad <- pi/180
+  elev <- 90-zenith
+  te <- tan((rad)*elev)
+  ## Atmospheric Refraction [AF]
+  r <- ifelse(elev>85,0,
+              ifelse(elev>5,58.1/te-0.07/te^3+0.000086/te^5,
+                     ifelse(elev>-0.575,
+                            1735+elev*(-518.2+elev*(103.4+elev*(-12.79+elev*0.711))),-20.772/te)))
+  ## Corrected Zenith [90-AG]
+  zenith-r/3600
+}
+
+i.unrefracted <- function(zenith) {
+  uniroot(function(x) i.refracted(x)-zenith,c(zenith,zenith+2))
+}  
+
+i.twilight.solartime <- function(solar, lon, lat, rise, zenith=96) {
+  rad <- pi/180
+  cosz <- cos(rad*zenith)
+  cosHA <- (cosz-sin(rad*lat)*solar$sinSolarDec)/(cos(rad*lat)*solar$cosSolarDec)
+  ## Compute the sun's hour angle from its declination for this location
+  hourAngle <- ifelse(rise,360,0)+ifelse(rise,-1,1)*suppressWarnings(acos(cosHA)/rad)
+  ## Solar time of sunrise at this zenith angle, lon and lat
+  #(hourAngle+180-lon)%%360
+  #360*(solar$solarTime%/%360)+solarTime
+  solarTime <- (hourAngle+180-lon)%%360
+  (solarTime-solar$solarTime+180)%%360-180+solar$solarTime
+}
+
+i.twilight <- function(tm, lon, lat, rise, zenith=96, iters=3) {
+  
+  ## Compute date
+  date <- as.POSIXlt(tm)
+  date$hour <- date$min <- date$sec <- 0
+  date <- as.POSIXct(date,"GMT")
+  
+  lon <- (lon+180)%%360-180
+  ## GMT equivalent of 6am or 6pm local time
+  twl <- date+240*(ifelse(rise,90,270)-lon)
+  ## Iteratively improve estimate
+  for(k in seq_len(iters)) {
+    s <- i.solar(twl)
+    s$solarTime <- s$solarTime%%360
+    solarTime <- 4*i.twilight.solartime(s,lon,lat,rise,zenith)-s$eqnTime
+    twl <- date+60*solarTime
+  }
+  twl
+}
+
+i.geolight.convert <- function(tFirst,tSecond,type) {
+  tm <- .POSIXct(c(as.POSIXct(tFirst,"GMT"),
+                   as.POSIXct(tSecond,"GMT")),"GMT")
+  keep <- !duplicated(tm)
+  tm <- tm[keep]
+  rise <- c(type==1,type!=1)[keep]
+  ord <- order(tm)
+  data.frame(Twilight=tm[ord],Rise=rise[ord])
+}
+
+## ______________________________________ end functions imported from SGAT
+
