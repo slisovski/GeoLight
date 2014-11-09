@@ -1,9 +1,9 @@
 Package: GeoLight
 Type: Package
 Title: Analysis of light based geolocator data
-Version: 2.0
-Author: Simeon Lisovski, Simon Wotherspoon, Michael Sumner, Silke Bauer, Tamara Emmenegger
-Maintainer: Simeon Lisovski <simeon.lisovski@gmail.com>
+Version: 1.04
+Author: Simeon Lisovski, Silke Bauer, Tamara Emmenegger
+Maintainer: Simeon Lisovski <migration@vogelwarte.ch>
 Description: The package provides basic functions for global
     positioning based on light intensity measurements over time.
     Positioning process includes the determination of sun events, a
