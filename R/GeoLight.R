@@ -783,9 +783,10 @@ return(glf)
 ##' @examples
 ##'
 ##' data(hoopoe2)
-##' attach(hoopoe2)
-##' residency <- changeLight(tFirst,tSecond,type,rise.prob=0.1,set.prob=0.1,plot=FALSE,summary=FALSE)
-##' HillEkstromCalib(tFirst,tSecond,type,residency$site,-6)
+##' 
+##' residency <- with(hoopoe2, changeLight(tFirst,tSecond,type, rise.prob=0.1, 
+##'   set.prob=0.1, plot=FALSE, summary=FALSE))
+##' with(hoopoe2, HillEkstromCalib(tFirst,tSecond,type,residency$site,-6))
 ##'
 ##' @export HillEkstromCalib
 HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, distanceFilter=FALSE, distance, plot=TRUE) {
@@ -1726,7 +1727,7 @@ trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat
 #' connected by a line
 #'
 #'
-#' @param coord a \code{SpatialPoints} or \code{matrix} object, containing x
+#' @param crds a \code{SpatialPoints} or \code{matrix} object, containing x
 #' and y coordinates (in that order).
 #' @param equinox logical; if \code{TRUE}, the equinox period(s) is shown as a
 #' broken blue line.
@@ -1955,8 +1956,7 @@ if(is.numeric(maxLight))
 #' @examples
 #'
 #' data(calib2)
-#' attach(calib2)
-#' getElevation(tFirst,tSecond,type,c(8,47.01))
+#' with(calib2, getElevation(tFirst,tSecond,type,c(8,47.01)))
 #'
 NULL
 
@@ -1998,8 +1998,7 @@ NULL
 #' @examples
 #'
 #' data(hoopoe2)
-#' attach(hoopoe2)
-#' coord <- coord(tFirst,tSecond,type,degElevation=-6)
+#' coord <- with(hoopoe2, coord(tFirst,tSecond,type,degElevation=-6))
 #' ## plot in a map using package maps
 #' # par(oma=c(5,0,0,0))
 #' # map(xlim=c(-20,40),ylim=c(-10,60),interior=F,col="darkgrey")
