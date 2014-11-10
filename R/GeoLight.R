@@ -164,7 +164,7 @@ i.argCheck <- function(y) {
 ##' @param degElevation the sun elevation angle (in degrees) that defines twilight (e.g. -6 for "civil
 ##' twilight"). Either a single value, a \code{vector} with the same length as
 ##' \code{tFirst} or \code{nrow(x)}.
-##' @param toll tolerance on the sine of the solar declination (only implemented in method 'NOAA').
+##' @param tol tolerance on the sine of the solar declination (only implemented in method 'NOAA').
 ##' @param note \code{logical}, if TRUE a notation of how many positions could
 ##' be calculated in proportion to the number of failures will be printed at the
 ##' end.
@@ -329,6 +329,7 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' data(calib2)
 ##' getElevation(calib2, known.coord = c(7.1,46.3))
 ##' @export getElevation
+##' @importFrom MASS fitdistr
 getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lnorm.pars = FALSE) {
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))]) 
@@ -359,7 +360,6 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
            main = "", xlab = "Twilight error (minutes)", col = "grey95")
     
     if(lnorm.pars) {
-      require(MASS)
       seq1 <- seq(0, max(tab$diff), length = 100)
       fit <- fitdistr(tab$diff, "log-Normal")
       lines(seq1, dlnorm(seq1, fit$estimate[1], fit$estimate[2]), col = "firebrick", lwd = 3, lty = 2)
@@ -1442,6 +1442,28 @@ schedule <- function(tFirst, tSecond, twl, site){
 }
 
 
+i.twilightEvents <- function (datetime, light, LightThreshold) 
+{
+  df <- data.frame(datetime, light)
+  ind1 <- which((df$light[-nrow(df)] < LightThreshold & df$light[-1] > 
+                   LightThreshold) | (df$light[-nrow(df)] > LightThreshold & 
+                                        df$light[-1] < LightThreshold) | df$light[-nrow(df)] == 
+                  LightThreshold)
+  bas1 <- cbind(df[ind1, ], df[ind1 + 1, ])
+  bas1 <- bas1[bas1[, 2] != bas1[, 4], ]
+  x1 <- as.numeric(unclass(bas1[, 1]))
+  x2 <- as.numeric(unclass(bas1[, 3]))
+  y1 <- bas1[, 2]
+  y2 <- bas1[, 4]
+  m <- (y2 - y1)/(x2 - x1)
+  b <- y2 - (m * x2)
+  xnew <- (LightThreshold - b)/m
+  type <- ifelse(bas1[, 2] < bas1[, 4], 1, 2)
+  res <- data.frame(datetime = as.POSIXct(xnew, origin = "1970-01-01", 
+                                          tz = "UTC"), type)
+  return(res)
+}
+
 #' Draws sites of residency and adds a convex hull
 #'
 #' Draw a map (from the \code{R} Package \code{maps}) showing the defined
@@ -1464,8 +1486,10 @@ schedule <- function(tFirst, tSecond, twl, site){
 #' data(hoopoe2)
 #' crds <- coord(hoopoe2, degElevation = -6)
 #' filter <- distanceFilter(hoopoe2, distance = 30)
-#' site <- changeLight(hoopoe2, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, summary = FALSE)$site
-#' siteMap(crds[filter,], site[filter], xlim=c(-20,20), ylim=c(0,60), lwd=2, pch=20, cex=0.5, main="hoopoe2")
+#' site <- changeLight(hoopoe2, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, 
+#'  summary = FALSE)$site
+#' siteMap(crds[filter,], site[filter], xlim=c(-20,20), ylim=c(0,60), 
+#'  lwd=2, pch=20, cex=0.5, main="hoopoe2")
 #'
 #' @export siteMap
 #' @importFrom maps map map.axes
