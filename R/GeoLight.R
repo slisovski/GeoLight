@@ -784,9 +784,9 @@ return(glf)
 ##'
 ##' data(hoopoe2)
 ##' 
-##' residency <- with(hoopoe2, changeLight(tFirst,tSecond,type, rise.prob=0.1, 
-##'   set.prob=0.1, plot=FALSE, summary=FALSE))
-##' with(hoopoe2, HillEkstromCalib(tFirst,tSecond,type,residency$site,-6))
+##' ##residency <- with(hoopoe2, changeLight(tFirst,tSecond,type, rise.prob=0.1, 
+##' ##  set.prob=0.1, plot=FALSE, summary=FALSE))
+##' ##with(hoopoe2, HillEkstromCalib(tFirst,tSecond,type,residency$site,-6))
 ##'
 ##' @export HillEkstromCalib
 HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, distanceFilter=FALSE, distance, plot=TRUE) {
