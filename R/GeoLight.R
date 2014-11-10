@@ -600,6 +600,7 @@ return(out)
 ##' @examples
 ##'
 ##' data(hoopoe2)
+##' attach(hoopoe2)
 ##' crds  <- coord(hoopoe2)
 ##' filter <- distanceFilter(hoopoe2, distance=30)
 ##' tripMap(crds[filter,],xlim=c(-20,20),ylim=c(0,60),main="hoopoe2 (filter)")
@@ -1485,9 +1486,10 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' @examples
 #'
 #' data(hoopoe2)
+#' attach(hoopoe2)
 #' crds <- coord(hoopoe2, degElevation = -6)
-#' filter <- distanceFilter(hoopoe2$tFirst, hoopoe2$tSecond, hoopoe2$type, distance = 30)
-#' site <- changeLight(hoopoe2$tFirst, hoopoe2$tSecond, hoopoe2$type, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, 
+#' filter <- distanceFilter(hoopoe2, distance = 30)
+#' site <- changeLight(hoopoe2, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, 
 #'  summary = FALSE)$site
 #' siteMap(crds[filter,], site[filter], xlim=c(-20,20), ylim=c(0,60), 
 #'  lwd=2, pch=20, cex=0.5, main="hoopoe2")
@@ -1583,13 +1585,15 @@ par(opar)
 ##' defined path.
 ##' @author Simeon Lisovski and Michael U. Kemp
 ##' @examples
-##'
+##' /donttest{
 ##' data(hoopoe2)
-##' filter <- distanceFilter(hoopoe2$tFirst, hoopoe2$tSecond, hoopoe2$type,distance=30)
+##' attach(hoopoe2)
+##' filter <- distanceFilter(hoopoe2,distance=30)
+##' ## takes time
 ##' trip2kml("trip.kml", hoopoe2$tFirst[filter], hoopoe2$tSecond[filter], hoopoe2$type[filter],
 ##' 		degElevation=-6, col.scheme="heat.colors", cex=0.7,
 ##' 		line.col="goldenrod")
-##'
+##'}
 ##' @export trip2kml
 trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat.colors", point.alpha=0.7, cex=1, line.col="goldenrod")
 {
