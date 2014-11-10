@@ -1486,8 +1486,8 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #'
 #' data(hoopoe2)
 #' crds <- coord(hoopoe2, degElevation = -6)
-#' filter <- distanceFilter(hoopoe2, distance = 30)
-#' site <- changeLight(hoopoe2, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, 
+#' filter <- distanceFilter(hoopoe2$tFirst, hoopoe2$tSecond, hoopoe2$type, distance = 30)
+#' site <- changeLight(hoopoe2$tFirst, hoopoe2$tSecond, hoopoe2$type, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, 
 #'  summary = FALSE)$site
 #' siteMap(crds[filter,], site[filter], xlim=c(-20,20), ylim=c(0,60), 
 #'  lwd=2, pch=20, cex=0.5, main="hoopoe2")
@@ -1585,8 +1585,8 @@ par(opar)
 ##' @examples
 ##'
 ##' data(hoopoe2)
-##' filter <- distanceFilter(hoopoe2,distance=30)
-##' trip2kml("trip.kml", tFirst[filter], tSecond[filter], type[filter],
+##' filter <- distanceFilter(hoopoe2$tFirst, hoopoe2$tSecond, hoopoe2$type,distance=30)
+##' trip2kml("trip.kml", hoopoe2$tFirst[filter], hoopoe2$tSecond[filter], hoopoe2$type[filter],
 ##' 		degElevation=-6, col.scheme="heat.colors", cex=0.7,
 ##' 		line.col="goldenrod")
 ##'
@@ -1956,7 +1956,7 @@ if(is.numeric(maxLight))
 #' @examples
 #'
 #' data(calib2)
-#' with(calib2, getElevation(tFirst,tSecond,type,c(8,47.01)))
+#' getElevation(calib2$tFirst, calib2$tSecond, calib2$type, known.coord = c(8,47.01))
 #'
 NULL
 
