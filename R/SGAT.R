@@ -234,6 +234,21 @@ twilight <- function(tm,lon,lat,rise,zenith=96,iters=3) {
   twl
 }
 
+
+twilight.solartime <- function(solar,lon,lat,rise,zenith=96) {
+  rad <- pi/180
+  cosz <- cos(rad*zenith)
+  cosHA <- (cosz-sin(rad*lat)*solar$sinSolarDec)/(cos(rad*lat)*solar$cosSolarDec)
+  ## Compute the sun's hour angle from its declination for this location
+  hourAngle <- ifelse(rise,360,0)+ifelse(rise,-1,1)*suppressWarnings(acos(cosHA)/rad)
+  ## Solar time of sunrise at this zenith angle, lon and lat
+  #(hourAngle+180-lon)%%360
+  #360*(solar$solarTime%/%360)+solarTime
+  solarTime <- (hourAngle+180-lon)%%360
+  (solarTime-solar$solarTime+180)%%360-180+solar$solarTime
+}
+
+
 i.geolight.convert <- function(tFirst,tSecond,type) {
   tm <- .POSIXct(c(as.POSIXct(tFirst,"GMT"),
                    as.POSIXct(tSecond,"GMT")),"GMT")
