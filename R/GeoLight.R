@@ -432,6 +432,7 @@ if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]),
 ##' residency <- changeLight(hoopoe2, quantile=0.9)
 ##'
 ##' @export changeLight
+##' @importFrom changepoint binseg.mean.cusum
 changeLight <- function(tFirst, tSecond, type, twl, quantile=0.6, rise.prob=NA, set.prob=NA, days=5, plot=TRUE, summary=TRUE) {
 	
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))])
@@ -1467,6 +1468,7 @@ schedule <- function(tFirst, tSecond, twl, site){
 #' siteMap(crds[filter,], site[filter], xlim=c(-20,20), ylim=c(0,60), lwd=2, pch=20, cex=0.5, main="hoopoe2")
 #'
 #' @export siteMap
+#' @importFrom maps map map.axes
 siteMap <- function(crds, site, points = TRUE, map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ...) {
   
   args <- list(...)
