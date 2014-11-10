@@ -13,10 +13,10 @@ Description: The package provides basic functions for global
     calculation of positions.
 License: GPL (>= 2)
 Depends:
-    R (>= 2.10)
+    R (>= 2.10),
+    maps
 Imports:
     changepoint,
-    maps,
     MASS
 LazyLoad: yes
 LazyData: yes
