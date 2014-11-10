@@ -1585,7 +1585,7 @@ par(opar)
 ##' defined path.
 ##' @author Simeon Lisovski and Michael U. Kemp
 ##' @examples
-##' /donttest{
+##' \donttest{
 ##' data(hoopoe2)
 ##' attach(hoopoe2)
 ##' filter <- distanceFilter(hoopoe2,distance=30)
