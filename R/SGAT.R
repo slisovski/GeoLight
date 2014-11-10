@@ -205,14 +205,6 @@ refracted <- function(zenith) {
 ##' @param iters number of iteratve refinements made to the initial
 ##' approximation.
 ##' @return a vector of twilight times.
-##' @examples
-##' ## Approx location of Santa Barbara
-##' lon <- -119.7022
-##' lat <- 34.4191
-##' ## Sunrise and sunset for 8th April 2013 at Santa Barbara
-##' day <- as.POSIXct("2013-04-08","GMT")
-##' sunrise(day,lon,lat)
-##' sunset(day,lon,lat)
 ##' @export
 twilight <- function(tm,lon,lat,rise,zenith=96,iters=3) {
   
