@@ -93,7 +93,7 @@
 #' ...
 #' 
 #' @section Acknowledgements:
-#' Steffen Hahn, Felix Liechti, Fraenzi Korner-Nievergelt, Andrea Koelzsch, Eldar Rakhimberdiev, Michael Sumner, Erich Baechler, Eli Bridge,  Andrew Parnell, Richard Inger
+#' Steffen Hahn, Felix Liechti, Fraenzi Korner-Nievergelt, Andrea Koelzsch, Eldar Rakhimberdiev, Erich Baechler, Eli Bridge,  Andrew Parnell, Richard Inger
 #'
 #' @section Authors:
 #' Simeon Lisovski, Simon Wotherspoon, Michael Sumner, Silke Bauer, Tamara Emmenegger \cr
@@ -845,19 +845,16 @@ repeat{
 	}
 }
 
-
+def.par <- par(no.readonly = TRUE, oma = c(3, 5, 6, 2), mar = c(2, 2, 2, 2))
 layout(matrix(seq(1,sites*2),ncol=2,nrow=sites,byrow=T))
-opar <- par(oma=c(3,5,6,2))
 
 for(j in 1:sites){
 
 	if(is.na(HECalib[j])){
 
-	par(mar=c(2,2,2,2),bty="n")
-	plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n")
+	plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty = "n")
 	text(0,0,"NA",cex=2)
-	par(mar=c(2,2,2,2),bty="n")
-	plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n")
+	plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty="n")
 
 	} else {
 
@@ -883,7 +880,6 @@ for(j in 1:sites){
 
 
 	colors <- grey.colors(length(angles))
-	par(mar=c(2,2,2,2))
 	plot(tFirst[site==j],latT[,1],ylim=c(min(na.omit(min)),max(na.omit(max))),type="o",cex=0.7,pch=20,col=colors[1],ylab="",xlab="")
 	for(p in 2:ncol(latT)){
 		   lines(tFirst[site==j],latM[,p],type="o",cex=0.7,pch=20,col=colors[p])
@@ -892,8 +888,6 @@ for(j in 1:sites){
 	if(j==sites) mtext("Latitude",side=2,line=3)
 	if(j==sites) mtext("Date",side=1,line=2.8)
 
-
-	par(mar=c(2,2,2,2))
 	plot(angles,var1,type="o",cex=1,pch=20,ylab="")
 	lines(angles,var1,type="p",cex=0.5,pch=7)
 	abline(v=HECalib[j],lty=2,col="red",lwd=1.5)
@@ -903,14 +897,16 @@ for(j in 1:sites){
 	axis(4)
 	if(j==sites) mtext("Sun elevation angles",side=1,line=2.8)
 	legend("topright",c(paste(HECalib[j]," degrees",sep=""),"sample size","variance"),pch=c(-1,20,20),lty=c(2,2,2),lwd=c(1.5,0,0),col=c("red","blue","black"),bg="White")
-
+  
 	}
 
 	}
 
 
 mtext("Hill-Ekstrom Calibration",cex=1.5,line=0.8,outer=T)
-par(opar)
+par(defpar)
+
+
 
 	return(HECalib)
 }
@@ -1546,7 +1542,7 @@ siteMap <- function(crds, site, points = TRUE, map.range = c("EuroAfrica", "Aust
       hpts <- c(hpts,hpts[1])
       lines(X[hpts,], 
             lty = ifelse(sum(names(args)%in%"lty")==1, args$lty, 1),
-            lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 8),
+            lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 1),
             col = colors[j])
     }
   }
@@ -1555,7 +1551,7 @@ legend("bottomright", letters[1:max(site)],
   pch = ifelse(sum(names(args)%in%"pch")==1, args$pch, 16),
   col=colors[1:max(as.numeric(site))])
 
-par(opar)
+if(!add) par(opar)
 }
 
 
@@ -1807,6 +1803,7 @@ if(legend) legend("bottomright", lty=c(0,1,1), pch=c(3,-1,-1), lwd=c(1,0.5,3), c
 } else {
  if(legend) 	  legend("bottomright",lty=c(0,1),pch=c(3,-1),lwd=c(1,0.5),col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),c("Positions","Trip"),bty="n",bg="grey90",border="grey90",cex=0.8)
 }
+if(!add) par(opar)
 
 }
 
