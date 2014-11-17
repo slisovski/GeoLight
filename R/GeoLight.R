@@ -349,7 +349,8 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
   
   
   if(plot) {
-    opar <- par(mfrow = c(1, 2), mar = c(7, 7, 5, 1), oma = c(0, 0, 0, 2), cex.lab = 1.5, cex.axis = 1.5, las = 1, mgp = c(4.8, 2, 1))
+     opar <- par(mfrow = c(1, 2), mar = c(7, 7, 5, 1), oma = c(0, 0, 0, 2), 
+                 cex.lab = 1.5, cex.axis = 1.5, las = 1, mgp = c(4.8, 2, 1))
     
       hist(z, breaks =  seq(min(z)-0.5, max(z)+0.5, length = 18), main = "", 
            col = "grey60", xlab = "Sun elevaion angle")
@@ -433,7 +434,7 @@ if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]),
 ##'
 ##' @export changeLight
 ##' @importFrom changepoint binseg.mean.cusum
-changeLight <- function(tFirst, tSecond, type, twl, quantile=0.6, rise.prob=NA, set.prob=NA, days=5, plot=TRUE, summary=TRUE) {
+changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, set.prob=NA, days=5, plot=TRUE, summary=TRUE) {
 	
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))])
   
@@ -563,7 +564,6 @@ if(plot){
   plot(as.POSIXct(tab[,1], "GMT") + (as.POSIXct(tab[,2], "GMT") - as.POSIXct(tab[,1], "GMT"))/2, 
        ifelse(out$site>0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim=c(0,1.5))
   rect(as.POSIXct(ds$Arrival, "GMT"), 1.1, as.POSIXct(ds$Departure, "GMT"), 1.4, lwd = 0, col="grey")
-  
   par(def.par)
 }
 
@@ -786,9 +786,9 @@ return(glf)
 ##'
 ##' data(hoopoe2)
 ##' 
-##' ##residency <- with(hoopoe2, changeLight(tFirst,tSecond,type, rise.prob=0.1, 
-##' ##  set.prob=0.1, plot=FALSE, summary=FALSE))
-##' ##with(hoopoe2, HillEkstromCalib(tFirst,tSecond,type,residency$site,-6))
+##' residency <- with(hoopoe2, changeLight(tFirst,tSecond,type, rise.prob=0.1, 
+##'                   set.prob=0.1, plot=FALSE, summary=FALSE))
+##' HillEkstromCalib(hoopoe2,site = residency$site)
 ##'
 ##' @export HillEkstromCalib
 HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, distanceFilter=FALSE, distance, plot=TRUE) {
@@ -845,9 +845,7 @@ repeat{
 	}
 }
 
-def.par <- par(no.readonly = TRUE, oma = c(3, 5, 6, 2), mar = c(2, 2, 2, 2))
-layout(matrix(seq(1,sites*2),ncol=2,nrow=sites,byrow=T))
-
+opar <- par(mfrow = c(sites, 2), oma = c(3, 5, 6, 2), mar = c(2, 2, 2, 2))
 for(j in 1:sites){
 
 	if(is.na(HECalib[j])){
@@ -863,7 +861,7 @@ for(j in 1:sites){
 	latM <- matrix(ncol=length(angles),nrow=length(tFirst[site==j]))
 
 	for(i in 1:ncol(latM)){
-	latM[,i] <- coord(tFirst[site==j],tSecond[site==j],type[site==j],c(angles[i]),note=F)[,2]
+	latM[,i] <- coord(tab[site==j,], degElevation = c(angles[i]),note=F)[,2]
 	}
 
 	latT <- latM
@@ -884,7 +882,7 @@ for(j in 1:sites){
 	for(p in 2:ncol(latT)){
 		   lines(tFirst[site==j],latM[,p],type="o",cex=0.7,pch=20,col=colors[p])
 		   }
-	lines(tFirst[site==j],coord(tFirst[site==j],tSecond[site==j],type[site==j],HECalib[j],note=F)[,2],col="tomato2",type="o",lwd=2,cex=1,pch=19)
+	lines(tFirst[site==j],coord(tab[site==j,], degElevation = HECalib[j], note=F)[,2],col="tomato2",type="o",lwd=2,cex=1,pch=19)
 	if(j==sites) mtext("Latitude",side=2,line=3)
 	if(j==sites) mtext("Date",side=1,line=2.8)
 
@@ -904,7 +902,7 @@ for(j in 1:sites){
 
 
 mtext("Hill-Ekstrom Calibration",cex=1.5,line=0.8,outer=T)
-par(defpar)
+par(opar)
 
 
 
@@ -1510,16 +1508,18 @@ siteMap <- function(crds, site, points = TRUE, map.range = c("EuroAfrica", "Aust
   if(sum(names(args)%in%c("xlim", "ylim"))==2) range <- c(args$xlim, args$ylim)
   
   # colors for sites
+  set.seed(100)
   colors <- rainbow(length(unique(site)))[sample(1:(length(unique(site))), length(unique(site)))]
   
   if(sum(names(args)%in%"add")==1) add <- args$add else add = FALSE
   
   if(!add) {
-    opar <- par(oma=c(5, 3, 0.5, 0.5))
-    map(xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), fill=T, lwd=0.01, col=c("grey90"), add=F, mar=c(rep(0.5,4)))
+    opar <- par(mar = c(6,5,1,1))
+    plot(NA, xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+    map(xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), fill=T, lwd=0.01, col=c("grey90"), add=TRUE)
     map(xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), interior=TRUE, col=c("darkgrey"), add=TRUE)
-    mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, ""), side=1,line=2.2,font=3)
-    mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, ""), side=2,line=2.5,font=3)
+    mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude"), side=1, line=2.2, font=3)
+    mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude"), side=2, line=2.5, font=3)
     map.axes()
     
     mtext(ifelse(sum(names(args)%in%"main")==1, args$main, ""), line=0.6, cex=1.2)
@@ -1763,8 +1763,9 @@ tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","
   if(sum(names(args)%in%"add")==1) add <- args$add else add = FALSE
   
   if(!add) {
-	par(oma=c(5,3,0,0))
-	map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),fill=T,lwd=0.01,col=c("grey90"),add=F,mar=c(rep(0.5,4)))
+	opar <- par(mar = c(6,5,1,1))
+  plot(NA,xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+	map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), fill=T,lwd=0.01,col=c("grey90"),add=TRUE)
 	map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),interior=TRUE,col=c("darkgrey"),add=TRUE)
 	mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude"), side=1, line=2.2, font=3)
 	mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude"), side=2, line=2.5, font=3)
