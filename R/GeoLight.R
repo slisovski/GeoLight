@@ -613,6 +613,7 @@ if(units=="days") units <- distance/24
 
 tFirst <- as.POSIXct(tab$tFirst, tz = "GMT")
 tSecond<- as.POSIXct(tab$tSecond, tz = "GMT")
+type <- tab$type
 tSunTransit <- tFirst + (tSecond-tFirst)/2
 crds  <- coord(tab, degElevation, note=FALSE)
 
@@ -796,6 +797,7 @@ HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, d
   
 	tFirst <- as.POSIXct(tab$tFirst, tz = "GMT")
 	tSecond <- as.POSIXct(tab$tSecond, tz = "GMT")
+  type <- tab$type
 
 	sites <- as.numeric(length(levels(as.factor(site[as.numeric(site)!=0]))))
 
@@ -1424,6 +1426,7 @@ schedule <- function(tFirst, tSecond, twl, site){
   
   tFirst <- as.POSIXct(tab$tFirst, tz = "GMT")
   tSecond <- as.POSIXct(tab$tSecond, tz = "GMT")
+  type <- tab$type
   
   midnoon <- tFirst + (tSecond - tFirst)/2
   diff1 <- c(site,site[length(site)]) != c(0,site)
