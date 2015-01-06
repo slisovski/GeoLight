@@ -124,15 +124,17 @@ i.argCheck <- function(y) {
       stop(sprintf(paste("The following columns in data frame twl are missing with no default: ", 
                          paste(c("tFirst", "tSecond", "type")[!ind02], collapse = ", "), ".", sep = "")))
     } 
-    y[[ind01]]
+    out <- y[[ind01]]
   } else {
     if(!all(ind03 <- c("tFirst", "tSecond", "type")%in%names(y))) {
       stop(sprintf(paste(paste(c("tFirst", "tSecond", "type")[!ind03], collapse = ", "), "is missing with no default.")))
     } else {
-      data.frame(tFirst = as.POSIXct(y$tFirst, tz = "GMT"), tSecond = as.POSIXct(y$tSecond, tz = "GMT"), type = y$type)
+      out <- data.frame(tFirst = y$tFirst, tSecond = y$tSecond, type = y$type)
     }
   }
-  
+  if(class(out[,1])[1]!="POSIXct") out[,1] <- as.POSIXct(out[,1], tz = "GMT")
+  if(class(out[,2])[1]!="POSIXct") out[,2] <- as.POSIXct(out[,2], tz = "GMT")
+out  
 }
 
 
@@ -183,10 +185,10 @@ i.argCheck <- function(y) {
 ##' @export   
 coord  <- function(tFirst, tSecond, type, twl, degElevation = -6, tol = 0, method = "NOAA",  note = TRUE) {
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))])   
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
   
-  rise <- ifelse(tab$type==1, as.POSIXct(tab$tFirst, tz = "GMT"), as.POSIXct(tab$tSecond, tz = "GMT"))
-  set <- ifelse(tab$type==1, as.POSIXct(tab$tSecond, tz = "GMT"), as.POSIXct(tab$tFirst, tz = "GMT"))
+  rise <- ifelse(tab$type==1, tab$tFirst, tab$tSecond)
+  set <- ifelse(tab$type==1, tab$tSecond, tab$tFirst)
   
   if(method == "NOAA") {
   rad <- pi/180
@@ -332,7 +334,7 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' @importFrom MASS fitdistr
 getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lnorm.pars = FALSE) {
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))]) 
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
   tab <- geolight.convert(tab[,1], tab[,2], tab[,3])  
   
   sun <- solar(as.POSIXct(tab[,1], "GMT"))
@@ -416,7 +418,7 @@ if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]),
 ##' @note The sunrise and/or sunset times shown in the graph (if
 ##' \code{plot=TRUE}) represent hours of the day. However if one or both of the
 ##' twilight events cross midnight during the recording period the values will
-##' be transformed to avoid discontinuity.
+##' be formed to avoid discontinuity.
 ##' @author Simeon Lisovski & Tamara Emmenegger
 ##' @seealso \code{\link{changepoint}}, \code{\link{binseg.mean.cusum}}
 ##' @references Taylor, Wayne A. (2000) Change-Point Analysis: A Powerful New
@@ -436,7 +438,7 @@ if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]),
 ##' @importFrom changepoint binseg.mean.cusum
 changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, set.prob=NA, days=5, plot=TRUE, summary=TRUE) {
 	
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))])
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
   
   # start: Sunrise and Sunset
 	tmp <- geolight.convert(tab$tFirst, tab$tSecond, tab$type)
@@ -607,8 +609,8 @@ return(out)
 ##' @export distanceFilter
 distanceFilter <- function(tFirst, tSecond, type, twl, degElevation = -6, distance, units = "hour") {
 
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))])
-  
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
+
 if(units=="days") units <- distance/24
 
 tFirst <- as.POSIXct(tab$tFirst, tz = "GMT")
@@ -793,10 +795,10 @@ return(glf)
 ##' @export HillEkstromCalib
 HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, distanceFilter=FALSE, distance, plot=TRUE) {
 
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))])
-  
-	tFirst <- as.POSIXct(tab$tFirst, tz = "GMT")
-	tSecond <- as.POSIXct(tab$tSecond, tz = "GMT")
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
+   
+	tFirst <- tab$tFirst
+	tSecond <- tab$tSecond
   type <- tab$type
 
 	sites <- as.numeric(length(levels(as.factor(site[as.numeric(site)!=0]))))
@@ -1299,9 +1301,9 @@ light
 ##' @export loessFilter
 loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE){
 
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))])
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
   
-	tw <- data.frame(datetime = .POSIXct(c(as.POSIXct(tab$tFirst, tz = "GMT"), as.POSIXct(tab$tSecond, tz = "GMT")), "GMT"), 
+	tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
                    type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
 	tw <- tw[!duplicated(tw$datetime),]
 	tw <- tw[order(tw[,1]),]
@@ -1416,10 +1418,10 @@ return(lux)
 ##' @export schedule
 schedule <- function(tFirst, tSecond, twl, site){
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(x!=""))])
-  
-  tFirst <- as.POSIXct(tab$tFirst, tz = "GMT")
-  tSecond <- as.POSIXct(tab$tSecond, tz = "GMT")
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
+    
+  tFirst <- tab$tFirst
+  tSecond <- tab$tSecond
   type <- tab$type
   
   midnoon <- tFirst + (tSecond - tFirst)/2
