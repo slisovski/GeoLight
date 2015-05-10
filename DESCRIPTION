@@ -14,9 +14,9 @@ Description: The package provides basic functions for global
 License: GPL (>= 2)
 Depends:
     R (>= 2.10),
-    maps
+    maps,
+    changepoint
 Imports:
-    changepoint,
     MASS
 LazyLoad: yes
 LazyData: yes

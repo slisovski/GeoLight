@@ -118,24 +118,26 @@ NULL
 
 i.argCheck <- function(y) {
   
-  if(!all(c("tFirst", "tSecond", "type")%in%names(y)) & any(sapply(y, function(x) class(x))=="data.frame")) {
+  if(any(sapply(y, function(x) class(x))=="data.frame")) {
     ind01 <- which(sapply(y, function(x) class(x))=="data.frame")
     if(!all(ind02 <- c("tFirst", "tSecond", "type")%in%names(y[[ind01]]))) {
-      stop(sprintf(paste("The following columns in data frame twl are missing with no default: ", 
-                         paste(c("tFirst", "tSecond", "type")[!ind02], collapse = ", "), ".", sep = "")))
+      whc <- paste("The following columns in data frame twl are missing with no default: ", paste(c("tFirst", "tSecond", "type")[!ind02], collapse = " and "), sep = "")
+      stop(whc , call. = F)
     } 
     out <- y[[ind01]]
   } else {
-    if(!all(ind03 <- c("tFirst", "tSecond", "type")%in%names(y))) {
-      stop(sprintf(paste(paste(c("tFirst", "tSecond", "type")[!ind03], collapse = ", "), "is missing with no default.")))
+    if(!all(c("tFirst", "tSecond", "type")%in%names(y))) {
+      ind03 <- c("tFirst", "tSecond", "type")%in%names(y)
+      stop(sprintf(paste(paste(c("tFirst", "tSecond", "type")[!ind03], collapse = " and "), "is missing with no default.")))
     } else {
       out <- data.frame(tFirst = y$tFirst, tSecond = y$tSecond, type = y$type)
     }
   }
   if(any(c(class(out[,1])[1], class(out[,2])[1])!="POSIXct")) {
-    stop(sprintf("Date and time inforamtion (e.g. tFirst and tSecond) need to be provided as POSIXct class objects."))
+    stop(sprintf("Date and time inforamtion (e.g. tFirst and tSecond) need to be provided as POSIXct class objects."), call. = F)
   }
 out  
+
 }
 
 
@@ -181,12 +183,14 @@ out
 ##' @author Simeon Lisovski, Simon Wotherspoon, Michael Sumner
 ##' @examples
 ##' data(hoopoe2)
+##'   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+##'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
 ##' crds <- coord(hoopoe2, degElevation=-6, tol = 0.2)
 ##' ## tripMap(crds, xlim=c(-20,20), ylim=c(5,50), main="hoopoe2")
 ##' @export   
 coord  <- function(tFirst, tSecond, type, twl, degElevation = -6, tol = 0, method = "NOAA",  note = TRUE) {
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   
   rise <- ifelse(tab$type==1, tab$tFirst, tab$tSecond)
   set <- ifelse(tab$type==1, tab$tSecond, tab$tFirst)
@@ -330,12 +334,14 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' Evolution}, DOI: 10.1111/j.2041-210X.2012.00185.x.
 ##' @examples
 ##' data(calib2)
-##' getElevation(calib2, known.coord = c(7.1,46.3))
+##'   calib2$tFirst  <- as.POSIXct(calib2$tFirst, tz = "GMT")
+##'   calib2$tSecond <- as.POSIXct(calib2$tSecond, tz = "GMT")
+##' getElevation(calib2, known.coord = c(7.1,46.3), lnorm.pars = TRUE)
 ##' @export getElevation
 ##' @importFrom MASS fitdistr
 getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lnorm.pars = FALSE) {
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   tab <- geolight.convert(tab[,1], tab[,2], tab[,3])  
   
   sun <- solar(as.POSIXct(tab[,1], "GMT"))
@@ -361,7 +367,7 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
       mtext(paste("median elevation", round(median(z),2)), font = 3, col = "cornflowerblue", cex = 1.2, line = 1.6)
      
       hist(tab$diff, freq = F, breaks = seq(min(tab$diff)-2, max(tab$diff)+2, length = 18), 
-           main = "", xlab = "Twilight error (minutes)", col = "grey95")
+           main = "", xlab = "Twilight error (minutes)", col = "grey95", ylab = "Probability density")
     
     if(lnorm.pars) {
       seq1 <- seq(0, max(tab$diff), length = 100)
@@ -433,13 +439,15 @@ if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]),
 ##' @examples
 ##'
 ##' data(hoopoe2)
+##'   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+##'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
 ##' residency <- changeLight(hoopoe2, quantile=0.9)
 ##'
 ##' @export changeLight
 ##' @importFrom changepoint binseg.mean.cusum
 changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, set.prob=NA, days=5, plot=TRUE, summary=TRUE) {
 	
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   
   # start: Sunrise and Sunset
 	tmp <- geolight.convert(tab$tFirst, tab$tSecond, tab$type)
@@ -610,8 +618,8 @@ return(out)
 ##' @export distanceFilter
 distanceFilter <- function(tFirst, tSecond, type, twl, degElevation = -6, distance, units = "hour") {
 
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
-
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
+  
 if(units=="days") units <- distance/24
 
 tFirst <- as.POSIXct(tab$tFirst, tz = "GMT")
@@ -788,16 +796,17 @@ return(glf)
 ##' @examples
 ##'
 ##' data(hoopoe2)
-##' 
+##'   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+##'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
 ##' residency <- with(hoopoe2, changeLight(tFirst,tSecond,type, rise.prob=0.1, 
 ##'                   set.prob=0.1, plot=FALSE, summary=FALSE))
 ##' HillEkstromCalib(hoopoe2,site = residency$site)
 ##'
 ##' @export HillEkstromCalib
-HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, distanceFilter=FALSE, distance, plot=TRUE) {
+HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, distanceFilter=FALSE, distance, plot=TRUE, separate = F) {
 
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
-   
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
+  
 	tFirst <- tab$tFirst
 	tSecond <- tab$tSecond
   type <- tab$type
@@ -848,69 +857,73 @@ repeat{
 	}
 }
 
-opar <- par(mfrow = c(sites, 2), oma = c(3, 5, 6, 2), mar = c(2, 2, 2, 2))
-for(j in 1:sites){
+if(plot) {
+  if(!separate) {
+    opar <- par(mfrow = c(sites, 2), oma = c(3, 5, 6, 2), mar = c(2, 2, 2, 2))
+      for(j in 1:sites){
 
-	if(is.na(HECalib[j])){
+	      if(is.na(HECalib[j])){
 
-	plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty = "n")
-	text(0,0,"NA",cex=2)
-	plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty="n")
+	      plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty = "n")
+	      text(0,0,"NA",cex=2)
+	      plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty="n")
 
-	} else {
+	      } else {
 
-	angles <- c(seq(HECalib[j]-2,HECalib[j]+2,0.2))
+	      angles <- c(seq(HECalib[j]-2,HECalib[j]+2,0.2))
 
-	latM <- matrix(ncol=length(angles),nrow=length(tFirst[site==j]))
+	      latM <- matrix(ncol=length(angles),nrow=length(tFirst[site==j]))
 
-	for(i in 1:ncol(latM)){
-	latM[,i] <- coord(tab[site==j,], degElevation = c(angles[i]),note=F)[,2]
-	}
+	      for(i in 1:ncol(latM)){
+	        latM[,i] <- coord(tab[site==j,], degElevation = c(angles[i]),note=F)[,2]
+	      }
 
-	latT <- latM
-	var1 <- rep(NA,ncol(latT))
-	n1   <- rep(NA,ncol(latT))
-	min  <- rep(NA,ncol(latT))
-	max  <- rep(NA,ncol(latT))
-			for(t in 1:length(var1)){
-				var1[t] <- var(na.omit(latT[,t]))
-				n1[t]   <- length(na.omit(latT[,t]))
-				min[t]  <- if(length(na.omit(latT[,t]))<=1) NA else min(na.omit(latT[,t]))
-				max[t]  <- if(length(na.omit(latT[,t]))<=1) NA else max(na.omit(latT[,t]))
+	      latT <- latM
+	      var1 <- rep(NA,ncol(latT))
+	      n1   <- rep(NA,ncol(latT))
+	      min  <- rep(NA,ncol(latT))
+	      max  <- rep(NA,ncol(latT))
+			  for(t in 1:length(var1)){
+				    var1[t] <- var(na.omit(latT[,t]))
+				    n1[t]   <- length(na.omit(latT[,t]))
+				    min[t]  <- if(length(na.omit(latT[,t]))<=1) NA else min(na.omit(latT[,t]))
+				    max[t]  <- if(length(na.omit(latT[,t]))<=1) NA else max(na.omit(latT[,t]))
 				}
 
 
-	colors <- grey.colors(length(angles))
-	plot(tFirst[site==j],latT[,1],ylim=c(min(na.omit(min)),max(na.omit(max))),type="o",cex=0.7,pch=20,col=colors[1],ylab="",xlab="")
-	for(p in 2:ncol(latT)){
-		   lines(tFirst[site==j],latM[,p],type="o",cex=0.7,pch=20,col=colors[p])
-		   }
-	lines(tFirst[site==j],coord(tab[site==j,], degElevation = HECalib[j], note=F)[,2],col="tomato2",type="o",lwd=2,cex=1,pch=19)
-	if(j==sites) mtext("Latitude",side=2,line=3)
-	if(j==sites) mtext("Date",side=1,line=2.8)
+	    colors <- grey.colors(length(angles))
+	    plot(tFirst[site==j],latT[,1],ylim=c(min(na.omit(min)),max(na.omit(max))),type="o",cex=0.7,pch=20,col=colors[1],ylab="",xlab="")
+	    for(p in 2:ncol(latT)){
+		    lines(tFirst[site==j],latM[,p],type="o",cex=0.7,pch=20,col=colors[p])
+		  }
+	    lines(tFirst[site==j],coord(tab[site==j,], degElevation = HECalib[j], note=F)[,2],col="tomato2",type="o",lwd=2,cex=1,pch=19)
+	    if(j==sites) mtext("Latitude",side=2,line=3)
+	    if(j==sites) mtext("Date",side=1,line=2.8)
 
-	plot(angles,var1,type="o",cex=1,pch=20,ylab="")
-	lines(angles,var1,type="p",cex=0.5,pch=7)
-	abline(v=HECalib[j],lty=2,col="red",lwd=1.5)
-	par(new=T)
-	plot(angles,n1,type="o",xaxt="n",yaxt="n",col="blue",pch=20,ylab="")
-	points(angles,n1,type="p",cex=0.5,pch=8,col="blue")
-	axis(4)
-	if(j==sites) mtext("Sun elevation angles",side=1,line=2.8)
-	legend("topright",c(paste(HECalib[j]," degrees",sep=""),"sample size","variance"),pch=c(-1,20,20),lty=c(2,2,2),lwd=c(1.5,0,0),col=c("red","blue","black"),bg="White")
-  
-	}
+	    plot(angles,var1,type="o",cex=1,pch=20,ylab="")
+	    lines(angles,var1,type="p",cex=0.5,pch=7)
+	    abline(v=HECalib[j],lty=2,col="red",lwd=1.5)
+	    par(new=T)
+	    plot(angles,n1,type="o",xaxt="n",yaxt="n",col="blue",pch=20,ylab="")
+	    points(angles,n1,type="p",cex=0.5,pch=8,col="blue")
+	    axis(4)
+	    if(j==sites) mtext("Sun elevation angles",side=1,line=2.8)
+	    legend("topright",c(paste(HECalib[j]," degrees",sep=""),"sample size","variance"),pch=c(-1,20,20),lty=c(2,2,2),lwd=c(1.5,0,0),col=c("red","blue","black"),bg="White")
+  	  }
+	    }
 
-	}
-
-
-mtext("Hill-Ekstrom Calibration",cex=1.5,line=0.8,outer=T)
-par(opar)
-
+    mtext("Hill-Ekstrom Calibration",cex=1.5,line=0.8,outer=T)
+    par(opar)
+  } else {
+    print("Tamara to write the separate plot function!")
+  }
+  }
 
 
 	return(HECalib)
 }
+
+
 
 i.JC2000 <- function(jD) {
 
@@ -1211,6 +1224,26 @@ i.sum.Cl <- function(object) {
 	}
 }
 
+i.mode <- function(x, w=NULL) {
+  if(is.null(w)){
+    if(sum(!is.na(x))>1){
+      x <- x[!is.na(x)]
+      xdens <- density(x)
+      xmax <- xdens$x[xdens$y==max(xdens$y, na.rm=TRUE)]
+    }
+    if(sum(!is.na(x))<2) xmax <- NA
+  }
+  if(!is.null(w)){
+    x <- rep(x,w)
+    if(sum(!is.na(x))>1){
+      x <- x[!is.na(x)]
+      xdens <- density(x)
+      xmax <- xdens$x[xdens$y==max(xdens$y, na.rm=TRUE)]
+    }
+    if(sum(!is.na(x))<2) xmax <- NA
+  }  
+  return(mean(xmax))
+}
 
 
 #' Filter to remove noise in light intensity measurements during the night
@@ -1302,7 +1335,7 @@ light
 ##' @export loessFilter
 loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE){
 
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   
 	tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
                    type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
@@ -1400,6 +1433,72 @@ return(lux)
 }
 
 
+#' Transformation of *.lig files
+#'
+#' Transform *.lig files derived from geolocator
+#' deviced for further analyses in \bold{\code{GeoLight}}.
+#'
+#' @param file the full patch and filename with suffix of the *.lux file.
+#' @return A \code{data.frame} suitable for further use in
+#' \bold{\code{GeoLight}}.
+#' @author Tamara Emmenegger
+#' @seealso \code{\link{gleTrans}} for transforming *.glf files produced by the
+#' software GeoLocator (\emph{Swiss Ornithological Institute})
+#' @export ligTrans
+ligTrans <- function(file) {
+  df <- cbind(read.csv(ligfile,row.names=NULL)[,c(2,4)])
+  colnames(df) <- c("datetime", "light")
+  df$datetime <- as.POSIXct(strptime(df$datetime,format="%d/%m/%y %H:%M:%S",tz="UTC"))
+  return(df)
+}
+
+#' Transformation of staroddi files
+#'
+#' Transform staroddi files derived from geolocator
+#' deviced for further analyses in \bold{\code{GeoLight}}.
+#'
+#' @param file the full patch and filename of the staroddi file.
+#' @return A \code{data.frame} suitable for further use in
+#' \bold{\code{GeoLight}}.
+#' @author Tamara Emmenegger
+#' @export staroddiTrans
+staroddiTrans <- function(staroddifile){
+  df <- cbind(read.table(staroddifile,sep="\t")[,c(2,4)])
+  colnames(df) <- c("datetime", "light")
+  df$datetime <- as.POSIXct(strptime(df$datetime,format="%d/%m/%y %H:%M:%S",tz="UTC"))
+  return(df)
+}
+
+
+#' Transformation of *.trn files
+#'
+#' Transform *.trn files derived from geolocator
+#' deviced for further analyses in \bold{\code{GeoLight}}.
+#'
+#' @param file the full patch and filename of the *.trn file.
+#' @return A \code{data.frame} suitable for further use in
+#' \bold{\code{GeoLight}}.
+#' @author Tamara Emmenegger
+#' @export trnTrans
+trnTrans<-function(trnfile){
+  data<-read.table(trnfile,sep=",")
+  tFirst <- vector("numeric",length=(length(data[,1])-1))
+  tSecond <- vector("numeric",length=(length(data[,1])-1))
+  type <- vector("numeric",length=(length(data[,1])-1))
+  for (i in 1:(length(data[,1])-1)){
+    date1<-as.Date(substr(as.character(data$V1[i]),1,8),format="%d/%m/%y")
+    tFirst[i] <- as.POSIXct(paste(as.character(date1),prefix=substr(as.character(data$V1[i]),10,17)),tz="UTC")
+    date2<-as.Date(substr(as.character(data$V1[i+1]),1,8),format="%d/%m/%y")
+    tSecond[i] <- as.POSIXct(paste(as.character(date1),prefix=substr(as.character(data$V1[i+1]),10,17)),tz="UTC")
+    if(as.character(data$V2[i])=="Sunrise") type[i] <- 1
+    if(as.character(data$V2[i])=="Sunset") type[i] <- 2
+  }
+  output <- data.frame(tFirst=as.POSIXlt(tFirst,origin="1970-01-01",tz="UTC"),tSecond=as.POSIXlt(tSecond,origin="1970-01-01",tz="UTC"),type=type)
+  return(output)
+}
+
+
+
 ## ' Summary of migration/movement pattern
 ##'
 ##' Function for making a data frame summarising residency and movement pattern.
@@ -1419,8 +1518,8 @@ return(lux)
 ##' @export schedule
 schedule <- function(tFirst, tSecond, twl, site){
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) class(x)!='name')])   
-    
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
+  
   tFirst <- tab$tFirst
   tSecond <- tab$tSecond
   type <- tab$type
@@ -1477,16 +1576,18 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' @param site a \code{numerical vector} assigning each row to a particular
 #' period. Stationary periods in numerical order and values >0,
 #' migration/movement periods 0.
-#' @param points \code{logical}; if \code{TRUE}, the points of each site will
-#' also be plottet.
+#' @param type either \emph{points}, or \emph{cross} to show all points for each site or only show the mean position of the site with standard deviation.
+#' @param hull \code{logical}, if TRUE a convex hull will be plotted around the points of each site.
 #' @param map.range some possibilities to choose defined areas ("World
 #' (default)", "EuroAfrica","America","AustralAsia").
 #' @param ... Arguments to be passed to methods, such as graphical parameters (see par).
-#' @author Simeon Lisovski
+#' @details Standard graphical paramters like \code{pch}, \code{cex}, \code{lwd}, \code{lty} and \code{col} are implemented. 
+#' The color can be specified as either a vector of colors (e.g. c("blue", "red", ...)) or as a character string indicating a color ramp (at the moment only "random" and "rainbow" is available )
+#' @author Simeon Lisovski & Tamara Emmenegger
 #' @examples
-#'
 #' data(hoopoe2)
-#' attach(hoopoe2)
+#'  hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+#'  hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
 #' crds <- coord(hoopoe2, degElevation = -6)
 #' filter <- distanceFilter(hoopoe2, distance = 30)
 #' site <- changeLight(hoopoe2, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, 
@@ -1496,7 +1597,7 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #'
 #' @export siteMap
 #' @importFrom maps map map.axes
-siteMap <- function(crds, site, points = TRUE, map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ...) {
+siteMap <- function(crds, site, type = "points", hull = T, map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ...) {
   
   args <- list(...)
   
@@ -1511,32 +1612,79 @@ siteMap <- function(crds, site, points = TRUE, map.range = c("EuroAfrica", "Aust
   if(sum(names(args)%in%c("xlim", "ylim"))==2) range <- c(args$xlim, args$ylim)
   
   # colors for sites
-  set.seed(100)
-  colors <- rainbow(length(unique(site)))[sample(1:(length(unique(site))), length(unique(site)))]
+  areColors <- function(x) {
+    sapply(x, function(X) {
+      tryCatch(is.matrix(col2rgb(X)), 
+               error = function(e) FALSE)
+    })
+  }
+
   
+  if(any(names(args)%in%"col")) {
+    allcolors <- rainbow(60,v=0.85)[1:50]
+    if(any(args$col=="rainbow")) {
+      col <- allcolors[round(seq(1,50,length.out=length(unique(site))))]
+    }
+    if(any(args$col=="random")) {
+      col <- sample(allcolors[round(seq(1,50,length.out=length(unique(site))))],length(unique(site)),replace = FALSE)
+    }
+    if(!any(args$col%in%c("random", "rainbow"))) {
+      if(!any(areColors(args$col))) stop("invalid colors", call. = FALSE)
+      if(length(args$col)!=length(unique(site))) {
+        col = rep(args$col, length(unique(site)))[1:length(unique(site))]
+        warning("Length of color vector is not equal to number of sites!", call. = FALSE)
+      }
+    }
+  } else {
+    allcolors <- rainbow(60,v=0.85)[1:50]
+    col <- sample(allcolors[round(seq(1,50,length.out=length(unique(site))))],length(unique(site)),replace = FALSE)
+  }
+  
+
   if(sum(names(args)%in%"add")==1) add <- args$add else add = FALSE
+  
   
   if(!add) {
     opar <- par(mar = c(6,5,1,1))
-    plot(NA, xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+    plot(NA, xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), xaxt = "n", yaxt = "n", xlab = "", ylab = "", bty = "n")
     map(xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), fill=T, lwd=0.01, col=c("grey90"), add=TRUE)
-    map(xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), interior=TRUE, col=c("darkgrey"), add=TRUE)
     mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude"), side=1, line=2.2, font=3)
     mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude"), side=2, line=2.5, font=3)
     map.axes()
-    
     mtext(ifelse(sum(names(args)%in%"main")==1, args$main, ""), line=0.6, cex=1.2)
   }
   
   
-  if(points) {points(crds[site>0, ], 
-                     cex = ifelse(sum(names(args)%in%"cex")==1, args$cex, 0.5),
-                     pch = ifelse(sum(names(args)%in%"pch")==1, args$pch, 16),
-                     col = colors[as.numeric(site)]
-  )}
+  if(type=="points") {
+    points(crds[site>0, ], 
+                     cex = ifelse(any(names(args)=="cex"), args$cex, 0.5),
+                     pch = ifelse(any(names(args)=="pch"), args$pch, 16),
+                     col = col[as.numeric(site)])
+  }
+  if(type=="cross") {
+    for (i in 1:max(unique(site))){
+      points(i.mode(crds[site == i, 1],1),
+             i.mode(crds[site == i, 2],1),
+             col = col[i],
+             cex = ifelse(any(names(args)=="cex"), args$cex, 1),
+             pch = ifelse(any(names(args)=="pch"), args$pch, 16)) 
+      segments(quantile(crds[site == i, 1],na.rm=T)[2],
+               i.mode(crds[site == i, 2],1),
+               quantile(crds[site == i, 1],na.rm=T)[4],
+               i.mode(crds[site == i, 2],1),
+               col = col[i],
+               lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
+      segments(i.mode(crds[site == i, 1],1),
+               quantile(crds[site == i, 2],na.rm=T)[4],
+               i.mode(crds[site == i, 1],1),
+               quantile(crds[site == i, 2],na.rm=T)[2],
+               col = col[i],
+               lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
+    }
+  }    
   
   
-  
+  if(hull) {
   for(j in unique(site)){
     if(j>0){
       X <- na.omit(crds[site==j,])
@@ -1546,13 +1694,14 @@ siteMap <- function(crds, site, points = TRUE, map.range = c("EuroAfrica", "Aust
       lines(X[hpts,], 
             lty = ifelse(sum(names(args)%in%"lty")==1, args$lty, 1),
             lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 1),
-            col = colors[j])
+            col = col[j])
     }
+  }
   }
   
 legend("bottomright", letters[1:max(site)], 
   pch = ifelse(sum(names(args)%in%"pch")==1, args$pch, 16),
-  col=colors[1:max(as.numeric(site))])
+  col=col[1:max(as.numeric(site))])
 
 if(!add) par(opar)
 }
@@ -1857,7 +2006,13 @@ if(!add) par(opar)
 #' @export twilightCalc
 twilightCalc <- function(datetime, light, LightThreshold=TRUE, preSelection=TRUE, maxLight=NULL, ask=TRUE, nsee=500, allTwilights=FALSE)
 {
+  if(class(datetime)[1]!="POSIXct") {
+    stop(sprintf("datetime need to be provided as POSIXct class object."), call. = F)
+    
+  } else {
   bas <- data.frame(datetime=as.POSIXct(as.character(datetime),"UTC"),light)
+  }
+  
 
    if (is.numeric(LightThreshold))
    {
