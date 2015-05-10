@@ -132,8 +132,9 @@ i.argCheck <- function(y) {
       out <- data.frame(tFirst = y$tFirst, tSecond = y$tSecond, type = y$type)
     }
   }
-  if(class(out[,1])[1]!="POSIXct") out[,1] <- as.POSIXct(out[,1], tz = "GMT")
-  if(class(out[,2])[1]!="POSIXct") out[,2] <- as.POSIXct(out[,2], tz = "GMT")
+  if(any(c(class(out[,1])[1], class(out[,2])[1])!="POSIXct")) {
+    stop(sprintf("Date and time inforamtion (e.g. tFirst and tSecond) need to be provided as POSIXct class objects."))
+  }
 out  
 }
 
