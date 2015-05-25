@@ -448,70 +448,65 @@ if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]),
 changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, set.prob=NA, days=5, plot=TRUE, summary=TRUE) {
 	
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
+    
+  tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
+                   type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
+  tw <- tw[!duplicated(tw$datetime),]
+  tw <- tw[order(tw[,1]),]
   
-  # start: Sunrise and Sunset
-	tmp <- geolight.convert(tab$tFirst, tab$tSecond, tab$type)
+  hours <- as.numeric(format(tw[,1],"%H"))+as.numeric(format(tw[,1],"%M"))/60
   
-  sr <- tmp[tmp[,2],1][1:sum(tab$type==1)]
-  ss <- tmp[!tmp[,2],1][1:sum(tab$type==2)]
+  for(t in 1:2){
+    cor <- rep(NA, 24)
+    for(i in 0:23){
+      cor[i+1] <- max(abs((c(hours[tw$type==t][1],hours[tw$type==t])+i)%%24 -
+                            (c(hours[tw$type==t],hours[tw$type==t][length(hours)])+i)%%24),na.rm=T)
+    }
+    hours[tw$type==t] <- (hours[tw$type==t] + (which.min(round(cor,2)))-1)%%24
+  }
   
-  rise <- sr - trunc(sr, "days")
-  set <-  ss - trunc(ss, "days")
-	# end: Sunrise and Sunset
-
+  sr <- tw[tw[,2]==1,1]
+  ss <- tw[tw[,2]==2,1]
   
-	cor.rise <- rep(NA, 24)
-	for(i in 0:23){
-		cor.rise[i+1] <- max(abs((c(rise[1],rise)+i)%%24 -
-		            (c(rise,rise[length(rise)])+i)%%24),na.rm=T)
-	}
-	rise <- as.numeric((rise + (which.min(round(cor.rise,2)))-1))%%24
-
+  rise <- hours[tw[,2]==1]
+  set <- hours[tw[,2]==2]
   
-	cor.set <- rep(NA, 24)
-	for(i in 0:23){
-		cor.set[i+1] <- max(abs((c(set[1], set)+i)%%24 -
-		            (c(set, set[length(set)])+i)%%24),na.rm=T)
-	}
-	set <- as.numeric((set + (which.min(round(cor.set,2)))-1))%%24
-
-
-	# start: Change Point Model
-	# max. possible Change Points (length(sunrise)/2)
-	CPs1 <- suppressWarnings(binseg.mean.cusum(rise, Q=round(length(rise)/2,0), pen=0.001))
-	CPs2 <- suppressWarnings(binseg.mean.cusum(set, Q=round(length(set)/2,0), pen=0.001))
-
+  # start: Change Point Model
+  # max. possible Change Points (length(sunrise)/2)
+  CPs1 <- suppressWarnings(binseg.mean.cusum(rise, Q=round(length(rise)/2,0), pen=0.001))
+  CPs2 <- suppressWarnings(binseg.mean.cusum(set, Q=round(length(set)/2,0), pen=0.001))
+  
   N1 <- seq(1,length(rise))
   N2 <- seq(1,length(set))
-
-	tab1 <- merge(data.frame(N=N1,prob=NA),data.frame(N=CPs1$cps[1,],prob=CPs1$cps[2,]),by.x="N",by.y="N",all.x=T)[,-2]
-		tab1[is.na(tab1[,2]),2] <- 0
-	tab2 <- merge(data.frame(N=N2,prob=NA),data.frame(N=CPs2$cps[1,],prob=CPs2$cps[2,]),by.x="N",by.y="N",all.x=T)[,-2]
-		tab2[is.na(tab2[,2]),2] <- 0
-	# end: Change Point Model
-
+  
+  tab1 <- merge(data.frame(N=N1,prob=NA),data.frame(N=CPs1$cps[1,],prob=CPs1$cps[2,]),by.x="N",by.y="N",all.x=T)[,-2]
+  tab1[is.na(tab1[,2]),2] <- 0
+  tab2 <- merge(data.frame(N=N2,prob=NA),data.frame(N=CPs2$cps[1,],prob=CPs2$cps[2,]),by.x="N",by.y="N",all.x=T)[,-2]
+  tab2[is.na(tab2[,2]),2] <- 0
+  # end: Change Point Model
+  
   # quantile calculation
   if(is.na(rise.prob) & is.na(set.prob)) {
-  rise.prob <- as.numeric(round(as.numeric(quantile(tab1[tab1[,2]!=0,2],probs=quantile,na.rm=TRUE)), digits=5))
-  set.prob  <- as.numeric(round(as.numeric(quantile(tab2[tab2[,2]!=0,2],probs=quantile,na.rm=TRUE)), digits=5))
+    rise.prob <- as.numeric(round(as.numeric(quantile(tab1[tab1[,2]!=0,2],probs=quantile,na.rm=TRUE)), digits=5))
+    set.prob  <- as.numeric(round(as.numeric(quantile(tab2[tab2[,2]!=0,2],probs=quantile,na.rm=TRUE)), digits=5))
   }
-
+  
   
   riseProb <- ifelse(tab1[,2]>=rise.prob, NA, TRUE)
   setProb  <- ifelse(tab2[,2]>=set.prob, NA, TRUE)
-
-  tmp02 <- rbind(data.frame(time = sr, prob = tab1[,2], cut = riseProb), 
-                 data.frame(time = ss, prob = tab2[,2], cut = setProb))[order(c(sr, ss)),]
+  
+  tmp02 <- rbind(data.frame(time = tw[tw[,2]==1,1], prob = tab1[,2], cut = riseProb), 
+                 data.frame(time = tw[tw[,2]==2,1], prob = tab2[,2], cut = setProb))[order(c(sr, ss)),]
   tmp02 <- cbind(tmp02, NA)
-
-    s <- 1
-    for(i in 2:nrow(tmp02)) {
-      if(is.na(tmp02[i-1, 3]) & !is.na(tmp02[i, 3])) {
-        s <- s+1
-        tmp02[i, 4] <- s
-      }
-      if(!is.na(tmp02[i-1, 3]) & !is.na(tmp02[i, 3])) tmp02[i, 4] <- s
+  
+  s <- 1
+  for(i in 2:nrow(tmp02)) {
+    if(is.na(tmp02[i-1, 3]) & !is.na(tmp02[i, 3])) {
+      s <- s+1
+      tmp02[i, 4] <- s
     }
+    if(!is.na(tmp02[i-1, 3]) & !is.na(tmp02[i, 3])) tmp02[i, 4] <- s
+  }
   
   ind01 <- tapply(as.numeric(tmp02[,1]), tmp02[,4], FUN = function(x) ((x[length(x)]-x[1])/60/60/24)>days)
   ind02 <- as.numeric(names(ind01)[ind01])
@@ -523,66 +518,65 @@ changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, 
     tmp02[!is.na(tmp02[,4]) & tmp02[,4]==i, 4] <- s
     s <- s+1
   }
-
+  
   
   ds <- data.frame(Site = letters[1:length(ind02)], Arrival = NA, Departure = NA,
-                    Days = NA, P.start = NA, P.end = NA)
+                   Days = NA, P.start = NA, P.end = NA)
   
-    for(i in 1:nrow(ds)) {
-       t01 <- range(tmp02[!is.na(tmp02[,4]) & tmp02[,4]==i,1])
-       ds[i, c(2,3)] <- as.character(trunc(t01, "days"))
-       ds[i, 4] <- round(as.numeric(difftime(t01[2], t01[1], units = "days")), 1)
-       t02 <- which(tmp02[,4]==i)
-       ds[i, c(5, 6)] <- round(c(tmp02[(t02[1])-1, 2], tmp02[(t02[length(t02)])+1, 2]), 3)
-    }
+  for(i in 1:nrow(ds)) {
+    t01 <- range(tmp02[!is.na(tmp02[,4]) & tmp02[,4]==i,1])
+    ds[i, c(2,3)] <- as.character(trunc(t01, "days"))
+    ds[i, 4] <- round(as.numeric(difftime(t01[2], t01[1], units = "days")), 1)
+    t02 <- which(tmp02[,4]==i)
+    ds[i, c(5, 6)] <- round(c(tmp02[(t02[1])-1, 2], tmp02[(t02[length(t02)])+1, 2]), 3)
+  }
   
   
   out <- list(riseProb = tab1[,2], setProb = tab2[,2], rise.prob = rise.prob, set.prob = set.prob, site = ifelse(!is.na(tmp02[,4]), tmp02[,4], 0)[1:nrow(tab)],
               migTable = ds)
-
-
-if(plot){
-  def.par <- par(no.readonly = TRUE)
-  nf <- layout(matrix(c(4,1,2,3),nrow=4,byrow=T),heights=c(0.5,1,0.5,0.5))
   
-  par(mar=c(2,4.5,2,5),cex.lab=1.5,cex.axis=1.5,bty="o")
-  plot(sr, rise, type="o",cex=0.2,col="firebrick",ylab="Sunrise (red)", 
-       xlim = range(sr),xaxt="n")
-  par(new=T)
-  plot(ss, set, type="o",cex=0.2,col="cornflowerblue",xaxt="n",yaxt="n",xlab="",
-       ylab="",xlim=range(ss))
-  axis(4)
-  mtext("Sunset (blue)",4,line=2.7,cex=1)
-  axis(1,at=seq(min(ss),max(ss), by=(10*24*60*60)),labels=F)
-  axis(1,at=seq(min(ss),max(ss), by=(30*24*60*60)),lwd.ticks=2,
-       labels=trunc(seq(min(ss),max(ss), by=(30*24*60*60)), "days"),cex.axis=1)
   
-  par(mar=c(1.5,4.5,0.8,5),bty="n")
-  plot(sr, tab1[,2], type = "h", lwd = 4, col = "firebrick", ylab = "", xaxt = "n",
-       xlim= range(sr) ,ylim = c(0, max(na.omit(c(tab1[,2],tab2[,2])))))
-  if(is.numeric(rise.prob)) abline(h = rise.prob, lty=2, lwd = 1.5)
+  if(plot){
+    def.par <- par(no.readonly = TRUE)
+    nf <- layout(matrix(c(4,1,2,3),nrow=4,byrow=T),heights=c(0.5,1,0.5,0.5))
+    
+    par(mar=c(2,4.5,2,5),cex.lab=1.5,cex.axis=1.5,bty="o")
+    plot(sr, rise, type="o",cex=0.2,col="firebrick",ylab="Sunrise (red)", 
+         xlim = range(sr),xaxt="n")
+    par(new=T)
+    plot(ss, set, type="o",cex=0.2,col="cornflowerblue",xaxt="n",yaxt="n",xlab="",
+         ylab="",xlim=range(ss))
+    axis(4)
+    mtext("Sunset (blue)",4,line=2.7,cex=1)
+    axis(1,at=seq(min(ss),max(ss), by=(10*24*60*60)),labels=F)
+    axis(1,at=seq(min(ss),max(ss), by=(30*24*60*60)),lwd.ticks=2,
+         labels=trunc(seq(min(ss),max(ss), by=(30*24*60*60)), "days"),cex.axis=1)
+    
+    par(mar=c(1.5,4.5,0.8,5),bty="n")
+    plot(sr, tab1[,2], type = "h", lwd = 4, col = "firebrick", ylab = "", xaxt = "n",
+         xlim= range(sr) ,ylim = c(0, max(na.omit(c(tab1[,2],tab2[,2])))))
+    if(is.numeric(rise.prob)) abline(h = rise.prob, lty=2, lwd = 1.5)
+    
+    opar <- par(mar=c(1.5,4.5,0.8,5),bty="n")
+    plot(ss, tab2[,2], type = "h", lwd = 4, col = "cornflowerblue", ylab = "", xaxt = "n",
+         xlim= range(ss) ,ylim = c(0, max(na.omit(c(tab1[,2],tab2[,2])))))
+    if(is.numeric(set.prob)) abline(h = set.prob, lty=2, lwd = 1.5)
+    
+    mtext("Probability of change", side=2, at = max(na.omit(c(tab1[,2],tab2[,2]))), line=3)
+    
+    par(mar=c(1,4.5,1,5),bty="o")
+    mig <- out$site
+    mig[mig>0] <- 1
+    plot(as.POSIXct(tab[,1], "GMT") + (as.POSIXct(tab[,2], "GMT") - as.POSIXct(tab[,1], "GMT"))/2, 
+         ifelse(out$site>0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim=c(0,1.5))
+    rect(as.POSIXct(ds$Arrival, "GMT"), 1.1, as.POSIXct(ds$Departure, "GMT"), 1.4, lwd = 0, col="grey")
+    par(def.par)
+  }
   
-  opar <- par(mar=c(1.5,4.5,0.8,5),bty="n")
-  plot(ss, tab2[,2], type = "h", lwd = 4, col = "cornflowerblue", ylab = "", xaxt = "n",
-       xlim= range(ss) ,ylim = c(0, max(na.omit(c(tab1[,2],tab2[,2])))))
-  if(is.numeric(set.prob)) abline(h = set.prob, lty=2, lwd = 1.5)
   
-  mtext("Probability of change", side=2, at = max(na.omit(c(tab1[,2],tab2[,2]))), line=3)
-
-  par(mar=c(1,4.5,1,5),bty="o")
-  mig <- out$site
-  mig[mig>0] <- 1
-  plot(as.POSIXct(tab[,1], "GMT") + (as.POSIXct(tab[,2], "GMT") - as.POSIXct(tab[,1], "GMT"))/2, 
-       ifelse(out$site>0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim=c(0,1.5))
-  rect(as.POSIXct(ds$Arrival, "GMT"), 1.1, as.POSIXct(ds$Departure, "GMT"), 1.4, lwd = 0, col="grey")
-  par(def.par)
-}
-
-
-if(summary){i.sum.Cl(out)}
-
-return(out)
-
+  if(summary){i.sum.Cl(out)}
+  
+  return(out)
 }
 
 
