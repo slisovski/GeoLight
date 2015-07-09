@@ -605,9 +605,10 @@ changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, 
 #' which consequtive sites should be merged (in km).
 #' @param cutoff a \code{numerical} value indicating the percentile of the distances matrix that 
 #' will be used to merge sites based on the defined \code{treshold}.
+#' @param plot \code{logical}, if TRUE a plot comparing the inital and the final site selection.
 ##' @return A \code{vector} with the merged site numbers
 ##' @author Simeon Lisovski
-##' @seealso \code{\link{changeLight}}}
+##' @seealso \code{\link{changeLight}}
 ##'
 ##' @export mergeSites
 mergeSites <- function(datetime, crds, site, threshold = 250, cutoff = 0.6, plot = TRUE...) {
