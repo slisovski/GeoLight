@@ -391,10 +391,10 @@ if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]),
 ##' Function to discriminate between periods of residency and movement based on
 ##' consecutive sunrise and sunset data. The calculation is based on a
 ##' changepoint model (\bold{\pkg{R}} Package \code{\link{changepoint}}:
-##' \code{\link{binseg.mean.cusum}}) to find multiple changepoints within the
+##' \code{\link{cpt.mean}}) to find multiple changepoints within the
 ##' data.
 ##'
-##' The \code{binseg.mean.cusum} from the \code{R} Package \code{changepoint} is a
+##' The \code{cpt.mean} from the \code{R} Package \code{changepoint} is a
 ##' function to find a multiple changes in mean for data where no assumption is
 ##' made on their distribution. The value returned is the result of finding the
 ##' optimal location of up to Q changepoints (in this case as many as possible)
@@ -444,7 +444,7 @@ if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]),
 ##' residency <- changeLight(hoopoe2, quantile=0.9)
 ##'
 ##' @export changeLight
-##' @importFrom changepoint binseg.mean.cusum
+##' @importFrom changepoint cpt.mean
 changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, set.prob=NA, days=5, plot=TRUE, summary=TRUE) {
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
