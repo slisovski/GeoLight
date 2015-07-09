@@ -427,7 +427,7 @@ if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]),
 ##' twilight events cross midnight during the recording period the values will
 ##' be formed to avoid discontinuity.
 ##' @author Simeon Lisovski & Tamara Emmenegger
-##' @seealso \code{\link{changepoint}}, \code{\link{binseg.mean.cusum}}
+##' @seealso \code{\link{changepoint}}, \code{\link{cpt.mean}}
 ##' @references Taylor, Wayne A. (2000) Change-Point Analysis: A Powerful New
 ##' Tool For Detecting Changes.
 ##'
@@ -446,9 +446,9 @@ if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]),
 ##' @export changeLight
 ##' @importFrom changepoint binseg.mean.cusum
 changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, set.prob=NA, days=5, plot=TRUE, summary=TRUE) {
-	
+  
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
-    
+  
   tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
                    type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
   tw <- tw[!duplicated(tw$datetime),]
@@ -473,15 +473,19 @@ changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, 
   
   # start: Change Point Model
   # max. possible Change Points (length(sunrise)/2)
-  CPs1 <- suppressWarnings(binseg.mean.cusum(rise, Q=round(length(rise)/2,0), pen=0.001))
-  CPs2 <- suppressWarnings(binseg.mean.cusum(set, Q=round(length(set)/2,0), pen=0.001))
+  CPs1 <- suppressWarnings(cpt.mean(rise, method= "BinSeg", Q=length(rise)/2, penalty="Manual",pen.value=0.001, 
+                                    test.stat = "CUSUM",param.estimates=FALSE))
+  CPs2 <- suppressWarnings(cpt.mean(set, method="BinSeg", Q=length(set)/2, penalty="Manual",pen.value=0.001, 
+                                    test.stat = "CUSUM",param.estimates=FALSE))
   
   N1 <- seq(1,length(rise))
   N2 <- seq(1,length(set))
   
-  tab1 <- merge(data.frame(N=N1,prob=NA),data.frame(N=CPs1$cps[1,],prob=CPs1$cps[2,]),by.x="N",by.y="N",all.x=T)[,-2]
+  tab1 <- merge(data.frame(N=N1,prob=NA),data.frame(N=cpts.full(CPs1)[nrow(cpts.full(CPs1)),],
+                                                    prob=pen.value.full(CPs1)/2),by.x="N",by.y="N",all.x=T)[,-2]
   tab1[is.na(tab1[,2]),2] <- 0
-  tab2 <- merge(data.frame(N=N2,prob=NA),data.frame(N=CPs2$cps[1,],prob=CPs2$cps[2,]),by.x="N",by.y="N",all.x=T)[,-2]
+  tab2 <- merge(data.frame(N=N2,prob=NA),data.frame(N=cpts.full(CPs2)[nrow(cpts.full(CPs2)),],
+                                                    prob=pen.value.full(CPs2)/2),by.x="N",by.y="N",all.x=T)[,-2]
   tab2[is.na(tab2[,2]),2] <- 0
   # end: Change Point Model
   
@@ -520,19 +524,18 @@ changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, 
   }
   
   
-  ds <- data.frame(Site = letters[1:length(ind02)], Arrival = NA, Departure = NA,
-                   Days = NA, P.start = NA, P.end = NA)
+  arr <- tmp02[!is.na(tmp02[,4]) & !duplicated(tmp02[,4]),]
+  dep <- tmp02[!is.na(tmp02[,4]) & !duplicated(tmp02[,4], fromLast = T),]
   
-  for(i in 1:nrow(ds)) {
-    t01 <- range(tmp02[!is.na(tmp02[,4]) & tmp02[,4]==i,1])
-    ds[i, c(2,3)] <- as.character(trunc(t01, "days"))
-    ds[i, 4] <- round(as.numeric(difftime(t01[2], t01[1], units = "days")), 1)
-    t02 <- which(tmp02[,4]==i)
-    ds[i, c(5, 6)] <- round(c(tmp02[(t02[1])-1, 2], tmp02[(t02[length(t02)])+1, 2]), 3)
-  }
+  t02 <- merge(arr, dep, by = "NA", all.x = T, all.y = T)[,c(2,5,3,6)]
+  names(t02) <- c("Arrival", "Departure", "P.start", "P.end")
+  t02$Days <- apply(t02, 1, function(x) round(as.numeric(difftime(x[2], x[1], units = "days")), 1))
+  t02$Site <- letters[1:nrow(t02)]
   
+  ds <- t02[,c(6,1,2,5,3,4)]
   
-  out <- list(riseProb = tab1[,2], setProb = tab2[,2], rise.prob = rise.prob, set.prob = set.prob, site = ifelse(!is.na(tmp02[,4]), tmp02[,4], 0)[1:nrow(tab)],
+  out <- list(riseProb = tab1[,2], setProb = tab2[,2], rise.prob = rise.prob, set.prob = set.prob, 
+              site = ifelse(!is.na(tmp02[,4]), tmp02[,4], 0)[1:nrow(tab)],
               migTable = ds)
   
   
@@ -578,6 +581,99 @@ changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, 
   
   return(out)
 }
+
+
+
+##' Function to merge sites
+##'
+##' The \code{\link{changeLight}} functions provides a vector grouping the twilight times
+##' into stationary (>0) and movement (0) periods. This function was written to enable the user
+##' to merge sites based on the distance between consequtive sites. NOTE: The function requires
+##' position estimate and desicison on whether sites should be merged will be made based on
+##' the defined \code{distance}, the \code{cutoff} values and the provided positions. The analysis
+##' is this dependent on the accuracy of the position estiamtes and should be applied to positons that
+##' were estimated using a sensible sun elevation angle.
+##'
+##'
+##' @param datetime vector of the dates that correspond to the positions (in .POSIX class).
+#' @param crds a \code{SpatialPoints} or \code{matrix} object, containing x
+#' and y coordinates (in that order).
+#' @param site a \code{numerical vector} assigning each row to a particular
+#' period. Stationary periods in numerical order and values >0,
+#' migration/movement periods 0. This \code{vector} will be used as the initial state.
+#' @param threshold a \code{numerical} value defining the threshold of the distance under 
+#' which consequtive sites should be merged (in km).
+#' @param cutoff a \code{numerical} value indicating the percentile of the distances matrix that 
+#' will be used to merge sites based on the defined \code{treshold}.
+##' @return A \code{vector} with the merged site numbers
+##' @author Simeon Lisovski
+##' @seealso \code{\link{changeLight}}}
+##'
+##' @export mergeSites
+mergeSites <- function(datetime, crds, site, threshold = 250, cutoff = 0.6, plot = TRUE...) {
+  
+  require(fields)
+  
+  site.orig <- site
+  
+  repeat{
+    t01 <- data.frame(crds[site>0,], site = site[site>0])
+    t02 <- split(t01, f = t01[,3])
+    
+    
+    t03 <- lapply(split(1:(length(t02)-1), f = 1:(length(t02)-1)), 
+                  function(x) rdist.earth(t02[[x]][!is.na(t02[[x]][,2]),-3], 
+                                          t02[[x+1]][!is.na(t02[[x+1]][,2]),-3]))
+    
+    t04 <- t(sapply(t03, function(x) cbind(quantile(x, probs = cutoff), sd(x))))
+    
+    ind01 <- as.numeric(which(t04[,1]<threshold))
+    if(length(ind01)>0) {
+      s <- unique(site[site>0])
+      for(i in 1:length(ind01)) {
+        site[(which(site==ind01[i])[1]):(which(site==(ind01[i]+1))[sum(site==(ind01[i]+1))])] <- ind01[i]
+      }
+      t05 <- merge(data.frame(id = site[site>0]), data.frame(id = unique(site[site>0]), re = 1:length(unique(site[site>0]))),
+                   all.x = T)
+      site[site>0] <- t05[,2]
+    } else break}        
+  
+  if(plot) {
+    opar <- par(mfrow = c(3,1), oma = c(5,0,0,0), mar = c(3,5,1,1))
+    mig1 <- site.orig
+    mig1[mig1>0] <- 1
+    mig2 <- site
+    mig2[mig2>0] <- 1
+    plot(datetime, ifelse(mig2>0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim=c(0,1.5), 
+         col = "firebrick", lwd = 2, xaxt = "n")
+    lines(datetime, ifelse(mig1>0, 1, 0), type = "l", lty = 2)
+    rect(datetime[site>0 & !duplicated(site)], 1.1, datetime[site>0 & !duplicated(site, fromLast = T)], 
+         1.4, lwd = 0, col="grey")
+    axis(1, at = seq(datetime[1], datetime[length(datetime)], length = 10), labels = FALSE)
+    
+    plot(datetime, crds[,1], type = "o", pch = 16, cex = 0.5, xaxt = "n", ylab = "Longitude", cex.lab = 1.7, xlab = "")
+    abline(v = c(datetime[site.orig>0 & !duplicated(site.orig)],
+                 datetime[site.orig>0 & !duplicated(site.orig, fromLast = T)]), lty = 2)
+    abline(v = c(datetime[site>0 & !duplicated(site)],
+                 datetime[site>0 & !duplicated(site, fromLast = T)]), lwd = 1.5, col = "firebrick")
+    axis(1, at = seq(datetime[1], datetime[length(datetime)], length = 10), labels = FALSE)
+    
+    plot(datetime, crds[,2], type = "o", pch = 16, cex = 0.5, xaxt = "n", ylab = "Latitude", cex.lab = 1.7, xlab = "")
+    abline(v = c(datetime[site.orig>0 & !duplicated(site.orig)],
+                 datetime[site.orig>0 & !duplicated(site.orig, fromLast = T)]), lty = 2)
+    abline(v = c(datetime[site>0 & !duplicated(site)],
+                 datetime[site>0 & !duplicated(site, fromLast = T)]), lwd = 1.5, col = "firebrick")
+    axis(1, at = seq(datetime[1], datetime[length(datetime)], length = 10), 
+         labels = format(seq(datetime[1], datetime[length(datetime)], length = 10), "%d-%b"))
+    mtext("Date", 1, outer = T, line = 1.6, cex = 1.2)
+    par(opar)
+  }
+  
+  site  
+}
+
+
+
 
 
 ##' Filter for unrealistic positions within a track based on distance
