@@ -1609,7 +1609,7 @@ return(lux)
 #' software GeoLocator (\emph{Swiss Ornithological Institute})
 #' @export ligTrans
 ligTrans <- function(file) {
-  df <- cbind(read.csv(ligfile,row.names=NULL)[,c(2,4)])
+  df <- cbind(read.csv(file,row.names=NULL)[,c(2,4)])
   colnames(df) <- c("datetime", "light")
   df$datetime <- as.POSIXct(strptime(df$datetime,format="%d/%m/%y %H:%M:%S",tz="UTC"))
   return(df)
