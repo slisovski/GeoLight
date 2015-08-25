@@ -130,11 +130,120 @@ i.argCheck <- function(y) {
   if(any(c(class(out[,1])[1], class(out[,2])[1])!="POSIXct")) {
     stop(sprintf("Date and time inforamtion (e.g. tFirst and tSecond) need to be provided as POSIXct class objects."), call. = F)
   }
-out  
+  out  
+}  
 
+#' Residency analysis using a changepoint model
+#'
+#' Function to discriminate between periods of residency and movement based on
+#' consecutive sunrise and sunset data. The calculation is based on a
+#' changepoint model (\bold{\pkg{R}} Package \code{\link{changepoint}}:
+#' \code{\link{cpt.mean}}) to find multiple changepoints within the
+#' data.
+#'
+#' The \code{cpt.mean} from the codeR Package \code{changepoint} is a
+#' function to find a multiple changes in mean for data where no assumption is
+#' made on their distribution. The value returned is the result of finding the
+#' optimal location of up to Q changepoints (in this case as many as possible)
+#' using the cumulative sums test statistic.
+#'
+#' @param tFirst date and time of sunrise/sunset (e.g. 2008-12-01 08:30)
+#' @param tSecond date and time of sunrise/sunset (e.g. 2008-12-01 17:30)
+#' @param type either 1 or 2, defining \code{tFirst} as sunrise or sunset
+#' respectively
+#' @param quantile probability threshold for stationary site selection. Higher
+#' values (above the defined quantile of all probabilities) will be considered
+#' as changes in the behavior. If specified, \code{rise.prob} and/or
+#' \code{set.prob} will not be considered.
+#' @param rise.prob the probability threshold for \bold{sunrise}: greater or
+#' equal values indicates changes in the behaviour of the individual. If,
+#' \code{NA} sunrise will not be considered.
+#' @param set.prob the probability threshold for \bold{sunset}: higher and
+#' equal values indicates changes in the behaviour of the individual. If,
+#' \code{NA} sunrise will not be considered.
+#' @param days a threshold for the length of stationary period. Periods smaller
+#' than "days" will not be considered as a residency period
+#' @param plot logical, if \code{TRUE} a plot will be produced
+#' @param summary logical, if \code{TRUE} a summary of the results will be
+#' printed
+#' @return A \code{list} with probabilities for \emph{sunrise} and
+#' \emph{sunset} the user settings of the probabilities and the resulting
+#' stationary periods given as a \code{vector}, with the residency sites as
+#' positiv numbers in ascending order (0 indicate movement/migration).
+#' @note The sunrise and/or sunset times shown in the graph (if
+#' \code{plot=TRUE}) represent hours of the day. However if one or both of the
+#' twilight events cross midnight during the recording period the values will
+#' be transformed to avoid discontinuity.
+#' @author Simeon Lisovski & Tamara Emmenegger
+#' @seealso \code{\link{changepoint}}, \code{\link{cpt.mean}}
+#' @references Taylor, Wayne A. (2000) Change-Point Analysis: A Powerful New
+#' Tool For Detecting Changes.
+#'
+#' M. Csorgo, L. Horvath (1997) Limit Theorems in Change-Point Analysis.
+#' \emph{Wiley}.
+#'
+#' Chen, J. and Gupta, A. K. (2000) Parametric statistical change point
+#' analysis. \emph{Birkhauser}.
+#' @examples
+#'
+#' data(hoopoe2)
+#' attach(hoopoe2)
+#' residency <- changeLight(tFirst,tSecond,type,quantile=0.9)
+#'
+#' @export changeLight
+#' @importFrom changepoint cpt.mean
+changeLight <- function(tFirst,tSecond,type,quantile=0.6,rise.prob=NA,set.prob=NA,days=5,plot=TRUE,summary=TRUE)
+{
+  # start: Sunrise and Sunset
+  rtype <- rep(2,length(type)); rtype[type==2] <- 1
+  twE1  <- data.frame(ev=c(as.character(tFirst),as.character(tSecond)),t=c(type,rtype))
+  twE2  <- twE1[!duplicated(twE1$ev),]
+  
+  twE2$ev <- as.POSIXct(as.character(twE2$ev),"UTC")
+  
+  twE <- twE2[order(twE2$ev),]
+  
+  rise <- as.numeric(substring(twE$ev[twE$t==1],12,13)) +  as.numeric(substring(twE$ev[twE$t==1],15,16))/60
+  set  <- as.numeric(substring(twE$ev[twE$t==2],12,13)) +  as.numeric(substring(twE$ev[twE$t==2],15,16))/60
+  # end: Sunrise and Sunset
+  
+  cor.rise <- rep(NA, 24)
+  for(i in 0:23){
+    cor.rise[i+1] <- max(abs((c(rise[1],rise)+i)%%24 -
+                               (c(rise,rise[length(rise)])+i)%%24),na.rm=T)
+  }
+  rise <- (rise + (which.min(round(cor.rise,2)))-1)%%24
+  
+  cor.set <- rep(NA, 24)
+  for(i in 0:23){
+    cor.set[i+1] <- max(abs((c(set[1], set)+i)%%24 -
+                              (c(set, set[length(set)])+i)%%24),na.rm=T)
+  }
+  set <- (set + (which.min(round(cor.set,2)))-1)%%24
+  
+  
+  # start: Change Point Model
+  # max. possible Change Points (length(sunrise)/2)
+  CPs1 <- cpt.mean(rise, Q=length(rise)/2, pen.value=0.001)
+  CPs2 <- cpt.mean(set, Q=length(set)/2, pen.value=0.001)
+  
+  N1 <- seq(1,length(rise))
+  N2 <- seq(1,length(set))
+  
+  tab1 <- merge(data.frame(N=N1,prob=NA),data.frame(N=CPs1$cps[1,],prob=CPs1$cps[2,]),by.x="N",by.y="N",all.x=T)[,-2]
+  tab1[is.na(tab1[,2]),2] <- 0
+  tab2 <- merge(data.frame(N=N2,prob=NA),data.frame(N=CPs2$cps[1,],prob=CPs2$cps[2,]),by.x="N",by.y="N",all.x=T)[,-2]
+  tab2[is.na(tab2[,2]),2] <- 0
+  # end: Change Point Model
+  
+  # quantile calculation
+  if(is.numeric(quantile))
+  {
+    rise.prob<-as.numeric(round(as.numeric(quantile(tab1[tab1[,2]!=0,2],probs=quantile,na.rm=TRUE)),digits=5))
+    set.prob<-as.numeric(round(as.numeric(quantile(tab2[tab2[,2]!=0,2],probs=quantile,na.rm=TRUE)),digits=5))
+  }
+  
 }
-
-
 ##' Estimate location from consecutive twilights
 ##'
 ##' This function estimates the location given the times at which 
@@ -190,29 +299,29 @@ coord  <- function(tFirst, tSecond, type, twl, degElevation = -6, tol = 0, metho
   set <- ifelse(tab$type==1, tab$tSecond, tab$tFirst)
   
   if(method == "NOAA") {
-  rad <- pi/180
-  sr <- solar(rise)
-  ss <- solar(set)
-  cosz <- cos(rad*(90-degElevation))
-  lon <- -(sr$solarTime+ss$solarTime+ifelse(sr$solarTime<ss$solarTime,360,0))/2
-  lon <- (lon+180)%%360-180
-  
-  ## Compute latitude from sunrise
-  hourAngle <- sr$solarTime+lon-180
-  a <- sr$sinSolarDec
-  b <- sr$cosSolarDec*cos(rad*hourAngle)
-  x <- (a*cosz-sign(a)*b*suppressWarnings(sqrt(a^2+b^2-cosz^2)))/(a^2+b^2)
-  lat1 <- ifelse(abs(a)>tol,asin(x)/rad,NA)
-  
-  ## Compute latitude from sunset
-  hourAngle <- ss$solarTime+lon-180
-  a <- ss$sinSolarDec
-  b <- ss$cosSolarDec*cos(rad*hourAngle)
-  x <- (a*cosz-sign(a)*b*suppressWarnings(sqrt(a^2+b^2-cosz^2)))/(a^2+b^2)
-  lat2 <- ifelse(abs(a)>tol,asin(x)/rad,NA)
-  
-  ## Average latitudes
-  out <- cbind(lon=lon,lat=rowMeans(cbind(lat1,lat2),na.rm=TRUE))
+    rad <- pi/180
+    sr <- solar(rise)
+    ss <- solar(set)
+    cosz <- cos(rad*(90-degElevation))
+    lon <- -(sr$solarTime+ss$solarTime+ifelse(sr$solarTime<ss$solarTime,360,0))/2
+    lon <- (lon+180)%%360-180
+    
+    ## Compute latitude from sunrise
+    hourAngle <- sr$solarTime+lon-180
+    a <- sr$sinSolarDec
+    b <- sr$cosSolarDec*cos(rad*hourAngle)
+    x <- (a*cosz-sign(a)*b*suppressWarnings(sqrt(a^2+b^2-cosz^2)))/(a^2+b^2)
+    lat1 <- ifelse(abs(a)>tol,asin(x)/rad,NA)
+    
+    ## Compute latitude from sunset
+    hourAngle <- ss$solarTime+lon-180
+    a <- ss$sinSolarDec
+    b <- ss$cosSolarDec*cos(rad*hourAngle)
+    x <- (a*cosz-sign(a)*b*suppressWarnings(sqrt(a^2+b^2-cosz^2)))/(a^2+b^2)
+    lat2 <- ifelse(abs(a)>tol,asin(x)/rad,NA)
+    
+    ## Average latitudes
+    out <- cbind(lon=lon,lat=rowMeans(cbind(lat1,lat2),na.rm=TRUE))
   } 
   
   if(method == "Montenbruck") {
@@ -236,69 +345,69 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
   if (sum(index1)>0) RadHourAngle[index1] <- 0
   RadHourAngle[!index1] <- pi
   # --------------------------------------------------------
-    
-    tSunTransit <- as.character(as.POSIXct(tFirst, tz = "GMT") + as.numeric(difftime(as.POSIXct(tSecond, tz = "GMT"), 
-                                                                                     as.POSIXct(tFirst, tz = "GMT"), 
-                                                                                     units="secs")/2))
-    
-    index0 <- (nchar(tSunTransit) <= 10)
-    if(sum(index0)>0) tSunTransit[index0] <- as.character(paste(tSunTransit[index0]," ","00:00",sep=""))
-    
-    # Longitude
-    jD  <- i.julianDate(as.numeric(substring(tSunTransit,1,4)),as.numeric(substring(tSunTransit,6,7)),
-                        as.numeric(substring(tSunTransit,9,10)),as.numeric(substring(tSunTransit,12,13)),as.numeric(substring(tSunTransit,15,16)))
-    jD0 <- i.julianDate(as.numeric(substring(tSunTransit,1,4)),as.numeric(substring(tSunTransit,6,7)),
-                        as.numeric(substring(tSunTransit,9,10)),rep(0,length(tFirst)),rep(0,length(tFirst)))
-    jC  <- i.JC2000(jD)
-    jC0 <- i.JC2000(jD0)
-    
-    radObliquity         <- i.radObliquity(jC)
-    radEclipticLongitude <- i.radEclipticLongitude(jC)
-    radRightAscension    <- i.radRightAscension(radEclipticLongitude,radObliquity)
-    radGMST              <- i.radGMST(jD,jD0,jC,jC0)
-    
-    degLongitude <- i.setToRange(-180,180,i.deg(RadHourAngle + radRightAscension - radGMST))
-    
-    
-    # Latitude
-    jD  <- i.julianDate(as.numeric(substring(tFirst,1,4)),as.numeric(substring(tFirst,6,7)),
-                        as.numeric(substring(tFirst,9,10)),as.numeric(substring(tFirst,12,13)),
-                        as.numeric(substring(tFirst,15,16)))
-    jD0 <- i.julianDate(as.numeric(substring(tFirst,1,4)),as.numeric(substring(tFirst,6,7)),
-                        as.numeric(substring(tFirst,9,10)),rep(0,length(tFirst)),rep(0,length(tSecond)))
-    jC  <- i.JC2000(jD)
-    jC0 <- i.JC2000(jD0)
-    
-    
-    radElevation         <- if(length(degElevation)==1) rep(i.rad(degElevation),length(jD)) else i.rad(degElevation)
-    
-    sinElevation         <- sin(radElevation)
-    radObliquity         <- i.radObliquity(jC)
-    radEclipticLongitude <- i.radEclipticLongitude(jC)
-    radDeclination       <- i.radDeclination(radEclipticLongitude,radObliquity)
-    sinDeclination       <- sin(radDeclination)
-    cosDeclination       <- cos(radDeclination)
-    
-    radHourAngle         <- i.radGMST(jD,jD0,jC,jC0) + i.rad(degLongitude) - i.radRightAscension(radEclipticLongitude,radObliquity)
-    cosHourAngle         <- cos(radHourAngle)
-    
-    term1                <- sinElevation/(sqrt(sinDeclination^2 + (cosDeclination*cosHourAngle)^2))
-    term2                <- (cosDeclination*cosHourAngle)/sinDeclination
-    
-    degLatitude <- numeric(length(radElevation))
-    
-    index1  <- (abs(radElevation) > abs(radDeclination))
-    if (sum(index1)>0) degLatitude[index1] <- NA
-    
-    index2  <- (radDeclination > 0 & !index1)
-    if (sum(index2)>0)  degLatitude[index2] <- i.setToRange(-90,90,i.deg(asin(term1[index2])-atan(term2[index2])))
-    
-    index3  <- (radDeclination < 0 & !index1)
-    if (sum(index3)>0)  degLatitude[index3] <- i.setToRange(-90,90,i.deg(acos(term1[index3])+atan(1/term2[index3])))
-    
-    degLatitude[!index1&!index2&!index3] <- NA
-    
-    cbind(degLongitude, degLatitude)
+  
+  tSunTransit <- as.character(as.POSIXct(tFirst, tz = "GMT") + as.numeric(difftime(as.POSIXct(tSecond, tz = "GMT"), 
+                                                                                   as.POSIXct(tFirst, tz = "GMT"), 
+                                                                                   units="secs")/2))
+  
+  index0 <- (nchar(tSunTransit) <= 10)
+  if(sum(index0)>0) tSunTransit[index0] <- as.character(paste(tSunTransit[index0]," ","00:00",sep=""))
+  
+  # Longitude
+  jD  <- i.julianDate(as.numeric(substring(tSunTransit,1,4)),as.numeric(substring(tSunTransit,6,7)),
+                      as.numeric(substring(tSunTransit,9,10)),as.numeric(substring(tSunTransit,12,13)),as.numeric(substring(tSunTransit,15,16)))
+  jD0 <- i.julianDate(as.numeric(substring(tSunTransit,1,4)),as.numeric(substring(tSunTransit,6,7)),
+                      as.numeric(substring(tSunTransit,9,10)),rep(0,length(tFirst)),rep(0,length(tFirst)))
+  jC  <- i.JC2000(jD)
+  jC0 <- i.JC2000(jD0)
+  
+  radObliquity         <- i.radObliquity(jC)
+  radEclipticLongitude <- i.radEclipticLongitude(jC)
+  radRightAscension    <- i.radRightAscension(radEclipticLongitude,radObliquity)
+  radGMST              <- i.radGMST(jD,jD0,jC,jC0)
+  
+  degLongitude <- i.setToRange(-180,180,i.deg(RadHourAngle + radRightAscension - radGMST))
+  
+  
+  # Latitude
+  jD  <- i.julianDate(as.numeric(substring(tFirst,1,4)),as.numeric(substring(tFirst,6,7)),
+                      as.numeric(substring(tFirst,9,10)),as.numeric(substring(tFirst,12,13)),
+                      as.numeric(substring(tFirst,15,16)))
+  jD0 <- i.julianDate(as.numeric(substring(tFirst,1,4)),as.numeric(substring(tFirst,6,7)),
+                      as.numeric(substring(tFirst,9,10)),rep(0,length(tFirst)),rep(0,length(tSecond)))
+  jC  <- i.JC2000(jD)
+  jC0 <- i.JC2000(jD0)
+  
+  
+  radElevation         <- if(length(degElevation)==1) rep(i.rad(degElevation),length(jD)) else i.rad(degElevation)
+  
+  sinElevation         <- sin(radElevation)
+  radObliquity         <- i.radObliquity(jC)
+  radEclipticLongitude <- i.radEclipticLongitude(jC)
+  radDeclination       <- i.radDeclination(radEclipticLongitude,radObliquity)
+  sinDeclination       <- sin(radDeclination)
+  cosDeclination       <- cos(radDeclination)
+  
+  radHourAngle         <- i.radGMST(jD,jD0,jC,jC0) + i.rad(degLongitude) - i.radRightAscension(radEclipticLongitude,radObliquity)
+  cosHourAngle         <- cos(radHourAngle)
+  
+  term1                <- sinElevation/(sqrt(sinDeclination^2 + (cosDeclination*cosHourAngle)^2))
+  term2                <- (cosDeclination*cosHourAngle)/sinDeclination
+  
+  degLatitude <- numeric(length(radElevation))
+  
+  index1  <- (abs(radElevation) > abs(radDeclination))
+  if (sum(index1)>0) degLatitude[index1] <- NA
+  
+  index2  <- (radDeclination > 0 & !index1)
+  if (sum(index2)>0)  degLatitude[index2] <- i.setToRange(-90,90,i.deg(asin(term1[index2])-atan(term2[index2])))
+  
+  index3  <- (radDeclination < 0 & !index1)
+  if (sum(index3)>0)  degLatitude[index3] <- i.setToRange(-90,90,i.deg(acos(term1[index3])+atan(1/term2[index3])))
+  
+  degLatitude[!index1&!index2&!index3] <- NA
+  
+  cbind(degLongitude, degLatitude)
 }
 
 
@@ -346,22 +455,22 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
   tab$z.tm[!tab[,2]] <- twilight(tab[!tab[,2],1], known.coord[1], known.coord[2], rise = FALSE, zenith = (min(z)-0.1)-90 ,iters = 3)
   
   tab$diff <- NA 
-    
+  
   tab$diff[tab[,2]] <- as.numeric(difftime(tab[tab[,2],1], tab[tab[,2],3], units = "mins"))
   tab$diff[!tab[,2]] <- as.numeric(difftime(tab[!tab[,2],3], tab[!tab[,2],1], units = "mins"))
   
   
   if(plot) {
-     opar <- par(mfrow = c(1, 2), mar = c(7, 7, 5, 1), oma = c(0, 0, 0, 2), 
-                 cex.lab = 1.5, cex.axis = 1.5, las = 1, mgp = c(4.8, 2, 1))
+    opar <- par(mfrow = c(1, 2), mar = c(7, 7, 5, 1), oma = c(0, 0, 0, 2), 
+                cex.lab = 1.5, cex.axis = 1.5, las = 1, mgp = c(4.8, 2, 1))
     
-      hist(z, breaks =  seq(min(z)-0.5, max(z)+0.5, length = 18), main = "", 
-           col = "grey60", xlab = "Sun elevaion angle")
-      arrows(median(z), -0.75, median(z), -0.1,  lwd = 3, col = "cornflowerblue", xpd = T)
-      mtext(paste("median elevation", round(median(z),2)), font = 3, col = "cornflowerblue", cex = 1.2, line = 1.6)
-     
-      hist(tab$diff, freq = F, breaks = seq(min(tab$diff)-2, max(tab$diff)+2, length = 18), 
-           main = "", xlab = "Twilight error (minutes)", col = "grey95", ylab = "Probability density")
+    hist(z, breaks =  seq(min(z)-0.5, max(z)+0.5, length = 18), main = "", 
+         col = "grey60", xlab = "Sun elevaion angle")
+    arrows(median(z), -0.75, median(z), -0.1,  lwd = 3, col = "cornflowerblue", xpd = T)
+    mtext(paste("median elevation", round(median(z),2)), font = 3, col = "cornflowerblue", cex = 1.2, line = 1.6)
+    
+    hist(tab$diff, freq = F, breaks = seq(min(tab$diff)-2, max(tab$diff)+2, length = 18), 
+         main = "", xlab = "Twilight error (minutes)", col = "grey95", ylab = "Probability density")
     
     if(lnorm.pars) {
       seq1 <- seq(0, max(tab$diff), length = 100)
@@ -374,9 +483,9 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
     }
     par(opar)
   }
-
-if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]), 
-                 scale = as.numeric(fit$estimate[2])) else c(med.elev = median(z))
+  
+  if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]), 
+                   scale = as.numeric(fit$estimate[2])) else c(med.elev = median(z))
 }
 
 
@@ -567,10 +676,10 @@ changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, 
     mig[mig>0] <- 1
     plot(tab[,1] + (tab[,2] - tab[,1])/2, 
          ifelse(out$site>0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim=c(0,1.5))
-      arr.tmp <- ds$Arrival
-        if(is.na(arr.tmp[1])) arr.tmp[1] <- tab$tFirst[1]
-      dep.tmp <- ds$Departure
-        if(is.na(dep.tmp[length(dep.tmp)])) dep.tmp[length(dep.tmp)] <- tab$tSecond[nrow(tab)]
+    arr.tmp <- ds$Arrival
+    if(is.na(arr.tmp[1])) arr.tmp[1] <- tab$tFirst[1]
+    dep.tmp <- ds$Departure
+    if(is.na(dep.tmp[length(dep.tmp)])) dep.tmp[length(dep.tmp)] <- tab$tSecond[nrow(tab)]
     
     rect(as.POSIXct(arr.tmp, "GMT"), 1.1, as.POSIXct(dep.tmp, "GMT"), 1.4, lwd = 0, col="grey")
     par(def.par)
@@ -642,11 +751,11 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
       -sum(dnorm(diff, alpha[1], alpha[2], log = T), na.rm = T)
     }
     fit0 <- optim(cbind(median(x[,3], na.rm = T), median(x[,4], na.rm = T)), loglik, lower = cbind(lonlim[1], 
-                  latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
+                                                                                                   latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
                   method = "L-BFGS-B", hessian = T)
     fit  <- optim(cbind(fit0$par[1], fit0$par[2]), loglik, lower = cbind(lonlim[1], 
-                 latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
-                 method = "L-BFGS-B", hessian = T)
+                                                                         latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
+                  method = "L-BFGS-B", hessian = T)
     fisher_info <- solve(fit$hessian)
     prop_sigma <- sqrt(diag(fisher_info))
     prop_sigma <- diag(prop_sigma)
@@ -805,29 +914,29 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 ##' tripMap(crds[filter,],xlim=c(-20,20),ylim=c(0,60),main="hoopoe2 (filter)")
 ##' @export distanceFilter
 distanceFilter <- function(tFirst, tSecond, type, twl, degElevation = -6, distance, units = "hour") {
-
+  
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   
-if(units=="days") units <- distance/24
-
-tFirst <- as.POSIXct(tab$tFirst, tz = "GMT")
-tSecond<- as.POSIXct(tab$tSecond, tz = "GMT")
-type <- tab$type
-tSunTransit <- tFirst + (tSecond-tFirst)/2
-crds  <- coord(tab, degElevation, note=FALSE)
-
-crds[is.na(crds[,2]),2] <- 999
-
-difft <- as.numeric(difftime(tSunTransit[-length(tSunTransit)],tSunTransit[-1],units="hours"))
-diffs <- abs(as.numeric(i.loxodrom.dist(crds[-nrow(crds), 1], crds[-nrow(crds), 2], crds[-1, 1], crds[-1, 2]))/difft)
-
-index <- rep(TRUE,length(tFirst))
-index[diffs>distance] <- FALSE
-index[crds[,2]==999] <- TRUE
-
-
-cat(paste("Note: ",length(index[!index])," of ",length(index[crds[,2]!=999])," positions were filtered (",floor((length(index[!index])*100)/length(index[crds[,2]!=999]))," %)",sep=""))
-index
+  if(units=="days") units <- distance/24
+  
+  tFirst <- as.POSIXct(tab$tFirst, tz = "GMT")
+  tSecond<- as.POSIXct(tab$tSecond, tz = "GMT")
+  type <- tab$type
+  tSunTransit <- tFirst + (tSecond-tFirst)/2
+  crds  <- coord(tab, degElevation, note=FALSE)
+  
+  crds[is.na(crds[,2]),2] <- 999
+  
+  difft <- as.numeric(difftime(tSunTransit[-length(tSunTransit)],tSunTransit[-1],units="hours"))
+  diffs <- abs(as.numeric(i.loxodrom.dist(crds[-nrow(crds), 1], crds[-nrow(crds), 2], crds[-1, 1], crds[-1, 2]))/difft)
+  
+  index <- rep(TRUE,length(tFirst))
+  index[diffs>distance] <- FALSE
+  index[crds[,2]==999] <- TRUE
+  
+  
+  cat(paste("Note: ",length(index[!index])," of ",length(index[crds[,2]!=999])," positions were filtered (",floor((length(index[!index])*100)/length(index[crds[,2]!=999]))," %)",sep=""))
+  index
 }
 
 
@@ -853,39 +962,39 @@ index
 #' @seealso \code{\link{glfTrans}}
 #' @export gleTrans
 gleTrans <- function(file) {
-
-
-gle1 <- read.table(file,sep="\t",skip=16,col.names=c("date","light","1","2","3","4","5","6","7","8","type")) # read file
- 	    gle1 <- subset(gle1,gle1$type>0,select=c("date","type"))
-
-# Date transformation
- 	year   <- as.numeric(substring(gle1$date,7,10))
- 	month  <- as.numeric(substring(gle1$date,4,5))
- 	day    <- as.numeric(substring(gle1$date,1,2))
- 	hour   <- as.numeric(substring(gle1$date,12,13))
- 	min    <- as.numeric(substring(gle1$date,15,16))
- 	gmt.date <- paste(year,"-", month,"-",day," ",hour,":",min,":",0,sep="")
- 	gmt.date <- as.POSIXct(strptime(gmt.date, "%Y-%m-%d %H:%M:%S"), "UTC")
-
-gle <- data.frame(date=gmt.date,type=gle1$type)
-
-
-opt <- data.frame(tFirst=as.POSIXct("1900-01-01 01:01","UTC"),tSecond=as.POSIXct("1900-01-01 01:01","UTC"),type=0)
-
-row <- 1
-for (i in 1:(length(gmt.date)-1))
-	{
-	  if (abs(as.numeric(difftime(gle$date[i],gle$date[i+1],units="hours")))< 18 & gle$date[i] != gle$date[i+1])
-	  	{
-	  		opt[row,1] <- gle$date[i]
-	  		opt[row,2] <- gle$date[i+1]
-			opt[row,3] <- gle$type[i]
-
-			row <- row+1
-		}
-	}
-
-return(opt)
+  
+  
+  gle1 <- read.table(file,sep="\t",skip=16,col.names=c("date","light","1","2","3","4","5","6","7","8","type")) # read file
+  gle1 <- subset(gle1,gle1$type>0,select=c("date","type"))
+  
+  # Date transformation
+  year   <- as.numeric(substring(gle1$date,7,10))
+  month  <- as.numeric(substring(gle1$date,4,5))
+  day    <- as.numeric(substring(gle1$date,1,2))
+  hour   <- as.numeric(substring(gle1$date,12,13))
+  min    <- as.numeric(substring(gle1$date,15,16))
+  gmt.date <- paste(year,"-", month,"-",day," ",hour,":",min,":",0,sep="")
+  gmt.date <- as.POSIXct(strptime(gmt.date, "%Y-%m-%d %H:%M:%S"), "UTC")
+  
+  gle <- data.frame(date=gmt.date,type=gle1$type)
+  
+  
+  opt <- data.frame(tFirst=as.POSIXct("1900-01-01 01:01","UTC"),tSecond=as.POSIXct("1900-01-01 01:01","UTC"),type=0)
+  
+  row <- 1
+  for (i in 1:(length(gmt.date)-1))
+  {
+    if (abs(as.numeric(difftime(gle$date[i],gle$date[i+1],units="hours")))< 18 & gle$date[i] != gle$date[i+1])
+    {
+      opt[row,1] <- gle$date[i]
+      opt[row,2] <- gle$date[i+1]
+      opt[row,3] <- gle$type[i]
+      
+      row <- row+1
+    }
+  }
+  
+  return(opt)
 }
 
 #' Transformation of *.glf files
@@ -907,22 +1016,22 @@ return(opt)
 #' *.lux files produced by \emph{Migrate Technology Ltd}
 #' @export glfTrans
 glfTrans <- function(file="/path/file.glf") {
-
-
-glf1 <- read.table(file,sep="\t",skip=6,col.names=c("datetime","light","1","2","3")) # read file
-
-# Date transformation
- 	year   <- as.numeric(substring(glf1$datetime,7,10))
- 	month  <- as.numeric(substring(glf1$datetime,4,5))
- 	day    <- as.numeric(substring(glf1$datetime,1,2))
- 	hour   <- as.numeric(substring(glf1$datetime,12,13))
- 	min    <- as.numeric(substring(glf1$datetime,15,16))
- 	gmt.date <- paste(year,"-", month,"-",day," ",hour,":",min,":",0,sep="")
- 	gmt.date <- as.POSIXct(strptime(gmt.date, "%Y-%m-%d %H:%M:%S"), "UTC")
-
-glf <- data.frame(datetime=gmt.date,light=glf1$light)
-
-return(glf)
+  
+  
+  glf1 <- read.table(file,sep="\t",skip=6,col.names=c("datetime","light","1","2","3")) # read file
+  
+  # Date transformation
+  year   <- as.numeric(substring(glf1$datetime,7,10))
+  month  <- as.numeric(substring(glf1$datetime,4,5))
+  day    <- as.numeric(substring(glf1$datetime,1,2))
+  hour   <- as.numeric(substring(glf1$datetime,12,13))
+  min    <- as.numeric(substring(glf1$datetime,15,16))
+  gmt.date <- paste(year,"-", month,"-",day," ",hour,":",min,":",0,sep="")
+  gmt.date <- as.POSIXct(strptime(gmt.date, "%Y-%m-%d %H:%M:%S"), "UTC")
+  
+  glf <- data.frame(datetime=gmt.date,light=glf1$light)
+  
+  return(glf)
 }
 
 #' Hill-Ekstrom calibration
@@ -992,423 +1101,525 @@ return(glf)
 ##'
 ##' @export HillEkstromCalib
 HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, distanceFilter=FALSE, distance, plot=TRUE) {
-
+  
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   
-	tFirst <- tab$tFirst
-	tSecond <- tab$tSecond
+  tFirst <- tab$tFirst
+  tSecond <- tab$tSecond
   type <- tab$type
-
-	sites <- as.numeric(length(levels(as.factor(site[as.numeric(site)!=0]))))
-
-	HECalib <- rep(NA,sites)
-
-
-for(j in 1:sites) {
-b <- 0
-start <- start.angle
-
-repeat{
-	# backwards
-	if(start-((b*0.1)-0.1) < -9) {
-		HECalib[j] <- NA
-		break
-		}
-	t0 <- var(na.omit(coord(tab[site==j,], degElevation = start-((b*0.1)-0.1), note = F)[,2]))
-	t1 <- var(na.omit(coord(tab[site==j,], degElevation = start-(b*0.1), note = F)[,2]))
-	t2 <- var(na.omit(coord(tab[site==j,], degElevation = start-((b*0.1)+0.1), note = F)[,2]))
-	if(sum(is.na(c(t0,t1,t2)))>0) {
-		HECalib[j] <- NA
-		break
-		}
-	if(t0>t1 & t1<t2) {
-		HECalib[j] <- start-(b*0.1)
-		break}
-
-	# forward
-	if(start-((b*0.1)-0.1) > 9) {
-	HECalib[j] <- NA
-	break
-	}
-	f0 <- var(na.omit(coord(tab[site==j,], degElevation = start+((b*0.1)-0.1), note = F)[,2]))
-	f1 <- var(na.omit(coord(tab[site==j,], degElevation = start+(b*0.1), note = F)[,2]))
-	f2 <- var(na.omit(coord(tab[site==j,], degElevation = start+((b*0.1)+0.1), note = F)[,2]))
-	if(sum(is.na(c(f0,f1,f2)))>0) {
-	HECalib[j] <- NA
-	break
-	}
-	if(f0>f1 & f1<f2) {
-		HECalib[j] <- start+(b*0.1)
-		break}
-
-	b <- b+1
-	}
-}
-
-if(plot) {
+  
+  sites <- as.numeric(length(levels(as.factor(site[as.numeric(site)!=0]))))
+  
+  HECalib <- rep(NA,sites)
+  
+  
+  for(j in 1:sites) {
+    b <- 0
+    start <- start.angle
+    
+    repeat{
+      # backwards
+      if(start-((b*0.1)-0.1) < -9) {
+        HECalib[j] <- NA
+        break
+      }
+      t0 <- var(na.omit(coord(tab[site==j,], degElevation = start-((b*0.1)-0.1), note = F)[,2]))
+      t1 <- var(na.omit(coord(tab[site==j,], degElevation = start-(b*0.1), note = F)[,2]))
+      t2 <- var(na.omit(coord(tab[site==j,], degElevation = start-((b*0.1)+0.1), note = F)[,2]))
+      if(sum(is.na(c(t0,t1,t2)))>0) {
+        HECalib[j] <- NA
+        break
+      }
+      if(t0>t1 & t1<t2) {
+        HECalib[j] <- start-(b*0.1)
+        break}
+      
+      # forward
+      if(start-((b*0.1)-0.1) > 9) {
+        HECalib[j] <- NA
+        break
+      }
+      f0 <- var(na.omit(coord(tab[site==j,], degElevation = start+((b*0.1)-0.1), note = F)[,2]))
+      f1 <- var(na.omit(coord(tab[site==j,], degElevation = start+(b*0.1), note = F)[,2]))
+      f2 <- var(na.omit(coord(tab[site==j,], degElevation = start+((b*0.1)+0.1), note = F)[,2]))
+      if(sum(is.na(c(f0,f1,f2)))>0) {
+        HECalib[j] <- NA
+        break
+      }
+      if(f0>f1 & f1<f2) {
+        HECalib[j] <- start+(b*0.1)
+        break}
+      
+      b <- b+1
+    }
+  }
+  
+  if(plot) {
     opar <- par(mfrow = c(sites, 2), oma = c(3, 5, 6, 2), mar = c(2, 2, 2, 2))
-      for(j in 1:sites){
-
-	      if(is.na(HECalib[j])){
-
-	      plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty = "n")
-	      text(0,0,"NA",cex=2)
-	      plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty="n")
-
-	      } else {
-
-	      angles <- c(seq(HECalib[j]-2,HECalib[j]+2,0.2))
-
-	      latM <- matrix(ncol=length(angles),nrow=length(tFirst[site==j]))
-
-	      for(i in 1:ncol(latM)){
-	        latM[,i] <- coord(tab[site==j,], degElevation = c(angles[i]),note=F)[,2]
-	      }
-
-	      latT <- latM
-	      var1 <- rep(NA,ncol(latT))
-	      n1   <- rep(NA,ncol(latT))
-	      min  <- rep(NA,ncol(latT))
-	      max  <- rep(NA,ncol(latT))
-			  for(t in 1:length(var1)){
-				    var1[t] <- var(na.omit(latT[,t]))
-				    n1[t]   <- length(na.omit(latT[,t]))
-				    min[t]  <- if(length(na.omit(latT[,t]))<=1) NA else min(na.omit(latT[,t]))
-				    max[t]  <- if(length(na.omit(latT[,t]))<=1) NA else max(na.omit(latT[,t]))
-				}
-
-
-	    colors <- grey.colors(length(angles))
-	    plot(tFirst[site==j],latT[,1],ylim=c(min(na.omit(min)),max(na.omit(max))),type="o",cex=0.7,pch=20,col=colors[1],ylab="",xlab="")
-	    for(p in 2:ncol(latT)){
-		    lines(tFirst[site==j],latM[,p],type="o",cex=0.7,pch=20,col=colors[p])
-		  }
-	    lines(tFirst[site==j],coord(tab[site==j,], degElevation = HECalib[j], note=F)[,2],col="tomato2",type="o",lwd=2,cex=1,pch=19)
-	    if(j==sites) mtext("Latitude",side=2,line=3)
-	    if(j==sites) mtext("Date",side=1,line=2.8)
-
-	    plot(angles,var1,type="o",cex=1,pch=20,ylab="")
-	    lines(angles,var1,type="p",cex=0.5,pch=7)
-	    abline(v=HECalib[j],lty=2,col="red",lwd=1.5)
-	    par(new=T)
-	    plot(angles,n1,type="o",xaxt="n",yaxt="n",col="blue",pch=20,ylab="")
-	    points(angles,n1,type="p",cex=0.5,pch=8,col="blue")
-	    axis(4)
-	    if(j==sites) mtext("Sun elevation angles",side=1,line=2.8)
-	    legend("topright",c(paste(HECalib[j]," degrees",sep=""),"sample size","variance"),pch=c(-1,20,20),lty=c(2,2,2),lwd=c(1.5,0,0),col=c("red","blue","black"),bg="White")
-  	  }
-	    }
-
+    for(j in 1:sites){
+      
+      if(is.na(HECalib[j])){
+        
+        plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty = "n")
+        text(0,0,"NA",cex=2)
+        plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty="n")
+        
+      } else {
+        
+        angles <- c(seq(HECalib[j]-2,HECalib[j]+2,0.2))
+        
+        latM <- matrix(ncol=length(angles),nrow=length(tFirst[site==j]))
+        
+        for(i in 1:ncol(latM)){
+          latM[,i] <- coord(tab[site==j,], degElevation = c(angles[i]),note=F)[,2]
+        }
+        
+        latT <- latM
+        var1 <- rep(NA,ncol(latT))
+        n1   <- rep(NA,ncol(latT))
+        min  <- rep(NA,ncol(latT))
+        max  <- rep(NA,ncol(latT))
+        for(t in 1:length(var1)){
+          var1[t] <- var(na.omit(latT[,t]))
+          n1[t]   <- length(na.omit(latT[,t]))
+          min[t]  <- if(length(na.omit(latT[,t]))<=1) NA else min(na.omit(latT[,t]))
+          max[t]  <- if(length(na.omit(latT[,t]))<=1) NA else max(na.omit(latT[,t]))
+        }
+        
+        
+        colors <- grey.colors(length(angles))
+        plot(tFirst[site==j],latT[,1],ylim=c(min(na.omit(min)),max(na.omit(max))),type="o",cex=0.7,pch=20,col=colors[1],ylab="",xlab="")
+        for(p in 2:ncol(latT)){
+          lines(tFirst[site==j],latM[,p],type="o",cex=0.7,pch=20,col=colors[p])
+        }
+        lines(tFirst[site==j],coord(tab[site==j,], degElevation = HECalib[j], note=F)[,2],col="tomato2",type="o",lwd=2,cex=1,pch=19)
+        if(j==sites) mtext("Latitude",side=2,line=3)
+        if(j==sites) mtext("Date",side=1,line=2.8)
+        
+        plot(angles,var1,type="o",cex=1,pch=20,ylab="")
+        lines(angles,var1,type="p",cex=0.5,pch=7)
+        abline(v=HECalib[j],lty=2,col="red",lwd=1.5)
+        par(new=T)
+        plot(angles,n1,type="o",xaxt="n",yaxt="n",col="blue",pch=20,ylab="")
+        points(angles,n1,type="p",cex=0.5,pch=8,col="blue")
+        axis(4)
+        if(j==sites) mtext("Sun elevation angles",side=1,line=2.8)
+        legend("topright",c(paste(HECalib[j]," degrees",sep=""),"sample size","variance"),pch=c(-1,20,20),lty=c(2,2,2),lwd=c(1.5,0,0),col=c("red","blue","black"),bg="White")
+      }
+    }
+    
     mtext("Hill-Ekstrom Calibration",cex=1.5,line=0.8,outer=T)
     par(opar)
   }
-
-
-	return(HECalib)
+  
+  
+  return(HECalib)
 }
 
 
 
 i.JC2000 <- function(jD) {
-
-#--------------------------------------------------------------------------------------------------------
-# jD: julian Date
-#--------------------------------------------------------------------------------------------------------
-
-options(digits=10)
-
-
-	  	jC<- (jD - 2451545)/36525
-
-return(jC)
-
-			  }
+  
+  #--------------------------------------------------------------------------------------------------------
+  # jD: julian Date
+  #--------------------------------------------------------------------------------------------------------
+  
+  options(digits=10)
+  
+  
+  jC<- (jD - 2451545)/36525
+  
+  return(jC)
+  
+}
 
 i.deg <- function(Rad) {
-
-#------------------------------------------------------------
-# Deg: 	The input angle in radian
-#------------------------------------------------------------
-
-options(digits=10)
-
-
-     return(Rad * (180/pi))
-
+  
+  #------------------------------------------------------------
+  # Deg: 	The input angle in radian
+  #------------------------------------------------------------
+  
+  options(digits=10)
+  
+  
+  return(Rad * (180/pi))
+  
 }
 
 i.frac <- function(In) {
-
-#------------------------------------------------------------
-# In: 	numerical Number
-#------------------------------------------------------------
-
-options(digits=10)
-
-
-   	return(In - floor(In))
-
+  
+  #------------------------------------------------------------
+  # In: 	numerical Number
+  #------------------------------------------------------------
+  
+  options(digits=10)
+  
+  
+  return(In - floor(In))
+  
 }
 
 i.get.outliers<-function(residuals, k=3) {
-	x <- residuals
-	# x is a vector of residuals
-	# k is a measure of how many interquartile ranges to take before saying that point is an outlier
-	# it looks like 3 is a good preset for k
-	QR<-quantile(x, probs = c(0.25, 0.75))
-	IQR<-QR[2]-QR[1]
-	Lower.band<-QR[1]-(k*IQR)
-	Upper.Band<-QR[2]+(k*IQR)
-	delete<-which(x<Lower.band |  x>Upper.Band)
-	return(as.vector(delete))
+  x <- residuals
+  # x is a vector of residuals
+  # k is a measure of how many interquartile ranges to take before saying that point is an outlier
+  # it looks like 3 is a good preset for k
+  QR<-quantile(x, probs = c(0.25, 0.75))
+  IQR<-QR[2]-QR[1]
+  Lower.band<-QR[1]-(k*IQR)
+  Upper.Band<-QR[2]+(k*IQR)
+  delete<-which(x<Lower.band |  x>Upper.Band)
+  return(as.vector(delete))
 }
 
 i.julianDate <- function(year,month,day,hour,min) {
-
-#--------------------------------------------------------------------------------------------------------
-# Year:		Year as numeric e.g. 2010
-# Month:	Month as numeric e.g.   1
-# Day:		Day as numeric e.g.		1
-# Hour:		Hour as numeric e.g.   12
-# Min:		Minunte as numeric e.g. 0
-#--------------------------------------------------------------------------------------------------------
-
-	options(digits=15)
-
-			fracOfDay	<- hour/24 + min/1440
-
-			# Julian date (JD)
-			# ------------------------------------
-
-      		index1 <- month <= 2
-			if(sum(index1) > 0)
-				{
-					year[index1]  <- year[index1] -1
-					month[index1] <- month[index1] +12
-				}
-
-     		index2 <- (year*10000)+(month*100)+day <= 15821004
-
-      		JD <- numeric(length(year))
-			if(sum(index2)>0)
-				{
-					JD[index2] <- floor(365.25*(year[index2]+4716)) + floor(30.6001*(month[index2]+1)) + day[index2] + fracOfDay[index2] - 1524.5
-				}
-		  	index3 <- year*10000+month*100+day >= 15821015
-      		if (sum(index3)>0)
-				{
-					a <- floor(year/100)
-					b <- 2 - a + floor(a/4)
-
-					JD[index3] <- floor(365.25*(year[index3]+4716)) + floor(30.6001*(month[index3]+1)) + day[index3] + fracOfDay[index3] + b[index3] - 1524.5
-				}
-        	JD[!index2&!index3] <- 1
-
-return(JD)
-
+  
+  #--------------------------------------------------------------------------------------------------------
+  # Year:		Year as numeric e.g. 2010
+  # Month:	Month as numeric e.g.   1
+  # Day:		Day as numeric e.g.		1
+  # Hour:		Hour as numeric e.g.   12
+  # Min:		Minunte as numeric e.g. 0
+  #--------------------------------------------------------------------------------------------------------
+  
+  options(digits=15)
+  
+  fracOfDay	<- hour/24 + min/1440
+  
+  # Julian date (JD)
+  # ------------------------------------
+  
+  index1 <- month <= 2
+  if(sum(index1) > 0)
+  {
+    year[index1]  <- year[index1] -1
+    month[index1] <- month[index1] +12
+  }
+  
+  index2 <- (year*10000)+(month*100)+day <= 15821004
+  
+  JD <- numeric(length(year))
+  if(sum(index2)>0)
+  {
+    JD[index2] <- floor(365.25*(year[index2]+4716)) + floor(30.6001*(month[index2]+1)) + day[index2] + fracOfDay[index2] - 1524.5
+  }
+  index3 <- year*10000+month*100+day >= 15821015
+  if (sum(index3)>0)
+  {
+    a <- floor(year/100)
+    b <- 2 - a + floor(a/4)
+    
+    JD[index3] <- floor(365.25*(year[index3]+4716)) + floor(30.6001*(month[index3]+1)) + day[index3] + fracOfDay[index3] + b[index3] - 1524.5
+  }
+  JD[!index2&!index3] <- 1
+  
+  return(JD)
+  
 }
 
 i.loxodrom.dist <- function(x1, y1, x2, y2, epsilon=0.0001){
-dis<-numeric(length(x1))
-rerde<-6368
-deltax<-abs(x2*pi/180-x1*pi/180)
-deltay<-abs(y2*pi/180-y1*pi/180)
-tga<-deltax/(log(tan(pi/4+y2*pi/360))-log(tan(pi/4+y1*pi/360)))
-
-dis[abs(x1-x2)<epsilon&abs(y1-y2)<epsilon]<-0
-dis[abs(y1-y2)<epsilon&(abs(x1-x2)>epsilon)]<-abs(cos(y1[abs(y1-y2)<epsilon&(abs(x1-x2)>epsilon)]*pi/180)*deltax[abs(y1-y2)<epsilon&(abs(x1-x2)>epsilon)])
-dis[(tga<0)&(abs(x1-x2)>epsilon)&(abs(y1-y2)>epsilon)]<-abs(deltay[(tga<0)&(abs(x1-x2)>epsilon)&(abs(y1-y2)>epsilon)]/cos((pi-atan(tga[(tga<0)&(abs(x1-x2)>epsilon)&(abs(y1-y2)>epsilon)]))))
-dis[(tga>=0)&(abs(x1-x2)>epsilon)&(y1-y2>epsilon)]<--deltay[(tga>=0)&(abs(x1-x2)>epsilon)&(y1-y2>epsilon)]/cos(atan(tga[(tga>=0)&(abs(x1-x2)>epsilon)&(y1-y2>epsilon)]))
-dis[(tga>=0)&(abs(x1-x2)>epsilon)&(y2-y1>epsilon)]<-abs(deltay[(tga>=0)&(abs(x1-x2)>epsilon)&(y2-y1>epsilon)]/cos(atan(tga[(tga>=0)&(abs(x1-x2)>epsilon)&(y2-y1>epsilon)])))
-dis[(abs(x1-x2)<epsilon)&(y2-y1>epsilon)]<-abs(deltay[(abs(x1-x2)<epsilon)&(y2-y1>epsilon)]/cos(atan(tga[(abs(x1-x2)<epsilon)&(y2-y1>epsilon)])))
-dis[(abs(x1-x2)<epsilon)&(y1-y2>epsilon)]<-abs(deltay[(abs(x1-x2)<epsilon)&(y1-y2>epsilon)]/cos(atan(tga[(abs(x1-x2)<epsilon)&(y1-y2>epsilon)])))
-dis*rerde
+  dis<-numeric(length(x1))
+  rerde<-6368
+  deltax<-abs(x2*pi/180-x1*pi/180)
+  deltay<-abs(y2*pi/180-y1*pi/180)
+  tga<-deltax/(log(tan(pi/4+y2*pi/360))-log(tan(pi/4+y1*pi/360)))
+  
+  dis[abs(x1-x2)<epsilon&abs(y1-y2)<epsilon]<-0
+  dis[abs(y1-y2)<epsilon&(abs(x1-x2)>epsilon)]<-abs(cos(y1[abs(y1-y2)<epsilon&(abs(x1-x2)>epsilon)]*pi/180)*deltax[abs(y1-y2)<epsilon&(abs(x1-x2)>epsilon)])
+  dis[(tga<0)&(abs(x1-x2)>epsilon)&(abs(y1-y2)>epsilon)]<-abs(deltay[(tga<0)&(abs(x1-x2)>epsilon)&(abs(y1-y2)>epsilon)]/cos((pi-atan(tga[(tga<0)&(abs(x1-x2)>epsilon)&(abs(y1-y2)>epsilon)]))))
+  dis[(tga>=0)&(abs(x1-x2)>epsilon)&(y1-y2>epsilon)]<--deltay[(tga>=0)&(abs(x1-x2)>epsilon)&(y1-y2>epsilon)]/cos(atan(tga[(tga>=0)&(abs(x1-x2)>epsilon)&(y1-y2>epsilon)]))
+  dis[(tga>=0)&(abs(x1-x2)>epsilon)&(y2-y1>epsilon)]<-abs(deltay[(tga>=0)&(abs(x1-x2)>epsilon)&(y2-y1>epsilon)]/cos(atan(tga[(tga>=0)&(abs(x1-x2)>epsilon)&(y2-y1>epsilon)])))
+  dis[(abs(x1-x2)<epsilon)&(y2-y1>epsilon)]<-abs(deltay[(abs(x1-x2)<epsilon)&(y2-y1>epsilon)]/cos(atan(tga[(abs(x1-x2)<epsilon)&(y2-y1>epsilon)])))
+  dis[(abs(x1-x2)<epsilon)&(y1-y2>epsilon)]<-abs(deltay[(abs(x1-x2)<epsilon)&(y1-y2>epsilon)]/cos(atan(tga[(abs(x1-x2)<epsilon)&(y1-y2>epsilon)])))
+  dis*rerde
 }
 
 i.preSelection <- function(datetime, light, LightThreshold){
-
-	dt <- cut(datetime,"1 hour")
-	st <- as.POSIXct(levels(dt),"UTC")
-
-	raw <- data.frame(datetime=dt,light=light)
-
-	h  <- tapply(light,dt,max)
-	df1 <- data.frame(datetime=st+(30*60),light=as.numeric(h))
-
-    smooth <- i.twilightEvents(df1[,1], df1[,2], LightThreshold)
-    		  smooth <- data.frame(id=1:nrow(smooth),smooth)
-	raw    <- i.twilightEvents(datetime, light, LightThreshold)
-			  raw <- data.frame(id=1:nrow(raw),raw)
-
+  
+  dt <- cut(datetime,"1 hour")
+  st <- as.POSIXct(levels(dt),"UTC")
+  
+  raw <- data.frame(datetime=dt,light=light)
+  
+  h  <- tapply(light,dt,max)
+  df1 <- data.frame(datetime=st+(30*60),light=as.numeric(h))
+  
+  smooth <- i.twilightEvents(df1[,1], df1[,2], LightThreshold)
+  smooth <- data.frame(id=1:nrow(smooth),smooth)
+  raw    <- i.twilightEvents(datetime, light, LightThreshold)
+  raw <- data.frame(id=1:nrow(raw),raw)
+  
   ind2 <- rep(NA,nrow(smooth))
   for(i in 1:nrow(smooth)){
-  	tmp <- subset(raw,datetime>=(smooth[i,2]-(90*60)) & datetime<=(smooth[i,2]+(90*60)))
-
-  	if(smooth[i,3]==1) ind3 <- tmp$id[which.min(tmp[,2])]
-  	if(smooth[i,3]==2) ind3 <- tmp$id[which.max(tmp[,2])]
-  ind2[i] <- ind3
+    tmp <- subset(raw,datetime>=(smooth[i,2]-(90*60)) & datetime<=(smooth[i,2]+(90*60)))
+    
+    if(smooth[i,3]==1) ind3 <- tmp$id[which.min(tmp[,2])]
+    if(smooth[i,3]==2) ind3 <- tmp$id[which.max(tmp[,2])]
+    ind2[i] <- ind3
   }
-
-
-res <- data.frame(raw,mod=1)
-res$mod[ind2] <- 0
-
-return(res)
+  
+  
+  res <- data.frame(raw,mod=1)
+  res$mod[ind2] <- 0
+  
+  return(res)
 }
 
 i.rad <- function(Deg) {
-
-#------------------------------------------------------------
-# Deg: 	The input angle in degrees
-#------------------------------------------------------------
-
-options(digits=10)
-
-
-   	return(Deg * (pi/180))
-
+  
+  #------------------------------------------------------------
+  # Deg: 	The input angle in degrees
+  #------------------------------------------------------------
+  
+  options(digits=10)
+  
+  
+  return(Deg * (pi/180))
+  
 }
 
 i.radDeclination <- function(radEclipticalLength,radObliquity) {
-
-#-------------------------------------------------------------------------------------------------------------------
-# RadEclipticLength: The angle between an object's rotational axis, and a line perpendicular to its orbital plane.
-# EadObliquity:
-#-------------------------------------------------------------------------------------------------------------------
-
-options(digits=10)
-
-	dec <- asin(sin(radObliquity)*sin(radEclipticalLength))
-
-return(dec)
-
+  
+  #-------------------------------------------------------------------------------------------------------------------
+  # RadEclipticLength: The angle between an object's rotational axis, and a line perpendicular to its orbital plane.
+  # EadObliquity:
+  #-------------------------------------------------------------------------------------------------------------------
+  
+  options(digits=10)
+  
+  dec <- asin(sin(radObliquity)*sin(radEclipticalLength))
+  
+  return(dec)
+  
 }
 
 i.radEclipticLongitude <- function(jC) {
-
-#-------------------------------------------------------------------------------------------------------------------
-# jC: Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00
-#-------------------------------------------------------------------------------------------------------------------
-
-
-
-	options(digits=10)
-
+  
+  #-------------------------------------------------------------------------------------------------------------------
+  # jC: Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00
+  #-------------------------------------------------------------------------------------------------------------------
+  
+  
+  
+  options(digits=10)
+  
   radMeanAnomaly <- 2*pi*i.frac(0.993133 + 99.997361*jC)
-	EclipticLon    <- 2*pi*i.frac(0.7859452 + radMeanAnomaly/(2*pi) + (6893*sin(radMeanAnomaly) + 72*sin(2*radMeanAnomaly) + 6191.2*jC) / 1296000)
-
-return(EclipticLon)
-
+  EclipticLon    <- 2*pi*i.frac(0.7859452 + radMeanAnomaly/(2*pi) + (6893*sin(radMeanAnomaly) + 72*sin(2*radMeanAnomaly) + 6191.2*jC) / 1296000)
+  
+  return(EclipticLon)
+  
 }
 
 i.radGMST <- function(jD,jD0,jC,jC0) {
-
-#--------------------------------------------------------------------------------------------------------
-# jD:  Julian Date with Hour and Minute
-# jD0: Julan Date at t 0 UT
-# jC:  Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00)
-# jC0: Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00) at t 0 UT
-#--------------------------------------------------------------------------------------------------------
-
-options(digits=10)
-
-
-		UT  <- 86400 * (jD-jD0)
-		st0 <- 24110.54841 + 8640184.812866*jC0 + 1.0027379093*UT + (0.093104 - 0.0000062*jC0)*jC0*jC0
-		gmst<- (((2*pi)/86400)*(st0%%86400))
-
-return(gmst)
-
+  
+  #--------------------------------------------------------------------------------------------------------
+  # jD:  Julian Date with Hour and Minute
+  # jD0: Julan Date at t 0 UT
+  # jC:  Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00)
+  # jC0: Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00) at t 0 UT
+  #--------------------------------------------------------------------------------------------------------
+  
+  options(digits=10)
+  
+  
+  UT  <- 86400 * (jD-jD0)
+  st0 <- 24110.54841 + 8640184.812866*jC0 + 1.0027379093*UT + (0.093104 - 0.0000062*jC0)*jC0*jC0
+  gmst<- (((2*pi)/86400)*(st0%%86400))
+  
+  return(gmst)
+  
 }
 
 i.radObliquity <- function(jC) {
-
-#--------------------------------------------------------------------------------------------------------
-# jC: Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00)
-#--------------------------------------------------------------------------------------------------------
-
-options(digits=10)
-
-
-degObliquity <- 23.43929111 - (46.8150 + (0.00059 - 0.001813 *jC)*jC) *jC/3600
-radObliquity <- i.rad(degObliquity)
-
-return(radObliquity)
-
+  
+  #--------------------------------------------------------------------------------------------------------
+  # jC: Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00)
+  #--------------------------------------------------------------------------------------------------------
+  
+  options(digits=10)
+  
+  
+  degObliquity <- 23.43929111 - (46.8150 + (0.00059 - 0.001813 *jC)*jC) *jC/3600
+  radObliquity <- i.rad(degObliquity)
+  
+  return(radObliquity)
+  
 }
 
 i.radRightAscension <- function(RadEclipticalLength,RadObliquity) {
-
-#-------------------------------------------------------------------------------------------------------------------
-# RadEclipticLength: The angle between an object's rotational axis, and a line perpendicular to its orbital plane.
-# EadObliquity:
-#-------------------------------------------------------------------------------------------------------------------
-
-options(digits=10)
-
-	index1 <- (cos(RadEclipticalLength) < 0)
-
-	res <- numeric(length(RadEclipticalLength))
-	if (sum(index1)>0)
-		{
-			res[index1] <- (atan((cos(RadObliquity[index1])*sin(RadEclipticalLength[index1]))/cos(RadEclipticalLength[index1])) + pi)
-		}
-
-	index2 <- (cos(RadEclipticalLength) >= 0)
-	if (sum(index2)>0)
-		{
-			res[index2] <- (atan((cos(RadObliquity[index2])*sin(RadEclipticalLength[index2]))/cos(RadEclipticalLength[index2])))
-		}
-
-
-return(res)
-
+  
+  #-------------------------------------------------------------------------------------------------------------------
+  # RadEclipticLength: The angle between an object's rotational axis, and a line perpendicular to its orbital plane.
+  # EadObliquity:
+  #-------------------------------------------------------------------------------------------------------------------
+  
+  options(digits=10)
+  
+  index1 <- (cos(RadEclipticalLength) < 0)
+  
+  res <- numeric(length(RadEclipticalLength))
+  if (sum(index1)>0)
+  {
+    res[index1] <- (atan((cos(RadObliquity[index1])*sin(RadEclipticalLength[index1]))/cos(RadEclipticalLength[index1])) + pi)
+  }
+  
+  index2 <- (cos(RadEclipticalLength) >= 0)
+  if (sum(index2)>0)
+  {
+    res[index2] <- (atan((cos(RadObliquity[index2])*sin(RadEclipticalLength[index2]))/cos(RadEclipticalLength[index2])))
+  }
+  
+  
+  return(res)
+  
 }
 
 i.setToRange <- function(Start,Stop,Angle) {
-
-#-------------------------------------------------------------------------------------------------------------------
-# Start:	 Minimal value of the range in degrees
-# Stop: 	 Maximal value of the range in degrees
-# Angle:	 The angle that should be fit to the range
-#-------------------------------------------------------------------------------------------------------------------
-
-options(digits=15)
-
-		angle <- Angle
-		range <- Stop - Start
-
-
-
-			index1 <- angle >= Stop
-			if (sum(index1, na.rm = T)>0) angle[index1] <- angle[index1] - (floor((angle[index1]-Stop)/range)+1)*range
-
-			index2 <- angle < Start
-			if(sum(index2, na.rm = T)>0) angle[index2] <- angle[index2]  + ceiling(abs(angle[index2] -Start)/range)*range
-
-return(angle)
-
+  
+  #-------------------------------------------------------------------------------------------------------------------
+  # Start:	 Minimal value of the range in degrees
+  # Stop: 	 Maximal value of the range in degrees
+  # Angle:	 The angle that should be fit to the range
+  #-------------------------------------------------------------------------------------------------------------------
+  
+  options(digits=15)
+  
+  angle <- Angle
+  range <- Stop - Start
+  
+  
+  
+  index1 <- angle >= Stop
+  if (sum(index1, na.rm = T)>0) angle[index1] <- angle[index1] - (floor((angle[index1]-Stop)/range)+1)*range
+  
+  index2 <- angle < Start
+  if(sum(index2, na.rm = T)>0) angle[index2] <- angle[index2]  + ceiling(abs(angle[index2] -Start)/range)*range
+  
+  return(angle)
+  
 }
 
 i.sum.Cl <- function(object) {
-
-	if(all(names(object)%in%c("riseProb","setProb","rise.prob","set.prob","site","migTable"))){
-		cat("\n")
-		cat("Probability threshold(s):")
-		cat(rep("\n",2))
-		if(!is.na(object$rise.prob)) cat(paste("	Sunrise: ",object$rise.prob))
-		if(!is.na(object$set.prob)) cat(paste("	Sunset: ",object$set.prob))
-		cat(rep("\n",3))
-		cat("Migration schedule table:")
-		cat(rep("\n",2))
-
-		print(object$migTable,quote=FALSE)
-	} else {
-		cat("Error: List must be the output list of the changeLight function.")
-	}
+  
+  if(all(names(object)%in%c("riseProb","setProb","rise.prob","set.prob","site","migTable"))){
+    cat("\n")
+    cat("Probability threshold(s):")
+    cat(rep("\n",2))
+    if(!is.na(object$rise.prob)) cat(paste("	Sunrise: ",object$rise.prob))
+    if(!is.na(object$set.prob)) cat(paste("	Sunset: ",object$set.prob))
+    cat(rep("\n",3))
+    cat("Migration schedule table:")
+    cat(rep("\n",2))
+    
+    print(object$migTable,quote=FALSE)
+  } else {
+    cat("Error: List must be the output list of the changeLight function.")
+  }
 }
 
 
+i.sunelevation <-
+  function(lon, lat, year, month, day, hour, min, sec){
+    
+    #-------------------------------------------------------------------------------
+    # lon: longitude in decimal coordinates
+    # lat: latitude in decimal coordinates
+    # year: numeric, e.g. 2006 (GMT)
+    # month: numeric, e.g. 8  (GMT)
+    # day: numeric, e.g. 6   (GMT)
+    # hour:  numeric e.g. 6  (GMT)
+    # min: numeric, e.g. 0   (GMT)
+    # sec: numeric, e.g.     (GMT)
+    #-------------------------------------------------------------------------------
+    
+    datetime<-paste(year,"-", month,"-", day, " ", hour, ":", min, ":", sec, sep="")
+    gmt<-as.POSIXct(strptime(datetime, "%Y-%m-%d %H:%M:%S"), "UTC")
+    n <- gmt - as.POSIXct(strptime("2000-01-01 12:00:00", "%Y-%m-%d %H:%M:%S"), "UTC")
+    
+    # mean ecliptical length of sun
+    L <- 280.46 + 0.9856474 * n
+    L <- as.numeric(L)
+    
+    # Anomalie
+    g <- 357.528 + 0.9856003 * n
+    g <- as.numeric(g)
+    
+    t.v <- floor(g/360)
+    g <- g - 360*t.v
+    g.rad <- g*pi/180
+    
+    t.l <- floor(L/360)
+    L <- L - 360 * t.l
+    L.rad <- L*pi/180
+    
+    # ecliptical length of sun
+    LAMBDA <- L + 1.915 * sin(g.rad) + 0.02*sin(2*g.rad)
+    LAMBDA.rad <- LAMBDA*pi/180
+    
+    # coordinates of equator
+    epsilon <- 23.439 - 0.0000004 * n
+    epsilon.rad <- as.numeric(epsilon)*pi/180
+    
+    alpha.rad <- atan(cos(epsilon.rad)*sin(LAMBDA.rad)/cos(LAMBDA.rad))
+    
+    
+    alpha.rad <- ifelse(cos(LAMBDA.rad)<0, alpha.rad+pi, alpha.rad)
+    alpha <- alpha.rad*180/pi
+    
+    deklination.rad <- asin(sin(epsilon.rad) * sin(LAMBDA.rad))
+    deklination <- deklination.rad*180/pi
+    
+    # angle h
+    tag<-paste(year,"-", month,"-", day, " 00:00:00", sep="")
+    JD0<-as.POSIXct(strptime(tag, "%Y-%m-%d %H:%M:%S"), "GMT")
+    JD0 <- JD0 - as.POSIXct(strptime("2000-01-01 12:00:00", "%Y-%m-%d %H:%M:%S"), "GMT")
+    T0 <- JD0/36525
+    
+    Time <- hour  + min/60  + sec/60/100
+    theta.Gh <- 6.697376 + 2400.05134 * T0 + 1.002738 * Time
+    theta.Gh <- as.numeric(theta.Gh)
+    
+    t.d <- floor(theta.Gh/24)
+    theta.Gh <- theta.Gh-t.d*24
+    
+    theta.G <- theta.Gh * 15
+    
+    theta <- theta.G + lon      # Stundenwinkel des Fruhlingspunktes
+    tau <- theta-alpha    # Stundenwinkel
+    tau.rad <- tau/180*pi
+    
+    # H?henwinkel h
+    h <- asin(cos(deklination.rad) * cos(tau.rad) * cos(lat/180*pi) + sin(deklination.rad) * sin(lat/180*pi))
+    h.grad <- h/pi*180
+    
+    # correction because of refraction
+    R <- 1.02/(tan((h.grad+10.3/(h.grad+5.11))/180*pi))
+    hR.grad <- h.grad + R/60
+    return(hR.grad)
+  }
+
+i.twilightEvents <- function(datetime, light, LightThreshold){
+  
+  df <- data.frame(datetime, light)
+  
+  ind1 <- which((df$light[-nrow(df)] < LightThreshold & df$light[-1] > LightThreshold) |
+                  (df$light[-nrow(df)] > LightThreshold & df$light[-1] < LightThreshold) |
+                  df$light[-nrow(df)] == LightThreshold)
+  
+  bas1 <- cbind(df[ind1,],df[ind1+1,])
+  bas1 <- bas1[bas1[,2]!=bas1[,4],]
+  
+  x1 <- as.numeric(unclass(bas1[,1])); x2 <- as.numeric(unclass(bas1[,3]))
+  y1 <- bas1[,2]; y2 <- bas1[,4]
+  m <- (y2-y1)/(x2-x1)
+  b <- y2-(m*x2)
+  
+  xnew <- (LightThreshold - b)/m
+  type <- ifelse(bas1[,2]<bas1[,4],1,2)
+  res  <- data.frame(datetime=as.POSIXct(xnew, origin="1970-01-01", tz="UTC"),type)
+  
+  return(res)
+} 
 #' Filter to remove noise in light intensity measurements during the night
 #'
 #' The filter identifies and removes light intensities oczillating around the
@@ -1445,37 +1656,37 @@ i.sum.Cl <- function(object) {
 #'
 #' @export lightFilter
 lightFilter <- function(light, baseline=NULL, iter=2){
-
-	r <- as.data.frame(table(light))
-    	 r[,1] <- as.character(r[,1])
-    nr <- as.numeric(which.max(r$Freq[as.numeric(r[,1])<mean(light)]))
-    LightThreshold <- ifelse(is.null(baseline),as.numeric(r[nr,1]),baseline)
-
-    light[light<LightThreshold] <- LightThreshold
-
-
-	index <- which(light<mean(light) & light!= LightThreshold)
-
-	rep   <- rep(FALSE,length(light))
-
-	for(i in 1:iter){
-
-	for(i in index[index>5 & index<(length(light)-5)]){
-
-	back=FALSE
-	if(any(light[seq(i-5,i)]==LightThreshold)) back <- TRUE
-	forw=FALSE
-	if(any(light[seq(i,i+5)]==LightThreshold)) forw <- TRUE
-
-	if(back & forw) rep[i] <- TRUE
-
-	}
-
-	light[rep] <- LightThreshold
-
-	}
-
-light
+  
+  r <- as.data.frame(table(light))
+  r[,1] <- as.character(r[,1])
+  nr <- as.numeric(which.max(r$Freq[as.numeric(r[,1])<mean(light)]))
+  LightThreshold <- ifelse(is.null(baseline),as.numeric(r[nr,1]),baseline)
+  
+  light[light<LightThreshold] <- LightThreshold
+  
+  
+  index <- which(light<mean(light) & light!= LightThreshold)
+  
+  rep   <- rep(FALSE,length(light))
+  
+  for(i in 1:iter){
+    
+    for(i in index[index>5 & index<(length(light)-5)]){
+      
+      back=FALSE
+      if(any(light[seq(i-5,i)]==LightThreshold)) back <- TRUE
+      forw=FALSE
+      if(any(light[seq(i,i+5)]==LightThreshold)) forw <- TRUE
+      
+      if(back & forw) rep[i] <- TRUE
+      
+    }
+    
+    light[rep] <- LightThreshold
+    
+  }
+  
+  light
 }
 
 
@@ -1497,75 +1708,75 @@ light
 ##' @author Simeon Lisovski & Eldar Rakhimberdiev
 ##' @export loessFilter
 loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE){
-
+  
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   
-	tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
+  tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
                    type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
-	tw <- tw[!duplicated(tw$datetime),]
-	tw <- tw[order(tw[,1]),]
-
-	hours <- as.numeric(format(tw[,1],"%H"))+as.numeric(format(tw[,1],"%M"))/60
-
-for(t in 1:2){
-	cor <- rep(NA, 24)
-	for(i in 0:23){
-		cor[i+1] <- max(abs((c(hours[tw$type==t][1],hours[tw$type==t])+i)%%24 -
-		            (c(hours[tw$type==t],hours[tw$type==t][length(hours)])+i)%%24),na.rm=T)
-	}
-	hours[tw$type==t] <- (hours[tw$type==t] + (which.min(round(cor,2)))-1)%%24
-	}
-
-dawn <- data.frame(id=1:sum(tw$type==1),
-                   datetime=tw$datetime[tw$type==1],
-				   type=tw$type[tw$type==1],
-				   hours = hours[tw$type==1], filter=FALSE)
-
-dusk <- data.frame(id=1:sum(tw$type==2),
-				   datetime=tw$datetime[tw$type==2],
-				   type=tw$type[tw$type==2],
-				   hours = hours[tw$type==2], filter=FALSE)
-
-
-for(d in seq(30,k,length=5)){
-
-predict.dawn <- predict(loess(dawn$hours[!dawn$filter]~as.numeric(dawn$datetime[!dawn$filter]),span=0.1))
-predict.dusk <- predict(loess(dusk$hours[!dusk$filter]~as.numeric(dusk$datetime[!dusk$filter]),span=0.1))
-
-del.dawn <-	i.get.outliers(as.vector(residuals(loess(dawn$hours[!dawn$filter]~
-                                     as.numeric(dawn$datetime[!dawn$filter]),span=0.1))),k=d)
-del.dusk <-	i.get.outliers(as.vector(residuals(loess(dusk$hours[!dusk$filter]~
-                                     as.numeric(dusk$datetime[!dusk$filter]),span=0.1))),k=d)
-
-if(length(del.dawn)>0) dawn$filter[!dawn$filter][del.dawn] <- TRUE
-if(length(del.dusk)>0) dusk$filter[!dusk$filter][del.dusk] <- TRUE
-}
-
-if(plot){
-  opar <- par(mfrow=c(2,1),mar=c(3,3,0.5,3),oma=c(2,2,0,0))
-  plot(dawn$datetime[dawn$type==1],dawn$hours[dawn$type==1],pch="+",cex=0.6,xlab="",ylab="",yaxt="n")
-  lines(dawn$datetime[!dawn$filter], predict(loess(dawn$hours[!dawn$filter]~as.numeric(dawn$datetime[!dawn$filter]),span=0.1)) , type="l")
-  points(dawn$datetime[dawn$filter],dawn$hours[dawn$filter],col="red",pch="+",cex=1)
-  axis(2,labels=F)
-  mtext("Sunrise",4,line=1.2)
+  tw <- tw[!duplicated(tw$datetime),]
+  tw <- tw[order(tw[,1]),]
   
-  plot(dusk$datetime[dusk$type==2],dusk$hours[dusk$type==2],pch="+",cex=0.6,xlab="",ylab="",yaxt="n")
-  lines(dusk$datetime[!dusk$filter], predict(loess(dusk$hours[!dusk$filter]~as.numeric(dusk$datetime[!dusk$filter]),span=0.1)), type="l")
-  points(dusk$datetime[dusk$filter],dusk$hours[dusk$filter],col="red",pch="+",cex=1)
-  axis(2,labels=F)
-  legend("bottomleft",c("OK","Filtered"),pch=c("+","+"),col=c("black","red"),
-         bty="n",cex=0.8)
-  mtext("Sunset",4,line=1.2)
-  mtext("Time",1,outer=T)
-  mtext("Sunrise/Sunset hours (rescaled)",2,outer=T)
-  par(opar)
-}
-all <- rbind(subset(dusk,filter),subset(dawn,filter))
-
-filter <- rep(FALSE,length(tab$tFirst))
-	filter[as.POSIXct(tab$tFirst, "GMT")%in%all$datetime | as.POSIXct(tab$tSecond, "GMT")%in%all$datetime] <- TRUE
-
-return(!filter)
+  hours <- as.numeric(format(tw[,1],"%H"))+as.numeric(format(tw[,1],"%M"))/60
+  
+  for(t in 1:2){
+    cor <- rep(NA, 24)
+    for(i in 0:23){
+      cor[i+1] <- max(abs((c(hours[tw$type==t][1],hours[tw$type==t])+i)%%24 -
+                            (c(hours[tw$type==t],hours[tw$type==t][length(hours)])+i)%%24),na.rm=T)
+    }
+    hours[tw$type==t] <- (hours[tw$type==t] + (which.min(round(cor,2)))-1)%%24
+  }
+  
+  dawn <- data.frame(id=1:sum(tw$type==1),
+                     datetime=tw$datetime[tw$type==1],
+                     type=tw$type[tw$type==1],
+                     hours = hours[tw$type==1], filter=FALSE)
+  
+  dusk <- data.frame(id=1:sum(tw$type==2),
+                     datetime=tw$datetime[tw$type==2],
+                     type=tw$type[tw$type==2],
+                     hours = hours[tw$type==2], filter=FALSE)
+  
+  
+  for(d in seq(30,k,length=5)){
+    
+    predict.dawn <- predict(loess(dawn$hours[!dawn$filter]~as.numeric(dawn$datetime[!dawn$filter]),span=0.1))
+    predict.dusk <- predict(loess(dusk$hours[!dusk$filter]~as.numeric(dusk$datetime[!dusk$filter]),span=0.1))
+    
+    del.dawn <-	i.get.outliers(as.vector(residuals(loess(dawn$hours[!dawn$filter]~
+                                                           as.numeric(dawn$datetime[!dawn$filter]),span=0.1))),k=d)
+    del.dusk <-	i.get.outliers(as.vector(residuals(loess(dusk$hours[!dusk$filter]~
+                                                           as.numeric(dusk$datetime[!dusk$filter]),span=0.1))),k=d)
+    
+    if(length(del.dawn)>0) dawn$filter[!dawn$filter][del.dawn] <- TRUE
+    if(length(del.dusk)>0) dusk$filter[!dusk$filter][del.dusk] <- TRUE
+  }
+  
+  if(plot){
+    opar <- par(mfrow=c(2,1),mar=c(3,3,0.5,3),oma=c(2,2,0,0))
+    plot(dawn$datetime[dawn$type==1],dawn$hours[dawn$type==1],pch="+",cex=0.6,xlab="",ylab="",yaxt="n")
+    lines(dawn$datetime[!dawn$filter], predict(loess(dawn$hours[!dawn$filter]~as.numeric(dawn$datetime[!dawn$filter]),span=0.1)) , type="l")
+    points(dawn$datetime[dawn$filter],dawn$hours[dawn$filter],col="red",pch="+",cex=1)
+    axis(2,labels=F)
+    mtext("Sunrise",4,line=1.2)
+    
+    plot(dusk$datetime[dusk$type==2],dusk$hours[dusk$type==2],pch="+",cex=0.6,xlab="",ylab="",yaxt="n")
+    lines(dusk$datetime[!dusk$filter], predict(loess(dusk$hours[!dusk$filter]~as.numeric(dusk$datetime[!dusk$filter]),span=0.1)), type="l")
+    points(dusk$datetime[dusk$filter],dusk$hours[dusk$filter],col="red",pch="+",cex=1)
+    axis(2,labels=F)
+    legend("bottomleft",c("OK","Filtered"),pch=c("+","+"),col=c("black","red"),
+           bty="n",cex=0.8)
+    mtext("Sunset",4,line=1.2)
+    mtext("Time",1,outer=T)
+    mtext("Sunrise/Sunset hours (rescaled)",2,outer=T)
+    par(opar)
+  }
+  all <- rbind(subset(dusk,filter),subset(dawn,filter))
+  
+  filter <- rep(FALSE,length(tab$tFirst))
+  filter[as.POSIXct(tab$tFirst, "GMT")%in%all$datetime | as.POSIXct(tab$tSecond, "GMT")%in%all$datetime] <- TRUE
+  
+  return(!filter)
 }
 
 
@@ -1588,11 +1799,11 @@ return(!filter)
 #' software GeoLocator (\emph{Swiss Ornithological Institute})
 #' @export luxTrans
 luxTrans <- function(file="/path/file.lux") {
-
-lux1 <- read.table(file,sep="\t",skip=21,col.names=c("datetime","time")) # read file
-lux <- data.frame(datetime=as.POSIXct(strptime(lux1[,1],format="%d/%m/%Y %H:%M:%S",tz="UTC")),light=lux1[,2])
-
-return(lux)
+  
+  lux1 <- read.table(file,sep="\t",skip=21,col.names=c("datetime","time")) # read file
+  lux <- data.frame(datetime=as.POSIXct(strptime(lux1[,1],format="%d/%m/%Y %H:%M:%S",tz="UTC")),light=lux1[,2])
+  
+  return(lux)
 }
 
 
@@ -1816,19 +2027,19 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull
   if(type=="cross") {
     for (i in 1:max(unique(site))){
       if(!all(is.na(crds[site==i, 2]))){
-      tmp.lon <- quantile(crds[site == i, 1], probs = c(quantiles, 0.5), na.rm = T)
-      tmp.lat <- quantile(crds[site == i, 2], probs = c(quantiles, 0.5), na.rm = T)
-      points(tmp.lon[3], tmp.lat[3],
-             col = col[i],
-             cex = ifelse(any(names(args)=="cex"), args$cex, 1),
-             pch = ifelse(any(names(args)=="pch"), args$pch, 16)) 
-      segments(tmp.lon[1], tmp.lat[3], tmp.lon[2], tmp.lat[3],
+        tmp.lon <- quantile(crds[site == i, 1], probs = c(quantiles, 0.5), na.rm = T)
+        tmp.lat <- quantile(crds[site == i, 2], probs = c(quantiles, 0.5), na.rm = T)
+        points(tmp.lon[3], tmp.lat[3],
                col = col[i],
-               lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
-      segments(tmp.lon[3], tmp.lat[1], tmp.lon[3], tmp.lat[2],
-               col = col[i],
-               lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
-    }
+               cex = ifelse(any(names(args)=="cex"), args$cex, 1),
+               pch = ifelse(any(names(args)=="pch"), args$pch, 16)) 
+        segments(tmp.lon[1], tmp.lat[3], tmp.lon[2], tmp.lat[3],
+                 col = col[i],
+                 lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
+        segments(tmp.lon[3], tmp.lat[1], tmp.lon[3], tmp.lat[2],
+                 col = col[i],
+                 lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
+      }
     }
   }    
   
@@ -1836,16 +2047,16 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull
   if(hull) {
     for(j in unique(site)){
       if(!all(is.na(crds[site==j, 2]))){
-      if(j>0){
-        X <- na.omit(crds[site==j,])
-        
-        hpts <- chull(X)
-        hpts <- c(hpts,hpts[1])
-        lines(X[hpts,], 
-              lty = ifelse(sum(names(args)%in%"lty")==1, args$lty, 1),
-              lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 1),
-              col = col[j])
-      }
+        if(j>0){
+          X <- na.omit(crds[site==j,])
+          
+          hpts <- chull(X)
+          hpts <- c(hpts,hpts[1])
+          lines(X[hpts,], 
+                lty = ifelse(sum(names(args)%in%"lty")==1, args$lty, 1),
+                lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 1),
+                col = col[j])
+        }
       }
     }
   }
@@ -1899,132 +2110,132 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull
 ##' @export trip2kml
 trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat.colors", point.alpha=0.7, cex=1, line.col="goldenrod")
 {
-	if((length(tFirst)+length(type))!=(length(tSecond)+length(type))) stop("tFirst, tSecond and type must have the same length.")
-
-	coord   <- coord(tFirst,tSecond,type,degElevation,note=F)
-		index <- !is.na(coord[,2])
-	datetime <- as.POSIXct(strptime(paste(ifelse(type==1,substring(tFirst,1,10),substring(tSecond,1,10)),
-				" ",ifelse(type==1,"12:00:00","00:00:00"),sep=""),format="%Y-%m-%d %H:%M:%S"),"UTC")
-
-	coord   <- coord[index,]
-	longitude <- coord[,1]
-	latitude <- coord[,2]
-
-	date <- unlist(strsplit(as.character(datetime[index]), split = " "))[seq(1,
-        ((length(datetime[index]) * 2) - 1), by = 2)]
-    time <- unlist(strsplit(as.character(datetime[index]), split = " "))[seq(2,
-        ((length(datetime[index]) * 2)), by = 2)]
-
-	if(length(!is.na(coord[,2]))<1) stop("Calculation of coordinates results in zero spatial information.")
-
-	if ((col.scheme%in% c("rainbow", "heat.colors", "terrain.colors", "topo.colors",
-						  "cm.colors"))==F) stop("The col.scheme has been misspecified.")
-
-	seq   <- seq(as.POSIXct(datetime[1]),as.POSIXct(datetime[length(datetime)]),by=12*60*60)
-	index2<- ifelse(!is.na(merge(data.frame(d=datetime[index],t=TRUE),data.frame(d=seq,t=FALSE),by="d",all.y=T)[,2]),TRUE,FALSE)
-
-	usable.colors <- strsplit(eval(parse(text = paste(col.scheme,
-            "(ifelse(length(index2) < 1000, length(index2), 1000), alpha=point.alpha)",
-            sep = ""))), split = "")[index2]
-
-	usable.line.color <- strsplit(rgb(col2rgb(line.col)[1,
-        1], col2rgb(line.col)[2, 1], col2rgb(line.col)[3,
-        1], col2rgb(line.col, alpha = 1)[4, 1], maxColorValue = 255),
-        split = "")
-
-	date <- unlist(strsplit(as.character(datetime), split = " "))[seq(1,
-        ((length(datetime) * 2) - 1), by = 2)]
-    time <- unlist(strsplit(as.character(datetime), split = " "))[seq(2,
-        ((length(datetime) * 2)), by = 2)]
-    scaling.parameter <- rep(cex, length(latitude))
-
-    data.variables <- NULL
-    filename <- file
-    write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", filename)
-    write("<kml xmlns=\"http://www.opengis.net/kml/2.2\">", filename,
+  if((length(tFirst)+length(type))!=(length(tSecond)+length(type))) stop("tFirst, tSecond and type must have the same length.")
+  
+  coord   <- coord(tFirst,tSecond,type,degElevation,note=F)
+  index <- !is.na(coord[,2])
+  datetime <- as.POSIXct(strptime(paste(ifelse(type==1,substring(tFirst,1,10),substring(tSecond,1,10)),
+                                        " ",ifelse(type==1,"12:00:00","00:00:00"),sep=""),format="%Y-%m-%d %H:%M:%S"),"UTC")
+  
+  coord   <- coord[index,]
+  longitude <- coord[,1]
+  latitude <- coord[,2]
+  
+  date <- unlist(strsplit(as.character(datetime[index]), split = " "))[seq(1,
+                                                                           ((length(datetime[index]) * 2) - 1), by = 2)]
+  time <- unlist(strsplit(as.character(datetime[index]), split = " "))[seq(2,
+                                                                           ((length(datetime[index]) * 2)), by = 2)]
+  
+  if(length(!is.na(coord[,2]))<1) stop("Calculation of coordinates results in zero spatial information.")
+  
+  if ((col.scheme%in% c("rainbow", "heat.colors", "terrain.colors", "topo.colors",
+                        "cm.colors"))==F) stop("The col.scheme has been misspecified.")
+  
+  seq   <- seq(as.POSIXct(datetime[1]),as.POSIXct(datetime[length(datetime)]),by=12*60*60)
+  index2<- ifelse(!is.na(merge(data.frame(d=datetime[index],t=TRUE),data.frame(d=seq,t=FALSE),by="d",all.y=T)[,2]),TRUE,FALSE)
+  
+  usable.colors <- strsplit(eval(parse(text = paste(col.scheme,
+                                                    "(ifelse(length(index2) < 1000, length(index2), 1000), alpha=point.alpha)",
+                                                    sep = ""))), split = "")[index2]
+  
+  usable.line.color <- strsplit(rgb(col2rgb(line.col)[1,
+                                                      1], col2rgb(line.col)[2, 1], col2rgb(line.col)[3,
+                                                                                                     1], col2rgb(line.col, alpha = 1)[4, 1], maxColorValue = 255),
+                                split = "")
+  
+  date <- unlist(strsplit(as.character(datetime), split = " "))[seq(1,
+                                                                    ((length(datetime) * 2) - 1), by = 2)]
+  time <- unlist(strsplit(as.character(datetime), split = " "))[seq(2,
+                                                                    ((length(datetime) * 2)), by = 2)]
+  scaling.parameter <- rep(cex, length(latitude))
+  
+  data.variables <- NULL
+  filename <- file
+  write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", filename)
+  write("<kml xmlns=\"http://www.opengis.net/kml/2.2\">", filename,
         append = TRUE)
-    write("<Document>", filename, append = TRUE)
-    write(paste("<name>", filename, "</name>", sep = " "),
+  write("<Document>", filename, append = TRUE)
+  write(paste("<name>", filename, "</name>", sep = " "),
         filename, append = TRUE)
-
-    write("  <open>1</open>", filename, append = TRUE)
-    write("\t<description>", filename, append = TRUE)
-    write("\t  <![CDATA[Generated using <a href=\"http://simeonlisovski.wordpress.com/geolight\">GeoLight</a>]]>",
+  
+  write("  <open>1</open>", filename, append = TRUE)
+  write("\t<description>", filename, append = TRUE)
+  write("\t  <![CDATA[Generated using <a href=\"http://simeonlisovski.wordpress.com/geolight\">GeoLight</a>]]>",
         filename, append = TRUE)
-    write("\t</description>", filename, append = TRUE)
-    write("<Folder>", filename, append = TRUE)
-    write("  <name>Points</name>", filename, append = TRUE)
-    write("<open>0</open>", filename, append = TRUE)
-    for (i in 1:length(latitude)) {
-        write("<Placemark id='point'>", filename, append = TRUE)
-        write(paste("<name>", as.character(as.Date(datetime[i])), "</name>", sep = ""),
-            filename, append = TRUE)
-        write("  <TimeSpan>", filename, append = TRUE)
-        write(paste("    <begin>", date[i], "T", time[i], "Z</begin>",
-            sep = ""), filename, append = TRUE)
-        write(paste("    <end>", date[ifelse(i == length(latitude),
-            i, i + 1)], "T", time[ifelse(i == length(latitude),
-            i, i + 1)], "Z</end>", sep = ""), filename, append = TRUE)
-        write("  </TimeSpan>", filename, append = TRUE)
-        write("<visibility>1</visibility>", filename, append = TRUE)
-        write("<description>", filename, append = TRUE)
-        write(paste("<![CDATA[<TABLE border='1'><TR><TD><B>Variable</B></TD><TD><B>Value</B></TD></TR><TR><TD>Date/Time</TD><TD>",
+  write("\t</description>", filename, append = TRUE)
+  write("<Folder>", filename, append = TRUE)
+  write("  <name>Points</name>", filename, append = TRUE)
+  write("<open>0</open>", filename, append = TRUE)
+  for (i in 1:length(latitude)) {
+    write("<Placemark id='point'>", filename, append = TRUE)
+    write(paste("<name>", as.character(as.Date(datetime[i])), "</name>", sep = ""),
+          filename, append = TRUE)
+    write("  <TimeSpan>", filename, append = TRUE)
+    write(paste("    <begin>", date[i], "T", time[i], "Z</begin>",
+                sep = ""), filename, append = TRUE)
+    write(paste("    <end>", date[ifelse(i == length(latitude),
+                                         i, i + 1)], "T", time[ifelse(i == length(latitude),
+                                                                      i, i + 1)], "Z</end>", sep = ""), filename, append = TRUE)
+    write("  </TimeSpan>", filename, append = TRUE)
+    write("<visibility>1</visibility>", filename, append = TRUE)
+    write("<description>", filename, append = TRUE)
+    write(paste("<![CDATA[<TABLE border='1'><TR><TD><B>Variable</B></TD><TD><B>Value</B></TD></TR><TR><TD>Date/Time</TD><TD>",
                 datetime[i], "</TD></TR><TR><TD>lat long</TD><TD>",
                 paste(latitude[i], longitude[i], sep = " "),
                 "</TABLE>]]>", sep = "", collapse = ""), filename,
-                append = TRUE)
-        write("</description>", filename, append = TRUE)
-        write("\t<Style>", filename, append = TRUE)
-        write("\t<IconStyle>", filename, append = TRUE)
-        write(paste("\t\t<color>", paste(noquote(usable.colors[[i]][c(8,
-            9, 6, 7, 4, 5, 2, 3)]), collapse = ""), "</color>",
-            sep = ""), filename, append = TRUE)
-        write(paste("  <scale>", scaling.parameter[i], "</scale>",
-            sep = ""), filename, append = TRUE)
-        write("\t<Icon>", filename, append = TRUE)
-        write("\t\t<href>http://maps.google.com/mapfiles/kml/pal2/icon26.png</href>",
-            filename, append = TRUE)
-        write("\t</Icon>", filename, append = TRUE)
-        write("\t</IconStyle>", filename, append = TRUE)
-        write("\t</Style>", filename, append = TRUE)
-        write("\t<Point>", filename, append = TRUE)
-        write(paste("\t<altitudeMode>", "relativeToGround", "</altitudeMode>",
-            sep = ""), filename, append = TRUE)
-        write("<tesselate>1</tesselate>", filename, append = TRUE)
-        write("<extrude>1</extrude>", filename, append = TRUE)
-        write(paste("\t  <coordinates>", longitude[i], ",", latitude[i],
-            ",", 1,
-            "</coordinates>", sep = ""), filename, append = TRUE)
-        write("\t</Point>", filename, append = TRUE)
-        write(" </Placemark>", filename, append = TRUE)
-    }
-
-    write("</Folder>", filename, append = TRUE)
-    write("<Placemark>", filename, append = TRUE)
-    write("  <name>Line Path</name>", filename, append = TRUE)
-    write("  <Style>", filename, append = TRUE)
-    write("    <LineStyle>", filename, append = TRUE)
-    write(paste("\t<color>", paste(noquote(usable.line.color[[1]][c(8,
-        9, 6, 7, 4, 5, 2, 3)]), collapse = ""), "</color>", sep = ""),
+          append = TRUE)
+    write("</description>", filename, append = TRUE)
+    write("\t<Style>", filename, append = TRUE)
+    write("\t<IconStyle>", filename, append = TRUE)
+    write(paste("\t\t<color>", paste(noquote(usable.colors[[i]][c(8,
+                                                                  9, 6, 7, 4, 5, 2, 3)]), collapse = ""), "</color>",
+                sep = ""), filename, append = TRUE)
+    write(paste("  <scale>", scaling.parameter[i], "</scale>",
+                sep = ""), filename, append = TRUE)
+    write("\t<Icon>", filename, append = TRUE)
+    write("\t\t<href>http://maps.google.com/mapfiles/kml/pal2/icon26.png</href>",
+          filename, append = TRUE)
+    write("\t</Icon>", filename, append = TRUE)
+    write("\t</IconStyle>", filename, append = TRUE)
+    write("\t</Style>", filename, append = TRUE)
+    write("\t<Point>", filename, append = TRUE)
+    write(paste("\t<altitudeMode>", "relativeToGround", "</altitudeMode>",
+                sep = ""), filename, append = TRUE)
+    write("<tesselate>1</tesselate>", filename, append = TRUE)
+    write("<extrude>1</extrude>", filename, append = TRUE)
+    write(paste("\t  <coordinates>", longitude[i], ",", latitude[i],
+                ",", 1,
+                "</coordinates>", sep = ""), filename, append = TRUE)
+    write("\t</Point>", filename, append = TRUE)
+    write(" </Placemark>", filename, append = TRUE)
+  }
+  
+  write("</Folder>", filename, append = TRUE)
+  write("<Placemark>", filename, append = TRUE)
+  write("  <name>Line Path</name>", filename, append = TRUE)
+  write("  <Style>", filename, append = TRUE)
+  write("    <LineStyle>", filename, append = TRUE)
+  write(paste("\t<color>", paste(noquote(usable.line.color[[1]][c(8,
+                                                                  9, 6, 7, 4, 5, 2, 3)]), collapse = ""), "</color>", sep = ""),
         filename, append = TRUE)
-
-
-    write(paste("      <width>1</width>", sep = ""), filename,
+  
+  
+  write(paste("      <width>1</width>", sep = ""), filename,
         append = TRUE)
-    write("    </LineStyle>", filename, append = TRUE)
-    write("  </Style>", filename, append = TRUE)
-    write("  <LineString>", filename, append = TRUE)
-    write("    <extrude>0</extrude>", filename, append = TRUE)
-    write("    <tessellate>1</tessellate>", filename, append = TRUE)
-    write(paste("\t<altitudeMode>clampToGround</altitudeMode>",
-        sep = ""), filename, append = TRUE)
-    write(paste("     <coordinates>", noquote(paste(longitude,
-        ",", latitude, sep = "", collapse = " ")), "</coordinates>",
-        sep = ""), filename, append = TRUE)
-    write("    </LineString>", filename, append = TRUE)
-    write("</Placemark>", filename, append = TRUE)
-    write("</Document>", filename, append = TRUE)
-    write("</kml>", filename, append = TRUE)
+  write("    </LineStyle>", filename, append = TRUE)
+  write("  </Style>", filename, append = TRUE)
+  write("  <LineString>", filename, append = TRUE)
+  write("    <extrude>0</extrude>", filename, append = TRUE)
+  write("    <tessellate>1</tessellate>", filename, append = TRUE)
+  write(paste("\t<altitudeMode>clampToGround</altitudeMode>",
+              sep = ""), filename, append = TRUE)
+  write(paste("     <coordinates>", noquote(paste(longitude,
+                                                  ",", latitude, sep = "", collapse = " ")), "</coordinates>",
+              sep = ""), filename, append = TRUE)
+  write("    </LineString>", filename, append = TRUE)
+  write("</Placemark>", filename, append = TRUE)
+  write("</Document>", filename, append = TRUE)
+  write("</kml>", filename, append = TRUE)
 }
 
 #' Draw the positions and the trip on a map
@@ -2052,7 +2263,7 @@ trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat
 #'
 #' @export tripMap
 tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","America","World"), legend = TRUE, ...) {
-
+  
   args <- list(...)
   
   if(all(map.range==c("EuroAfrica", "AustralAsia", "America", "World")) & sum(names(args)%in%c("xlim", "ylim"))!=2) {
@@ -2064,53 +2275,53 @@ tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","
   if(all(map.range=="World")) range <- c(-180, 180, -75, 90)
   
   if(sum(names(args)%in%c("xlim", "ylim"))==2) range <- c(args$xlim, args$ylim)
-
+  
   if(sum(names(args)%in%"add")==1) add <- args$add else add = FALSE
   
   if(!add) {
-	opar <- par(mar = c(6,5,1,1))
-  plot(NA,xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-	map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), fill=T,lwd=0.01,col=c("grey90"),add=TRUE)
-	map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),interior=TRUE,col=c("darkgrey"),add=TRUE)
-	mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude"), side=1, line=2.2, font=3)
-	mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude"), side=2, line=2.5, font=3)
-	map.axes()
-
-	mtext(ifelse(sum(names(args)%in%"main")==1, args$main, ""), line=0.6, cex=1.2)
-	}
-
-	points(crds, 
-		pch = ifelse(sum(names(args)%in%"pch")==1, args$pch, 3),
-		cex = ifelse(sum(names(args)%in%"cex")==1, args$cex, 0.7))
-	lines(crds,
-		lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 0.5),
-		col = ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"))
-
-if(equinox){
-	nrow <- 1
-	repeat{
-		while(is.na(crds[nrow,2])==FALSE) {
-			nrow <- nrow + 1
-			if(nrow==nrow(crds)) break
-			}
-			if(nrow==nrow(crds)) break
-			start   <- nrow-1
-		while(is.na(crds[nrow,2])) {
-			nrow <- nrow + 1
-			if(nrow==nrow(crds)) break
-			}
-			if(nrow==nrow(crds)) break
-			end    <- nrow
-
-		lines(c(crds[start,1], crds[end,1]),c(crds[start,2], crds[end,2]), col="blue", lwd=3, lty=1)
-		}
-
-if(legend) legend("bottomright", lty=c(0,1,1), pch=c(3,-1,-1), lwd=c(1,0.5,3), col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),c("Positions","Trip","Equinox"),bty="n",bg="grey90",border="grey90",cex=0.8)
-} else {
- if(legend) 	  legend("bottomright",lty=c(0,1),pch=c(3,-1),lwd=c(1,0.5),col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),c("Positions","Trip"),bty="n",bg="grey90",border="grey90",cex=0.8)
-}
-if(!add) par(opar)
-
+    opar <- par(mar = c(6,5,1,1))
+    plot(NA,xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+    map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), fill=T,lwd=0.01,col=c("grey90"),add=TRUE)
+    map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),interior=TRUE,col=c("darkgrey"),add=TRUE)
+    mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude"), side=1, line=2.2, font=3)
+    mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude"), side=2, line=2.5, font=3)
+    map.axes()
+    
+    mtext(ifelse(sum(names(args)%in%"main")==1, args$main, ""), line=0.6, cex=1.2)
+  }
+  
+  points(crds, 
+         pch = ifelse(sum(names(args)%in%"pch")==1, args$pch, 3),
+         cex = ifelse(sum(names(args)%in%"cex")==1, args$cex, 0.7))
+  lines(crds,
+        lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 0.5),
+        col = ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"))
+  
+  if(equinox){
+    nrow <- 1
+    repeat{
+      while(is.na(crds[nrow,2])==FALSE) {
+        nrow <- nrow + 1
+        if(nrow==nrow(crds)) break
+      }
+      if(nrow==nrow(crds)) break
+      start   <- nrow-1
+      while(is.na(crds[nrow,2])) {
+        nrow <- nrow + 1
+        if(nrow==nrow(crds)) break
+      }
+      if(nrow==nrow(crds)) break
+      end    <- nrow
+      
+      lines(c(crds[start,1], crds[end,1]),c(crds[start,2], crds[end,2]), col="blue", lwd=3, lty=1)
+    }
+    
+    if(legend) legend("bottomright", lty=c(0,1,1), pch=c(3,-1,-1), lwd=c(1,0.5,3), col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),c("Positions","Trip","Equinox"),bty="n",bg="grey90",border="grey90",cex=0.8)
+  } else {
+    if(legend) 	  legend("bottomright",lty=c(0,1),pch=c(3,-1),lwd=c(1,0.5),col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),c("Positions","Trip"),bty="n",bg="grey90",border="grey90",cex=0.8)
+  }
+  if(!add) par(opar)
+  
 }
 
 #' Calculate twilight events (sunrise/sunset) from light intensity measurements
@@ -2163,70 +2374,70 @@ twilightCalc <- function(datetime, light, LightThreshold=TRUE, preSelection=TRUE
     stop(sprintf("datetime need to be provided as POSIXct class object."), call. = F)
     
   } else {
-  bas <- data.frame(datetime=as.POSIXct(as.character(datetime),"UTC"),light)
+    bas <- data.frame(datetime=as.POSIXct(as.character(datetime),"UTC"),light)
   }
   
-
-   if (is.numeric(LightThreshold))
-   {
-     LightThreshold <- as.numeric(LightThreshold)
-     min <- min(bas$light)
-   } else {
-     # Basic level
-     r <- as.data.frame(table(bas$light))
-     nr <- as.numeric(which.max(r$Freq[as.numeric(r[,1])<mean(bas$light)]))
-     LightThreshold <- (as.numeric(as.character(r[nr,1])))+3
-   }
-
-out <- i.preSelection(bas$datetime,bas$light, LightThreshold)[,-1]
-
+  
+  if (is.numeric(LightThreshold))
+  {
+    LightThreshold <- as.numeric(LightThreshold)
+    min <- min(bas$light)
+  } else {
+    # Basic level
+    r <- as.data.frame(table(bas$light))
+    nr <- as.numeric(which.max(r$Freq[as.numeric(r[,1])<mean(bas$light)]))
+    LightThreshold <- (as.numeric(as.character(r[nr,1])))+3
+  }
+  
+  out <- i.preSelection(bas$datetime,bas$light, LightThreshold)[,-1]
+  
   if(!preSelection) out$mod <- 0
-
+  
   if(ask)
   {
     n   <- nrow(bas)
     nn  <- n%/%nsee + 1
     cutsub <- cut(1:n, nn)
     picks <- NULL
-
+    
     for(i in 1:nn){
       sub <- cutsub == levels(cutsub)[i]
-
+      
       repeat{
         plot(bas[sub,1],bas[sub,2],type="o",cex=0.6,pch=20,ylab="Light intensity",xaxs="i",xaxt="n",xlab="",
              main=paste(as.Date(min(bas[sub,1]))," to ", as.Date(max(bas[sub,1]))," (end: ",as.Date(max(bas[,1])),")",sep=""))
         abline(h=LightThreshold,col="blue",lty=2)
         abline(v=out[out$mod==0,1],col="orange",lty=ifelse(out[out$mod==0,2]==1,1,2))
         points(out[,1],rep(LightThreshold,nrow(out[,])),col=ifelse(out$mod==0,"orange","grey"),pch=20,cex=0.8)
-
+        
         axis(1,at=out[seq(from=1,to=nrow(out),length.out=(nrow(out)%/%2)),1],
              labels=substring(as.character(out[seq(from=1,to=nrow(out),length.out=(nrow(out)%/%2)),1]),6,16),cex=0.7)
-
+        
         legend("topright",lty=c(3,1,2),lwd=c(1.3,2,2),col=c("blue",rep("orange",2)),c("Light\nThreshold","sunrise","sunset"),cex=1,bg="white")
-
+        
         nr <- identify(out[,1],rep(LightThreshold,nrow(out)),n=1,plot=F)
         ifelse(length(nr)>0,ifelse(out$mod[nr]==0,out$mod[nr]<-1,out$mod[nr]<-0),break)
       }
     }
-
+    
     cat("Thank you!\n\n")
     graphics.off()
   }
-
+  
   results <- list()
-
-
+  
+  
   out <- subset(out,out$mod==0)[,-3]
-
+  
   raw <- data.frame(datetime=c(as.POSIXct(datetime,"UTC"),as.POSIXct(out$datetime,"UTC")),
-  				    light=c(light,rep(LightThreshold,nrow(out))),type=c(rep(0,length(datetime)),out$type))
-
-  		 raw <- raw[order(raw$type),]
-  		 raw <- raw[-which(duplicated(as.character(raw$datetime),fromLast=T)),]
-  		 raw <- raw[order(raw$datetime),]
-
+                    light=c(light,rep(LightThreshold,nrow(out))),type=c(rep(0,length(datetime)),out$type))
+  
+  raw <- raw[order(raw$type),]
+  raw <- raw[-which(duplicated(as.character(raw$datetime),fromLast=T)),]
+  raw <- raw[order(raw$datetime),]
+  
   results$allTwilights <- raw
-
+  
   opt <- data.frame(tFirst=as.POSIXct("1900-01-01 01:01","UTC"),tSecond=as.POSIXct("1900-01-01 01:01","UTC"),type=0)
   row <- 1
   for (k in 1:(nrow(out)-1))
@@ -2236,22 +2447,22 @@ out <- i.preSelection(bas$datetime,bas$light, LightThreshold)[,-1]
       opt[row,1] <- out[k,1]
       opt[row,2] <- out[k+1,1]
       opt[row,3] <- out$type[k]
-
+      
       row <- row+1
     }
   }
-
-if(is.numeric(maxLight))
-{
-	opt$tFirst[opt$type==2] <- opt$tFirst[opt$type==2] - (maxLight*60)
-	opt$tSecond[opt$type==1] <- opt$tSecond[opt$type==1] - (maxLight*60)
-}
-
+  
+  if(is.numeric(maxLight))
+  {
+    opt$tFirst[opt$type==2] <- opt$tFirst[opt$type==2] - (maxLight*60)
+    opt$tSecond[opt$type==1] <- opt$tSecond[opt$type==1] - (maxLight*60)
+  }
+  
   if(allTwilights) {
-  	results$consecTwilights <- opt
-  	return(results)
+    results$consecTwilights <- opt
+    return(results)
   } else {
-  return (opt)}
+    return (opt)}
 }
 
 #' Example data for calibration: Light intensities and twilight events

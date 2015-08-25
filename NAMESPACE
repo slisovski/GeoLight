@@ -28,4 +28,3 @@ importFrom(MASS,fitdistr)
 importFrom(changepoint,cpt.mean)
 importFrom(maps,map)
 importFrom(maps,map.axes)
-
