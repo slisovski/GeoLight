@@ -25,10 +25,10 @@ NULL
 #' Function to discriminate between periods of residency and movement based on
 #' consecutive sunrise and sunset data. The calculation is based on a
 #' changepoint model (\bold{\pkg{R}} Package \code{\link{changepoint}}:
-#' \code{\link{binseg.mean.cusum}}) to find multiple changepoints within the
+#' \code{\link{cpt.mean}}) to find multiple changepoints within the
 #' data.
 #'
-#' The \code{binseg.mean.cusum} from the codeR Package \code{changepoint} is a
+#' The \code{cpt.mean} from the codeR Package \code{changepoint} is a
 #' function to find a multiple changes in mean for data where no assumption is
 #' made on their distribution. The value returned is the result of finding the
 #' optimal location of up to Q changepoints (in this case as many as possible)
@@ -62,7 +62,7 @@ NULL
 #' twilight events cross midnight during the recording period the values will
 #' be transformed to avoid discontinuity.
 #' @author Simeon Lisovski & Tamara Emmenegger
-#' @seealso \code{\link{changepoint}}, \code{\link{binseg.mean.cusum}}
+#' @seealso \code{\link{changepoint}}, \code{\link{cpt.mean}}
 #' @references Taylor, Wayne A. (2000) Change-Point Analysis: A Powerful New
 #' Tool For Detecting Changes.
 #'
@@ -78,6 +78,7 @@ NULL
 #' residency <- changeLight(tFirst,tSecond,type,quantile=0.9)
 #'
 #' @export changeLight
+#' @importFrom changepoint cpt.mean
 changeLight <- function(tFirst,tSecond,type,quantile=0.6,rise.prob=NA,set.prob=NA,days=5,plot=TRUE,summary=TRUE)
 {
 	# start: Sunrise and Sunset
@@ -110,8 +111,8 @@ changeLight <- function(tFirst,tSecond,type,quantile=0.6,rise.prob=NA,set.prob=N
 
 	# start: Change Point Model
 	# max. possible Change Points (length(sunrise)/2)
-	CPs1 <- binseg.mean.cusum(rise, Q=length(rise)/2, pen=0.001)
-	CPs2 <- binseg.mean.cusum(set, Q=length(set)/2, pen=0.001)
+	CPs1 <- cpt.mean(rise, Q=length(rise)/2, pen.value=0.001)
+	CPs2 <- cpt.mean(set, Q=length(set)/2, pen.value=0.001)
 
 N1 <- seq(1,length(rise))
 N2 <- seq(1,length(set))
@@ -1226,11 +1227,11 @@ theta.Gh <- theta.Gh-t.d*24
 
 theta.G <- theta.Gh * 15
 
-theta <- theta.G + lon      # Stundenwinkel des Frühlingspunktes
+theta <- theta.G + lon      # Stundenwinkel des Fruhlingspunktes
 tau <- theta-alpha    # Stundenwinkel
 tau.rad <- tau/180*pi
 
-# Höhenwinkel h
+# H?henwinkel h
 h <- asin(cos(deklination.rad) * cos(tau.rad) * cos(lat/180*pi) + sin(deklination.rad) * sin(lat/180*pi))
 h.grad <- h/pi*180
 
@@ -1549,6 +1550,7 @@ return(st)
 #' siteMap(coord[filter,],site[filter],xlim=c(-20,20),ylim=c(0,60),lwd=2,pch=20,cex=0.5,main="hoopoe2")
 #'
 #' @export siteMap
+#' @importFrom maps map
 siteMap <-
 function(coord,site,points=TRUE,map.range=c("EuroAfrica","AustralAsia","America","World"),xlim=NULL,ylim=NULL,xlab="Longitude",ylab="Latitude",lwd=1,lty=1,pch=1,cex=1,col="black",main=NULL,add=FALSE) {
 
