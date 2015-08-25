@@ -4,7 +4,7 @@
 \alias{staroddiTrans}
 \title{Transformation of staroddi files}
 \usage{
-staroddiTrans(staroddifile)
+staroddiTrans(file)
 }
 \arguments{
 \item{file}{the full patch and filename of the staroddi file.}

@@ -2,8 +2,7 @@ Package: GeoLight
 Type: Package
 Title: Analysis of light based geolocator data
 Version: 2.0
-Author: Simeon Lisovski, Simon Wotherspoon, Michael Sumner, Silke Bauer, Tamara
-    Emmenegger
+Author: Simeon Lisovski, Simon Wotherspoon, Michael Sumner, Silke Bauer, Tamara Emmenegger
 Maintainer: Simeon Lisovski <simeon.lisovski@gmail.com>
 Description: The package provides basic functions for global
     positioning based on light intensity measurements over time.
@@ -12,12 +11,15 @@ Description: The package provides basic functions for global
     calibration of period-specific data and, finally, the
     calculation of positions.
 License: GPL (>= 2)
-Depends:
+Depends: 
     R (>= 2.10),
     maps,
-    changepoint
-Imports:
-    MASS
+    changepoint,
+    fields
+Imports: 
+    MASS,
 LazyLoad: yes
 LazyData: yes
 NeedsCompilation: no
+Suggests: knitr
+VignetteBuilder: knitr

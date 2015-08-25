@@ -4,24 +4,30 @@
 \alias{mergeSites}
 \title{Function to merge sites}
 \usage{
-mergeSites(datetime, crds, site, threshold = 250, cutoff = 0.6,
-  plot = TRUE...)
+mergeSites(tFirst, tSecond, type, twl, site, degElevation,
+  distThreshold = 250, alpha = c(0, 15), plot = TRUE)
 }
 \arguments{
-\item{datetime}{vector of the dates that correspond to the positions (in .POSIX class).}
+\item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}
 
-\item{crds}{a \code{SpatialPoints} or \code{matrix} object, containing x
-and y coordinates (in that order).}
+\item{tSecond}{vector of of sunrise/sunset times (e.g. 2008-12-01 17:30).}
+
+\item{type}{vector of either 1 or 2, defining \code{tFirst} as sunrise or sunset respectively.}
+
+\item{twl}{data.frame containing twilights and at least \code{tFirst}, \code{tSecond} and \code{type}}
 
 \item{site}{a \code{numerical vector} assigning each row to a particular
 period. Stationary periods in numerical order and values >0,
 migration/movement periods 0. This \code{vector} will be used as the initial state.}
 
-\item{threshold}{a \code{numerical} value defining the threshold of the distance under
+\item{degElevation}{the sun elevation angle (in degrees) that defines twilight (e.g. -6 for "civil
+twilight"). Either a single value, a \code{vector} with the same length as
+\code{tFirst} or \code{nrow(x)}.}
+
+\item{distThreshold}{a \code{numerical} value defining the threshold of the distance under
 which consequtive sites should be merged (in km).}
 
-\item{cutoff}{a \code{numerical} value indicating the percentile of the distances matrix that
-will be used to merge sites based on the defined \code{treshold}.}
+\item{alpha}{mean and standard variation for position optimization process.}
 
 \item{plot}{\code{logical}, if TRUE a plot comparing the inital and the final site selection.}
 }
@@ -39,8 +45,5 @@ were estimated using a sensible sun elevation angle.
 }
 \author{
 Simeon Lisovski
-}
-\seealso{
-\code{\link{changeLight}}
 }
 

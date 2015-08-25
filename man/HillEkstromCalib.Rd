@@ -5,7 +5,7 @@
 \title{Hill-Ekstrom calibration}
 \usage{
 HillEkstromCalib(tFirst, tSecond, type, twl, site, start.angle = -6,
-  distanceFilter = FALSE, distance, plot = TRUE, separate = F)
+  distanceFilter = FALSE, distance, plot = TRUE)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}

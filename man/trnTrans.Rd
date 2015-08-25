@@ -4,7 +4,7 @@
 \alias{trnTrans}
 \title{Transformation of *.trn files}
 \usage{
-trnTrans(trnfile)
+trnTrans(file)
 }
 \arguments{
 \item{file}{the full patch and filename of the *.trn file.}

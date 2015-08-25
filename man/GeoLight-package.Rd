@@ -29,14 +29,16 @@ Type \code{news(package="GeoLight")} to read news documentation about changes to
 
 \section{Important notes}{
 
-Most functions in \bold{\code{GeoLight}} require the same initial units and mostly the format and object type is mandatory:
+Most functions in \bold{\code{GeoLight}} require the same initial units and the format or the class type is mandatory:
 \tabular{rll}{
-\tab \code{tFirst} \tab yyyy-mm-dd hh:mm "UTC" (see: \code{\link{as.POSIXct}}, \link[=Sys.timezone]{time zones})\cr
-\tab \code{tSecond} \tab as \emph{tFirst} (e.g. 2008-12-01 17:30) \cr
+\tab \code{tFirst} \tab datetime information in class \code{\link{as.POSIXct}}. Make sure to have your dates in the right timezone (GMT) \cr
+\tab \code{tSecond} \tab as \emph{tFirst} \cr
 \tab \code{type} \tab either 1 or 2 depending on wheter \emph{tFirst} is sunrise (1) or sunset (2)\cr
 \tab \code{coord} \tab \code{SpatialPoints} or a \code{matrix}, containing x and y coordinates (in that order) \cr
-\tab \code{degElevation} \tab a \code{vector} or a single \code{value} of sun elevation angle(s) in degrees (e.g. -6)
+\tab \code{degElevation} \tab a \code{vector} or a single \code{value} of sun elevation angle(s) in degrees (e.g. -6) \cr
 }
+Since Version 2.0 all functions that require \code{tFirst}, \code{tSecond} and \code{type} can be fed with a \code{data.frame}
+containing all three untis as separate columns.
 }
 
 \section{FUNCTIONS AND DATASETS}{
@@ -52,30 +54,30 @@ For further information on any of these functions, type \code{help(function name
 \tab {I.} \tab Determination of sunset and sunrise \cr
 \tab {II.} \tab Residency analysis \cr
 \tab {III.} \tab Calibration \cr
-\tab {IV.} \tab {Positioning}\cr
-\tab {V.} \tab {Data visualisation}\cr
-\tab {VI.} \tab {Examples}
+\tab {IV.} \tab Positioning \cr
+\tab {V.} \tab Data visualisation \cr
+\tab {VI.} \tab Examples
 }
 }
 
 \section{I. Determination of sunset and sunrise}{
 
 \tabular{rll}{
-\tab \code{\link{gleTrans}} \tab transformation of already defined twilight events* \cr
-\tab \code{\link{glfTrans}} \tab transformation of light intensity measurements over time* \cr
-\tab \code{\link{luxTrans}} \tab transformation of light intensity measurements over time** \cr
+\tab \code{\link{gleTrans}} \tab transformation of already defined twilight events from .gle file \cr
+\tab \code{\link{glfTrans}} \tab transformation of light intensity measurements over time from .glf file \cr
+\tab \code{\link{luxTrans}} \tab transformation of light intensity measurements over time from .lux file \cr
+\tab \code{\link{ligTrans}} \tab transformation of light intensity measurements over time from .lig file \cr
+\tab \code{\link{staroddiTrans}} \tab transformation of light intensity measurements over time from .staroddi file \cr
 \tab \code{\link{lightFilter}} \tab filter to remove noise in light intensity measurements during the night \cr
 \tab \code{\link{twilightCalc}} \tab definition of twilight events (\emph{sunrise, sunset}) from light intensity measurements \cr
 }
-
-* written for data recorded by geolocator devices from the \bold{Swiss Ornithological Institute} \cr
-** written for data recorded by geolocator devices from \bold{Migrate Technology Ltd}
 }
 
 \section{II. Residency Analysis}{
 
 \tabular{rll}{
 \tab \code{\link{changeLight}} \tab function to distinguish between residency and movement periods \cr
+\tab \code{\link{mergeSites}} \tab function to merge sites that has been defined by the \code{\link{changeLight}} function \cr
 \tab \code{\link{schedule}} \tab function to produce a data frame summerizing the residency and movement pattern \cr
 }
 }
@@ -93,7 +95,7 @@ See Lisovski \emph{et al.} 2012 for all implemented calibration methods.
 
 \tabular{rll}{
 \tab \code{\link{coord}} \tab main function to derive a \code{matrix} of spatial coordinates \cr
-\tab \code{\link{distanceFilter}} \tab filter function to reduce unrealistic positions (not recommended, since the filtering ignore positioning error) \cr
+\tab \code{\link{distanceFilter}} \tab filter function to reduce unrealistic positions (DON'T USE THIS FUNCTION: the filtering ignore positioning error) \cr
 \tab \code{\link{loessFilter}} \tab filter function to define outliers in sunrise and sunset times (defined twilight events) \cr
 }
 }
@@ -109,22 +111,11 @@ See Lisovski \emph{et al.} 2012 for all implemented calibration methods.
 \section{IV. Examples}{
 
 \tabular{rll}{
-\tab \code{\link{calib1}} \tab data for calibration: light intensities \cr
-\tab \code{\link{calib2}} \tab  data for calibration: Calculated twilight events (from \code{\link{calib1}} by \code{\link{twilightCalc}}) \cr
+\tab \code{\link{calib1}}  \tab data for calibration: light intensities \cr
+\tab \code{\link{calib2}}  \tab  data for calibration: Calculated twilight events (from \code{\link{calib1}} by \code{\link{twilightCalc}}) \cr
 \tab \code{\link{hoopoe1}} \tab light intensity measurements over time recorded on a migratory bird \cr
 \tab \code{\link{hoopoe2}} \tab sunrise and sunset times: From light intensity measurement (from \code{\link{hoopoe1}}) \cr
 }
-}
-
-\section{\bold{\code{R}} Packages for Further Spatial Ananlyses}{
-
-\code{spatstat} \cr
-\code{adehabitat} \cr
-\code{gstat} \cr
-\code{trip} \cr
-\code{tripEstimation} \cr
-\code{move} \cr
-...
 }
 
 \section{Acknowledgements}{
