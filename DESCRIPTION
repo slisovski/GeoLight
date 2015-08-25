@@ -1,6 +1,6 @@
 Package: GeoLight
 Type: Package
-Title: Analysis of light based geolocator data
+Title: Analysis of Light Based Geolocator Data
 Version: 1.04
 Author: Simeon Lisovski, Silke Bauer, Tamara Emmenegger
 Maintainer: Simeon Lisovski <migration@vogelwarte.ch>
