@@ -67,7 +67,7 @@ lat.calib <- 47.01
 Another **(2) major change** in `GeoLight` (Version 2.0) is, that all functions that require vectors for `tFirst`, `tSecond` and `type` can be used like in older versions in  a way, that all three entities can be provided as separate vectors. However from version 2.0 onwards, those entities can also be provided within a `data.frame` containing all three as separate columns.
 
 ```{r, fig.height=5, fig.width=7}
-angle <- getElevation(calib2, known.coord = c(lon.calib, lat.calib), lnorm.pars = TRUE)[1]
+angle <- getElevation(calib2, known.coord = c(lon.calib, lat.calib), lnorm.pars = T)[1]
 ```
 
 The plot shows (left panel) the frequency of sun elevation angles for the calibration and gives the optimal angle (here: -5.87). The right panel shows the discrepancy between the "real" (first recorded sunrise/sunset) and the recorded sunrise sunset times in minutes. Optional one can calculate the best fitting log-normal probability distribution with the parameters meanlog and sdlog. This distribution can be used to describe the expected twilight error and can also be used to parameterise twilight error models such as the one used in the `R` package [`SGAT`](https://github.com/swotherspoon/sgat).
@@ -105,7 +105,7 @@ The `siteMap` function can be used to plot positions coloured according to their
 3. `hull`, if `TRUE` a convex hull will be plotted around teh points of each site.
 
 ```{r, fig.height=8, fig.width = 6}
-siteMap(crds1, site = cL$site, xlim = c(-12, 25), ylim = c(0, 50))
+siteMap(crds = crds1, site = cL$site, xlim = c(-12, 25), ylim = c(0, 50))
 ````
 
 Obviously, the `changeLight` function defined many breakpoints during periods of residency (e.g. c-e). This can happen very often, and is potentially due to occasional deviations from the 'normal' shading intensity (e.g. severe weather).

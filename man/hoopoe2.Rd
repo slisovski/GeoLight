@@ -21,9 +21,9 @@ part of the annual migration of a European Hoopoe (\emph{Upupa epops}).
 }
 \examples{
 data(hoopoe2)
-   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
-   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
-coord <- with(hoopoe2, coord(tFirst,tSecond,type,degElevation=-6))
+ hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+ hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
+coord <- coord(hoopoe2, degElevation=-6)
 ## plot in a map using package maps
 # par(oma=c(5,0,0,0))
 # map(xlim=c(-20,40),ylim=c(-10,60),interior=F,col="darkgrey")

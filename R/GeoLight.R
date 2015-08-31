@@ -15,16 +15,14 @@
 #' We advise all users to update their installation of \bold{\code{GeoLight}} regularly.
 #' Type \code{news(package="GeoLight")} to read news documentation about changes to the recent and all previous version of the package
 #' @section Important notes:
-#' Most functions in \bold{\code{GeoLight}} require the same initial units and the format or the class type is mandatory:
+#' Most functions in \bold{\code{GeoLight}} require the same initial units and mostly the format and object type is mandatory:
 #' \tabular{rll}{
-#' \tab \code{tFirst} \tab datetime information in class \code{\link{as.POSIXct}}. Make sure to have your dates in the right timezone (GMT) \cr
-#' \tab \code{tSecond} \tab as \emph{tFirst} \cr
+#' \tab \code{tFirst} \tab yyyy-mm-dd hh:mm "UTC" (see: \code{\link{as.POSIXct}}, \link[=Sys.timezone]{time zones})\cr
+#' \tab \code{tSecond} \tab as \emph{tFirst} (e.g. 2008-12-01 17:30) \cr
 #' \tab \code{type} \tab either 1 or 2 depending on wheter \emph{tFirst} is sunrise (1) or sunset (2)\cr
 #' \tab \code{coord} \tab \code{SpatialPoints} or a \code{matrix}, containing x and y coordinates (in that order) \cr
-#' \tab \code{degElevation} \tab a \code{vector} or a single \code{value} of sun elevation angle(s) in degrees (e.g. -6) \cr
+#' \tab \code{degElevation} \tab a \code{vector} or a single \code{value} of sun elevation angle(s) in degrees (e.g. -6)
 #' }
-#' Since Version 2.0 all functions that require \code{tFirst}, \code{tSecond} and \code{type} can be fed with a \code{data.frame} 
-#' containing all three untis as separate columns. 
 #' @section FUNCTIONS AND DATASETS:
 #' In the following, we give a summary of the main functions and sample datasets in the \bold{\code{GeoLight}} package. 
 #' Alternatively a list of all functions and datasets in alphabetical order is available by typing \code{library(help=GeoLight)}. 
@@ -35,25 +33,25 @@
 #' \tab {I.} \tab Determination of sunset and sunrise \cr
 #' \tab {II.} \tab Residency analysis \cr
 #' \tab {III.} \tab Calibration \cr
-#' \tab {IV.} \tab Positioning \cr
-#' \tab {V.} \tab Data visualisation \cr
-#' \tab {VI.} \tab Examples
+#' \tab {IV.} \tab {Positioning}\cr
+#' \tab {V.} \tab {Data visualisation}\cr
+#' \tab {VI.} \tab {Examples}
 #' }
 #' @section I. Determination of sunset and sunrise:
 #' \tabular{rll}{
-#' \tab \code{\link{gleTrans}} \tab transformation of already defined twilight events from .gle file \cr
-#' \tab \code{\link{glfTrans}} \tab transformation of light intensity measurements over time from .glf file \cr
-#' \tab \code{\link{luxTrans}} \tab transformation of light intensity measurements over time from .lux file \cr
-#' \tab \code{\link{ligTrans}} \tab transformation of light intensity measurements over time from .lig file \cr
-#' \tab \code{\link{staroddiTrans}} \tab transformation of light intensity measurements over time from .staroddi file \cr 
+#' \tab \code{\link{gleTrans}} \tab transformation of already defined twilight events* \cr
+#' \tab \code{\link{glfTrans}} \tab transformation of light intensity measurements over time* \cr
+#' \tab \code{\link{luxTrans}} \tab transformation of light intensity measurements over time** \cr
 #' \tab \code{\link{lightFilter}} \tab filter to remove noise in light intensity measurements during the night \cr
 #' \tab \code{\link{twilightCalc}} \tab definition of twilight events (\emph{sunrise, sunset}) from light intensity measurements \cr
 #' }
 #' 
+#' * written for data recorded by geolocator devices from the \bold{Swiss Ornithological Institute} \cr
+#' ** written for data recorded by geolocator devices from \bold{Migrate Technology Ltd}
+#' 
 #' @section II. Residency Analysis:
 #' \tabular{rll}{
 #' \tab \code{\link{changeLight}} \tab function to distinguish between residency and movement periods \cr
-#' \tab \code{\link{mergeSites}} \tab function to merge sites that has been defined by the \code{\link{changeLight}} function \cr
 #' \tab \code{\link{schedule}} \tab function to produce a data frame summerizing the residency and movement pattern \cr
 #' }
 #' 
@@ -67,7 +65,7 @@
 #' @section IV. Positioning:
 #' \tabular{rll}{
 #' \tab \code{\link{coord}} \tab main function to derive a \code{matrix} of spatial coordinates \cr
-#' \tab \code{\link{distanceFilter}} \tab filter function to reduce unrealistic positions (DON'T USE THIS FUNCTION: the filtering ignore positioning error) \cr
+#' \tab \code{\link{distanceFilter}} \tab filter function to reduce unrealistic positions (not recommended, since the filtering ignore positioning error) \cr
 #' \tab \code{\link{loessFilter}} \tab filter function to define outliers in sunrise and sunset times (defined twilight events) \cr
 #' }
 #' 
@@ -79,12 +77,20 @@
 #' 
 #' @section IV. Examples:
 #' \tabular{rll}{
-#' \tab \code{\link{calib1}}  \tab data for calibration: light intensities \cr
-#' \tab \code{\link{calib2}}  \tab  data for calibration: Calculated twilight events (from \code{\link{calib1}} by \code{\link{twilightCalc}}) \cr
+#' \tab \code{\link{calib1}} \tab data for calibration: light intensities \cr
+#' \tab \code{\link{calib2}} \tab  data for calibration: Calculated twilight events (from \code{\link{calib1}} by \code{\link{twilightCalc}}) \cr
 #' \tab \code{\link{hoopoe1}} \tab light intensity measurements over time recorded on a migratory bird \cr
 #' \tab \code{\link{hoopoe2}} \tab sunrise and sunset times: From light intensity measurement (from \code{\link{hoopoe1}}) \cr
 #' }
 #' 
+#' @section \bold{\code{R}} Packages for Further Spatial Ananlyses:
+#' \code{spatstat} \cr
+#' \code{adehabitat} \cr
+#' \code{gstat} \cr
+#' \code{trip} \cr
+#' \code{tripEstimation} \cr
+#' \code{move} \cr
+#' ...
 #' 
 #' @section Acknowledgements:
 #' Steffen Hahn, Felix Liechti, Fraenzi Korner-Nievergelt, Andrea Koelzsch, Eldar Rakhimberdiev, Erich Baechler, Eli Bridge,  Andrew Parnell, Richard Inger
@@ -131,119 +137,10 @@ i.argCheck <- function(y) {
     stop(sprintf("Date and time inforamtion (e.g. tFirst and tSecond) need to be provided as POSIXct class objects."), call. = F)
   }
   out  
-}  
-
-#' Residency analysis using a changepoint model
-#'
-#' Function to discriminate between periods of residency and movement based on
-#' consecutive sunrise and sunset data. The calculation is based on a
-#' changepoint model (\bold{\pkg{R}} Package \code{\link{changepoint}}:
-#' \code{\link{cpt.mean}}) to find multiple changepoints within the
-#' data.
-#'
-#' The \code{cpt.mean} from the codeR Package \code{changepoint} is a
-#' function to find a multiple changes in mean for data where no assumption is
-#' made on their distribution. The value returned is the result of finding the
-#' optimal location of up to Q changepoints (in this case as many as possible)
-#' using the cumulative sums test statistic.
-#'
-#' @param tFirst date and time of sunrise/sunset (e.g. 2008-12-01 08:30)
-#' @param tSecond date and time of sunrise/sunset (e.g. 2008-12-01 17:30)
-#' @param type either 1 or 2, defining \code{tFirst} as sunrise or sunset
-#' respectively
-#' @param quantile probability threshold for stationary site selection. Higher
-#' values (above the defined quantile of all probabilities) will be considered
-#' as changes in the behavior. If specified, \code{rise.prob} and/or
-#' \code{set.prob} will not be considered.
-#' @param rise.prob the probability threshold for \bold{sunrise}: greater or
-#' equal values indicates changes in the behaviour of the individual. If,
-#' \code{NA} sunrise will not be considered.
-#' @param set.prob the probability threshold for \bold{sunset}: higher and
-#' equal values indicates changes in the behaviour of the individual. If,
-#' \code{NA} sunrise will not be considered.
-#' @param days a threshold for the length of stationary period. Periods smaller
-#' than "days" will not be considered as a residency period
-#' @param plot logical, if \code{TRUE} a plot will be produced
-#' @param summary logical, if \code{TRUE} a summary of the results will be
-#' printed
-#' @return A \code{list} with probabilities for \emph{sunrise} and
-#' \emph{sunset} the user settings of the probabilities and the resulting
-#' stationary periods given as a \code{vector}, with the residency sites as
-#' positiv numbers in ascending order (0 indicate movement/migration).
-#' @note The sunrise and/or sunset times shown in the graph (if
-#' \code{plot=TRUE}) represent hours of the day. However if one or both of the
-#' twilight events cross midnight during the recording period the values will
-#' be transformed to avoid discontinuity.
-#' @author Simeon Lisovski & Tamara Emmenegger
-#' @seealso \code{\link{changepoint}}, \code{\link{cpt.mean}}
-#' @references Taylor, Wayne A. (2000) Change-Point Analysis: A Powerful New
-#' Tool For Detecting Changes.
-#'
-#' M. Csorgo, L. Horvath (1997) Limit Theorems in Change-Point Analysis.
-#' \emph{Wiley}.
-#'
-#' Chen, J. and Gupta, A. K. (2000) Parametric statistical change point
-#' analysis. \emph{Birkhauser}.
-#' @examples
-#'
-#' data(hoopoe2)
-#' attach(hoopoe2)
-#' residency <- changeLight(tFirst,tSecond,type,quantile=0.9)
-#'
-#' @export changeLight
-#' @importFrom changepoint cpt.mean
-changeLight <- function(tFirst,tSecond,type,quantile=0.6,rise.prob=NA,set.prob=NA,days=5,plot=TRUE,summary=TRUE)
-{
-  # start: Sunrise and Sunset
-  rtype <- rep(2,length(type)); rtype[type==2] <- 1
-  twE1  <- data.frame(ev=c(as.character(tFirst),as.character(tSecond)),t=c(type,rtype))
-  twE2  <- twE1[!duplicated(twE1$ev),]
-  
-  twE2$ev <- as.POSIXct(as.character(twE2$ev),"UTC")
-  
-  twE <- twE2[order(twE2$ev),]
-  
-  rise <- as.numeric(substring(twE$ev[twE$t==1],12,13)) +  as.numeric(substring(twE$ev[twE$t==1],15,16))/60
-  set  <- as.numeric(substring(twE$ev[twE$t==2],12,13)) +  as.numeric(substring(twE$ev[twE$t==2],15,16))/60
-  # end: Sunrise and Sunset
-  
-  cor.rise <- rep(NA, 24)
-  for(i in 0:23){
-    cor.rise[i+1] <- max(abs((c(rise[1],rise)+i)%%24 -
-                               (c(rise,rise[length(rise)])+i)%%24),na.rm=T)
-  }
-  rise <- (rise + (which.min(round(cor.rise,2)))-1)%%24
-  
-  cor.set <- rep(NA, 24)
-  for(i in 0:23){
-    cor.set[i+1] <- max(abs((c(set[1], set)+i)%%24 -
-                              (c(set, set[length(set)])+i)%%24),na.rm=T)
-  }
-  set <- (set + (which.min(round(cor.set,2)))-1)%%24
-  
-  
-  # start: Change Point Model
-  # max. possible Change Points (length(sunrise)/2)
-  CPs1 <- cpt.mean(rise, Q=length(rise)/2, pen.value=0.001)
-  CPs2 <- cpt.mean(set, Q=length(set)/2, pen.value=0.001)
-  
-  N1 <- seq(1,length(rise))
-  N2 <- seq(1,length(set))
-  
-  tab1 <- merge(data.frame(N=N1,prob=NA),data.frame(N=CPs1$cps[1,],prob=CPs1$cps[2,]),by.x="N",by.y="N",all.x=T)[,-2]
-  tab1[is.na(tab1[,2]),2] <- 0
-  tab2 <- merge(data.frame(N=N2,prob=NA),data.frame(N=CPs2$cps[1,],prob=CPs2$cps[2,]),by.x="N",by.y="N",all.x=T)[,-2]
-  tab2[is.na(tab2[,2]),2] <- 0
-  # end: Change Point Model
-  
-  # quantile calculation
-  if(is.numeric(quantile))
-  {
-    rise.prob<-as.numeric(round(as.numeric(quantile(tab1[tab1[,2]!=0,2],probs=quantile,na.rm=TRUE)),digits=5))
-    set.prob<-as.numeric(round(as.numeric(quantile(tab2[tab2[,2]!=0,2],probs=quantile,na.rm=TRUE)),digits=5))
-  }
   
 }
+
+
 ##' Estimate location from consecutive twilights
 ##'
 ##' This function estimates the location given the times at which 
@@ -477,8 +374,8 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
       fit <- fitdistr(tab$diff, "log-Normal")
       lines(seq1, dlnorm(seq1, fit$estimate[1], fit$estimate[2]), col = "firebrick", lwd = 3, lty = 2)
       
-      mtext(paste("elev0 =", round((min(z)-0.1), 2), "\nmeanlog =", round(fit$estimate[1],2), 
-                  "\nsdlog =", round(fit$estimate[2],2)), 
+      mtext(paste("elev0 =", round((min(z)-0.1), 2), "\nshape =", round(fit$estimate[1],2), 
+                  "\nscale =", round(fit$estimate[2],2)), 
             font = 3, col = "firebrick", cex = 1.2, line = 0.5)
     }
     par(opar)
@@ -487,6 +384,205 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
   if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]), 
                    scale = as.numeric(fit$estimate[2])) else c(med.elev = median(z))
 }
+
+
+##' Residency analysis using a changepoint model
+##'
+##' Function to discriminate between periods of residency and movement based on
+##' consecutive sunrise and sunset data. The calculation is based on a
+##' changepoint model (\bold{\pkg{R}} Package \code{\link{changepoint}}:
+##' \code{\link{cpt.mean}}) to find multiple changepoints within the
+##' data.
+##'
+##' The \code{cpt.mean} from the \code{R} Package \code{changepoint} is a
+##' function to find a multiple changes in mean for data where no assumption is
+##' made on their distribution. The value returned is the result of finding the
+##' optimal location of up to Q changepoints (in this case as many as possible)
+##' using the cumulative sums test statistic.
+##'
+##'
+##' @param tFirst vector of sunrise/sunset times (e.g. 2008-12-01 08:30).
+##' @param tSecond vector of of sunrise/sunset times (e.g. 2008-12-01 17:30).
+##' @param type vector of either 1 or 2, defining \code{tFirst} as sunrise or sunset respectively.
+##' @param twl data.frame containing twilights and at least \code{tFirst}, \code{tSecond} and \code{type} (alternatively give each parameter separately).
+##' @param quantile probability threshold for stationary site selection. Higher
+##' values (above the defined quantile of all probabilities) will be considered
+##' as changes in the behavior. Argmuent will only be considered if either \code{rise.prob} and/or
+##' \code{set.prob} remain unspecified.
+##' @param rise.prob the probability threshold for \bold{sunrise}: greater or
+##' equal values indicates changes in the behaviour of the individual.
+##' @param set.prob the probability threshold for \bold{sunset}: higher and
+##' equal values indicates changes in the behaviour of the individual.
+##' @param days a threshold for the length of stationary period. Periods smaller
+##' than "days" will not be considered as a residency period
+##' @param plot logical, if \code{TRUE} a plot will be produced
+##' @param summary logical, if \code{TRUE} a summary of the results will be
+##' printed
+##' @return A \code{list} with probabilities for \emph{sunrise} and
+##' \emph{sunset} the user settings of the probabilities and the resulting
+##' stationary periods given as a \code{vector}, with the residency sites as
+##' positiv numbers in ascending order (0 indicate movement/migration).
+##' @note The sunrise and/or sunset times shown in the graph (if
+##' \code{plot=TRUE}) represent hours of the day. However if one or both of the
+##' twilight events cross midnight during the recording period the values will
+##' be formed to avoid discontinuity.
+##' @author Simeon Lisovski & Tamara Emmenegger
+##' @seealso \code{\link{changepoint}}, \code{\link{cpt.mean}}
+##' @references Taylor, Wayne A. (2000) Change-Point Analysis: A Powerful New
+##' Tool For Detecting Changes.
+##'
+##' M. Csorgo, L. Horvath (1997) Limit Theorems in Change-Point Analysis.
+##' \emph{Wiley}.
+##'
+##' Chen, J. and Gupta, A. K. (2000) Parametric statistical change point
+##' analysis. \emph{Birkhauser}.
+##' @examples
+##'
+##' data(hoopoe2)
+##'   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+##'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
+##' residency <- changeLight(hoopoe2, quantile=0.9)
+##'
+##' @export changeLight
+##' @importFrom changepoint cpt.mean
+changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, set.prob=NA, days=5, plot=TRUE, summary=TRUE) {
+  
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
+  
+  tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
+                   type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
+  tw <- tw[!duplicated(tw$datetime),]
+  tw <- tw[order(tw[,1]),]
+  
+  hours <- as.numeric(format(tw[,1],"%H"))+as.numeric(format(tw[,1],"%M"))/60
+  
+  for(t in 1:2){
+    cor <- rep(NA, 24)
+    for(i in 0:23){
+      cor[i+1] <- max(abs((c(hours[tw$type==t][1],hours[tw$type==t])+i)%%24 -
+                            (c(hours[tw$type==t],hours[tw$type==t][length(hours)])+i)%%24),na.rm=T)
+    }
+    hours[tw$type==t] <- (hours[tw$type==t] + (which.min(round(cor,2)))-1)%%24
+  }
+  
+  sr <- tw[tw[,2]==1,1]
+  ss <- tw[tw[,2]==2,1]
+  
+  rise <- hours[tw[,2]==1]
+  set <- hours[tw[,2]==2]
+  
+  # start: Change Point Model
+  # max. possible Change Points (length(sunrise)/2)
+  CPs1 <- suppressWarnings(cpt.mean(rise, method= "BinSeg", Q=length(rise)/2, penalty="Manual",pen.value=0.001, 
+                                    test.stat = "CUSUM",param.estimates=FALSE))
+  CPs2 <- suppressWarnings(cpt.mean(set, method="BinSeg", Q=length(set)/2, penalty="Manual",pen.value=0.001, 
+                                    test.stat = "CUSUM",param.estimates=FALSE))
+  
+  N1 <- seq(1,length(rise))
+  N2 <- seq(1,length(set))
+  
+  tab1 <- merge(data.frame(N=N1,prob=NA),data.frame(N=changepoint::cpts.full(CPs1)[nrow(changepoint::cpts.full(CPs1)),],
+                                                    prob=changepoint::pen.value.full(CPs1)/2),by.x="N",by.y="N",all.x=T)[,-2]
+  tab1[is.na(tab1[,2]),2] <- 0
+  tab2 <- merge(data.frame(N=N2,prob=NA),data.frame(N=changepoint::cpts.full(CPs2)[nrow(changepoint::cpts.full(CPs2)),],
+                                                    prob=changepoint::pen.value.full(CPs2)/2),by.x="N",by.y="N",all.x=T)[,-2]
+  tab2[is.na(tab2[,2]),2] <- 0
+  # end: Change Point Model
+  
+  # quantile calculation
+  if(is.na(rise.prob) & is.na(set.prob)) {
+    rise.prob <- as.numeric(round(as.numeric(quantile(tab1[tab1[,2]!=0,2],probs=quantile,na.rm=TRUE)), digits=5))
+    set.prob  <- as.numeric(round(as.numeric(quantile(tab2[tab2[,2]!=0,2],probs=quantile,na.rm=TRUE)), digits=5))
+  }
+  
+  
+  riseProb <- ifelse(tab1[,2]>=rise.prob, NA, TRUE)
+  setProb  <- ifelse(tab2[,2]>=set.prob, NA, TRUE)
+  
+  tmp02 <- rbind(data.frame(time = tw[tw[,2]==1,1], prob = tab1[,2], cut = riseProb), 
+                 data.frame(time = tw[tw[,2]==2,1], prob = tab2[,2], cut = setProb))[order(c(sr, ss)),]
+  tmp02 <- cbind(tmp02, NA)
+  
+  s <- 1
+  for(i in 2:nrow(tmp02)) {
+    if(is.na(tmp02[i-1, 3]) & !is.na(tmp02[i, 3])) {
+      s <- s+1
+      tmp02[i, 4] <- s
+    }
+    if(!is.na(tmp02[i-1, 3]) & !is.na(tmp02[i, 3])) tmp02[i, 4] <- s
+  }
+  
+  ind01 <- tapply(as.numeric(tmp02[,1]), tmp02[,4], FUN = function(x) ((x[length(x)]-x[1])/60/60/24)>days)
+  ind02 <- as.numeric(names(ind01)[ind01])
+  
+  tmp02[,4] <- ifelse(tmp02[,4]%in%ind02, tmp02[,4], NA)
+  
+  s <- 1
+  for(i in ind02) {
+    tmp02[!is.na(tmp02[,4]) & tmp02[,4]==i, 4] <- s
+    s <- s+1
+  }
+  
+  
+  t02 <- schedule(tab$tFirst, tab$tSecond, tmp02[1:nrow(tab),4])
+  
+  arr <- tmp02[!is.na(tmp02[,4]) & !duplicated(tmp02[,4]),]
+  dep <- tmp02[!is.na(tmp02[,4]) & !duplicated(tmp02[,4], fromLast = T),]
+  
+  t02$P.start <- arr$prob
+  t02$P.end   <- dep$prob
+  
+  t02$Days <- apply(t02, 1, function(x) round(as.numeric(difftime(x[3], x[2], units = "days")), 1))
+  ds <- t02[,c(1:3, 6, 4:6,4)]
+  
+  out <- list(riseProb = tab1[,2], setProb = tab2[,2], rise.prob = rise.prob, set.prob = set.prob, 
+              site = ifelse(!is.na(tmp02[,4]), tmp02[,4], 0)[1:nrow(tab)],
+              migTable = ds)
+  
+  
+  if(plot){
+    def.par <- par(no.readonly = TRUE)
+    nf <- layout(matrix(c(4,1,2,3),nrow=4,byrow=T),heights=c(0.5,1,0.5,0.5))
+    
+    par(mar=c(2,4.5,2,5),cex.lab=1.5,cex.axis=1.5,bty="o")
+    plot(sr, rise, type="o",cex=0.2,col="firebrick",ylab="Sunrise (red)", 
+         xlim = range(sr),xaxt="n")
+    par(new=T)
+    plot(ss, set, type="o",cex=0.2,col="cornflowerblue",xaxt="n",yaxt="n",xlab="",
+         ylab="",xlim=range(ss))
+    axis(4)
+    mtext("Sunset (blue)",4,line=2.7,cex=1)
+    axis(1,at=seq(min(ss),max(ss), by=(10*24*60*60)),labels=F)
+    axis(1,at=seq(min(ss),max(ss), by=(30*24*60*60)),lwd.ticks=2,
+         labels=trunc(seq(min(ss),max(ss), by=(30*24*60*60)), "days"),cex.axis=1)
+    
+    par(mar=c(1.5,4.5,0.8,5),bty="n")
+    plot(sr, tab1[,2], type = "h", lwd = 4, col = "firebrick", ylab = "", xaxt = "n",
+         xlim= range(sr) ,ylim = c(0, max(na.omit(c(tab1[,2],tab2[,2])))))
+    if(is.numeric(rise.prob)) abline(h = rise.prob, lty=2, lwd = 1.5)
+    
+    opar <- par(mar=c(1.5,4.5,0.8,5),bty="n")
+    plot(ss, tab2[,2], type = "h", lwd = 4, col = "cornflowerblue", ylab = "", xaxt = "n",
+         xlim= range(ss) ,ylim = c(0, max(na.omit(c(tab1[,2],tab2[,2])))))
+    if(is.numeric(set.prob)) abline(h = set.prob, lty=2, lwd = 1.5)
+    
+    mtext("Probability of change", side=2, at = max(na.omit(c(tab1[,2],tab2[,2]))), line=3)
+    
+    par(mar=c(1,4.5,1,5),bty="o")
+    mig <- out$site
+    mig[mig>0] <- 1
+    plot(tab[,1] + (tab[,2] - tab[,1])/2, 
+         ifelse(out$site>0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim=c(0,1.5))
+    rect(as.POSIXct(ds$Arrival, "GMT"), 1.1, as.POSIXct(ds$Departure, "GMT"), 1.4, lwd = 0, col="grey")
+    par(def.par)
+  }
+  
+  
+  if(summary){i.sum.Cl(out)}
+  
+  return(out)
+}
+
 
 
 #' Function to merge sites
@@ -678,6 +774,8 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 
 
 
+
+
 ##' Filter for unrealistic positions within a track based on distance
 ##'
 ##' The filter identifies unrealistic positions. The maximal distance per
@@ -700,14 +798,6 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 ##' "hour", alternative option is "day".
 ##' @return Logical \code{vector}. TRUE means the particular position passed the filter.
 ##' @author Simeon Lisovski, Fraenzi Korner-Nievergelt
-##' @examples
-##'
-##' data(hoopoe2)
-##'   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
-##'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
-##' crds  <- coord(hoopoe2)
-##' filter <- distanceFilter(hoopoe2, distance=30)
-##' tripMap(crds[filter,],xlim=c(-20,20),ylim=c(0,60),main="hoopoe2 (filter)")
 ##' @export distanceFilter
 distanceFilter <- function(tFirst, tSecond, type, twl, degElevation = -6, distance, units = "hour") {
   
@@ -951,61 +1041,63 @@ HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, d
   }
   
   if(plot) {
-    opar <- par(mfrow = c(sites, 2), oma = c(3, 5, 6, 2), mar = c(2, 2, 2, 2))
-    for(j in 1:sites){
-      
-      if(is.na(HECalib[j])){
+
+      opar <- par(mfrow = c(sites, 2), oma = c(3, 5, 6, 2), mar = c(2, 2, 2, 2))
+      for(j in 1:sites){
         
-        plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty = "n")
-        text(0,0,"NA",cex=2)
-        plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty="n")
-        
-      } else {
-        
-        angles <- c(seq(HECalib[j]-2,HECalib[j]+2,0.2))
-        
-        latM <- matrix(ncol=length(angles),nrow=length(tFirst[site==j]))
-        
-        for(i in 1:ncol(latM)){
-          latM[,i] <- coord(tab[site==j,], degElevation = c(angles[i]),note=F)[,2]
+        if(is.na(HECalib[j])){
+          
+          plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty = "n")
+          text(0,0,"NA",cex=2)
+          plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty="n")
+          
+        } else {
+          
+          angles <- c(seq(HECalib[j]-2,HECalib[j]+2,0.2))
+          
+          latM <- matrix(ncol=length(angles),nrow=length(tFirst[site==j]))
+          
+          for(i in 1:ncol(latM)){
+            latM[,i] <- coord(tab[site==j,], degElevation = c(angles[i]),note=F)[,2]
+          }
+          
+          latT <- latM
+          var1 <- rep(NA,ncol(latT))
+          n1   <- rep(NA,ncol(latT))
+          min  <- rep(NA,ncol(latT))
+          max  <- rep(NA,ncol(latT))
+          for(t in 1:length(var1)){
+            var1[t] <- var(na.omit(latT[,t]))
+            n1[t]   <- length(na.omit(latT[,t]))
+            min[t]  <- if(length(na.omit(latT[,t]))<=1) NA else min(na.omit(latT[,t]))
+            max[t]  <- if(length(na.omit(latT[,t]))<=1) NA else max(na.omit(latT[,t]))
+          }
+          
+          
+          colors <- grey.colors(length(angles))
+          plot(tFirst[site==j],latT[,1],ylim=c(min(na.omit(min)),max(na.omit(max))),type="o",cex=0.7,pch=20,col=colors[1],ylab="",xlab="")
+          for(p in 2:ncol(latT)){
+            lines(tFirst[site==j],latM[,p],type="o",cex=0.7,pch=20,col=colors[p])
+          }
+          lines(tFirst[site==j],coord(tab[site==j,], degElevation = HECalib[j], note=F)[,2],col="tomato2",type="o",lwd=2,cex=1,pch=19)
+          if(j==sites) mtext("Latitude",side=2,line=3)
+          if(j==sites) mtext("Date",side=1,line=2.8)
+          
+          plot(angles,var1,type="o",cex=1,pch=20,ylab="")
+          lines(angles,var1,type="p",cex=0.5,pch=7)
+          abline(v=HECalib[j],lty=2,col="red",lwd=1.5)
+          par(new=T)
+          plot(angles,n1,type="o",xaxt="n",yaxt="n",col="blue",pch=20,ylab="")
+          points(angles,n1,type="p",cex=0.5,pch=8,col="blue")
+          axis(4)
+          if(j==sites) mtext("Sun elevation angles",side=1,line=2.8)
+          legend("topright",c(paste(HECalib[j]," degrees",sep=""),"sample size","variance"),pch=c(-1,20,20),lty=c(2,2,2),lwd=c(1.5,0,0),col=c("red","blue","black"),bg="White")
         }
-        
-        latT <- latM
-        var1 <- rep(NA,ncol(latT))
-        n1   <- rep(NA,ncol(latT))
-        min  <- rep(NA,ncol(latT))
-        max  <- rep(NA,ncol(latT))
-        for(t in 1:length(var1)){
-          var1[t] <- var(na.omit(latT[,t]))
-          n1[t]   <- length(na.omit(latT[,t]))
-          min[t]  <- if(length(na.omit(latT[,t]))<=1) NA else min(na.omit(latT[,t]))
-          max[t]  <- if(length(na.omit(latT[,t]))<=1) NA else max(na.omit(latT[,t]))
-        }
-        
-        
-        colors <- grey.colors(length(angles))
-        plot(tFirst[site==j],latT[,1],ylim=c(min(na.omit(min)),max(na.omit(max))),type="o",cex=0.7,pch=20,col=colors[1],ylab="",xlab="")
-        for(p in 2:ncol(latT)){
-          lines(tFirst[site==j],latM[,p],type="o",cex=0.7,pch=20,col=colors[p])
-        }
-        lines(tFirst[site==j],coord(tab[site==j,], degElevation = HECalib[j], note=F)[,2],col="tomato2",type="o",lwd=2,cex=1,pch=19)
-        if(j==sites) mtext("Latitude",side=2,line=3)
-        if(j==sites) mtext("Date",side=1,line=2.8)
-        
-        plot(angles,var1,type="o",cex=1,pch=20,ylab="")
-        lines(angles,var1,type="p",cex=0.5,pch=7)
-        abline(v=HECalib[j],lty=2,col="red",lwd=1.5)
-        par(new=T)
-        plot(angles,n1,type="o",xaxt="n",yaxt="n",col="blue",pch=20,ylab="")
-        points(angles,n1,type="p",cex=0.5,pch=8,col="blue")
-        axis(4)
-        if(j==sites) mtext("Sun elevation angles",side=1,line=2.8)
-        legend("topright",c(paste(HECalib[j]," degrees",sep=""),"sample size","variance"),pch=c(-1,20,20),lty=c(2,2,2),lwd=c(1.5,0,0),col=c("red","blue","black"),bg="White")
       }
-    }
-    
-    mtext("Hill-Ekstrom Calibration",cex=1.5,line=0.8,outer=T)
-    par(opar)
+      
+      mtext("Hill-Ekstrom Calibration",cex=1.5,line=0.8,outer=T)
+      par(opar)
+
   }
   
   
@@ -1313,109 +1405,28 @@ i.sum.Cl <- function(object) {
   }
 }
 
-
-i.sunelevation <-
-  function(lon, lat, year, month, day, hour, min, sec){
-    
-    #-------------------------------------------------------------------------------
-    # lon: longitude in decimal coordinates
-    # lat: latitude in decimal coordinates
-    # year: numeric, e.g. 2006 (GMT)
-    # month: numeric, e.g. 8  (GMT)
-    # day: numeric, e.g. 6   (GMT)
-    # hour:  numeric e.g. 6  (GMT)
-    # min: numeric, e.g. 0   (GMT)
-    # sec: numeric, e.g.     (GMT)
-    #-------------------------------------------------------------------------------
-    
-    datetime<-paste(year,"-", month,"-", day, " ", hour, ":", min, ":", sec, sep="")
-    gmt<-as.POSIXct(strptime(datetime, "%Y-%m-%d %H:%M:%S"), "UTC")
-    n <- gmt - as.POSIXct(strptime("2000-01-01 12:00:00", "%Y-%m-%d %H:%M:%S"), "UTC")
-    
-    # mean ecliptical length of sun
-    L <- 280.46 + 0.9856474 * n
-    L <- as.numeric(L)
-    
-    # Anomalie
-    g <- 357.528 + 0.9856003 * n
-    g <- as.numeric(g)
-    
-    t.v <- floor(g/360)
-    g <- g - 360*t.v
-    g.rad <- g*pi/180
-    
-    t.l <- floor(L/360)
-    L <- L - 360 * t.l
-    L.rad <- L*pi/180
-    
-    # ecliptical length of sun
-    LAMBDA <- L + 1.915 * sin(g.rad) + 0.02*sin(2*g.rad)
-    LAMBDA.rad <- LAMBDA*pi/180
-    
-    # coordinates of equator
-    epsilon <- 23.439 - 0.0000004 * n
-    epsilon.rad <- as.numeric(epsilon)*pi/180
-    
-    alpha.rad <- atan(cos(epsilon.rad)*sin(LAMBDA.rad)/cos(LAMBDA.rad))
-    
-    
-    alpha.rad <- ifelse(cos(LAMBDA.rad)<0, alpha.rad+pi, alpha.rad)
-    alpha <- alpha.rad*180/pi
-    
-    deklination.rad <- asin(sin(epsilon.rad) * sin(LAMBDA.rad))
-    deklination <- deklination.rad*180/pi
-    
-    # angle h
-    tag<-paste(year,"-", month,"-", day, " 00:00:00", sep="")
-    JD0<-as.POSIXct(strptime(tag, "%Y-%m-%d %H:%M:%S"), "GMT")
-    JD0 <- JD0 - as.POSIXct(strptime("2000-01-01 12:00:00", "%Y-%m-%d %H:%M:%S"), "GMT")
-    T0 <- JD0/36525
-    
-    Time <- hour  + min/60  + sec/60/100
-    theta.Gh <- 6.697376 + 2400.05134 * T0 + 1.002738 * Time
-    theta.Gh <- as.numeric(theta.Gh)
-    
-    t.d <- floor(theta.Gh/24)
-    theta.Gh <- theta.Gh-t.d*24
-    
-    theta.G <- theta.Gh * 15
-    
-    theta <- theta.G + lon      # Stundenwinkel des Fruhlingspunktes
-    tau <- theta-alpha    # Stundenwinkel
-    tau.rad <- tau/180*pi
-    
-    # H?henwinkel h
-    h <- asin(cos(deklination.rad) * cos(tau.rad) * cos(lat/180*pi) + sin(deklination.rad) * sin(lat/180*pi))
-    h.grad <- h/pi*180
-    
-    # correction because of refraction
-    R <- 1.02/(tan((h.grad+10.3/(h.grad+5.11))/180*pi))
-    hR.grad <- h.grad + R/60
-    return(hR.grad)
+i.mode <- function(x, w=NULL) {
+  if(is.null(w)){
+    if(sum(!is.na(x))>1){
+      x <- x[!is.na(x)]
+      xdens <- density(x)
+      xmax <- xdens$x[xdens$y==max(xdens$y, na.rm=TRUE)]
+    }
+    if(sum(!is.na(x))<2) xmax <- NA
   }
+  if(!is.null(w)){
+    x <- rep(x,w)
+    if(sum(!is.na(x))>1){
+      x <- x[!is.na(x)]
+      xdens <- density(x)
+      xmax <- xdens$x[xdens$y==max(xdens$y, na.rm=TRUE)]
+    }
+    if(sum(!is.na(x))<2) xmax <- NA
+  }  
+  return(mean(xmax))
+}
 
-i.twilightEvents <- function(datetime, light, LightThreshold){
-  
-  df <- data.frame(datetime, light)
-  
-  ind1 <- which((df$light[-nrow(df)] < LightThreshold & df$light[-1] > LightThreshold) |
-                  (df$light[-nrow(df)] > LightThreshold & df$light[-1] < LightThreshold) |
-                  df$light[-nrow(df)] == LightThreshold)
-  
-  bas1 <- cbind(df[ind1,],df[ind1+1,])
-  bas1 <- bas1[bas1[,2]!=bas1[,4],]
-  
-  x1 <- as.numeric(unclass(bas1[,1])); x2 <- as.numeric(unclass(bas1[,3]))
-  y1 <- bas1[,2]; y2 <- bas1[,4]
-  m <- (y2-y1)/(x2-x1)
-  b <- y2-(m*x2)
-  
-  xnew <- (LightThreshold - b)/m
-  type <- ifelse(bas1[,2]<bas1[,4],1,2)
-  res  <- data.frame(datetime=as.POSIXct(xnew, origin="1970-01-01", tz="UTC"),type)
-  
-  return(res)
-} 
+
 #' Filter to remove noise in light intensity measurements during the night
 #'
 #' The filter identifies and removes light intensities oczillating around the
@@ -1594,7 +1605,7 @@ loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE){
 #' @seealso \code{\link{gleTrans}} for transforming *.glf files produced by the
 #' software GeoLocator (\emph{Swiss Ornithological Institute})
 #' @export luxTrans
-luxTrans <- function(file="/path/file.lux") {
+luxTrans <- function(file) {
   
   lux1 <- read.table(file,sep="\t",skip=21,col.names=c("datetime","time")) # read file
   lux <- data.frame(datetime=as.POSIXct(strptime(lux1[,1],format="%d/%m/%Y %H:%M:%S",tz="UTC")),light=lux1[,2])
@@ -1690,15 +1701,17 @@ trnTrans<-function(file){
 schedule <- function(tFirst, tSecond, site) {    
   tm <- tFirst + (tSecond - tFirst)/2
   
-  arr <- tm[site!=0 & !duplicated(site)]
-  dep <- tm[site!=0 & !duplicated(site, fromLast = T)]
+  arr <- tm[!is.na(site) & !duplicated(site)]
+  dep <- tm[!is.na(site) & !duplicated(site, fromLast = T)]
   
   out <- data.frame(Site =  letters[1:length(arr)], Arrival = arr, Departure = dep)
-  if(site[1]!=0) out$Arrival[1] <- NA
-  if(site[length(tFirst)]!=0) out$Departure[nrow(out)] <- NA
+  if(!is.na(site[1])) out$Arrival[1] <- NA
+  if(!is.na(site[length(tFirst)])) out$Departure[nrow(out)] <- NA
   
   out
 }
+
+
 
 i.twilightEvents <- function (datetime, light, LightThreshold) 
 {
@@ -1734,7 +1747,6 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' period. Stationary periods in numerical order and values >0,
 #' migration/movement periods 0.
 #' @param type either \emph{points}, or \emph{cross} to show all points for each site or only show the mean position of the site with standard deviation.
-#' @param quantiles the quantile of the error bars (\emph{cross}) around the median.
 #' @param hull \code{logical}, if TRUE a convex hull will be plotted around the points of each site.
 #' @param map.range some possibilities to choose defined areas ("World
 #' (default)", "EuroAfrica","America","AustralAsia").
@@ -1755,8 +1767,7 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #'
 #' @export siteMap
 #' @importFrom maps map map.axes
-siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull = T, 
-                    map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ...) {
+siteMap <- function(crds, site, type = "points", hull = T, map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ...) {
   
   args <- list(...)
   
@@ -1822,37 +1833,38 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull
   }
   if(type=="cross") {
     for (i in 1:max(unique(site))){
-      if(!all(is.na(crds[site==i, 2]))){
-        tmp.lon <- quantile(crds[site == i, 1], probs = c(quantiles, 0.5), na.rm = T)
-        tmp.lat <- quantile(crds[site == i, 2], probs = c(quantiles, 0.5), na.rm = T)
-        points(tmp.lon[3], tmp.lat[3],
+      points(i.mode(crds[site == i, 1],1),
+             i.mode(crds[site == i, 2],1),
+             col = col[i],
+             cex = ifelse(any(names(args)=="cex"), args$cex, 1),
+             pch = ifelse(any(names(args)=="pch"), args$pch, 16)) 
+      segments(quantile(crds[site == i, 1],na.rm=T)[2],
+               i.mode(crds[site == i, 2],1),
+               quantile(crds[site == i, 1],na.rm=T)[4],
+               i.mode(crds[site == i, 2],1),
                col = col[i],
-               cex = ifelse(any(names(args)=="cex"), args$cex, 1),
-               pch = ifelse(any(names(args)=="pch"), args$pch, 16)) 
-        segments(tmp.lon[1], tmp.lat[3], tmp.lon[2], tmp.lat[3],
-                 col = col[i],
-                 lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
-        segments(tmp.lon[3], tmp.lat[1], tmp.lon[3], tmp.lat[2],
-                 col = col[i],
-                 lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
-      }
+               lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
+      segments(i.mode(crds[site == i, 1],1),
+               quantile(crds[site == i, 2],na.rm=T)[4],
+               i.mode(crds[site == i, 1],1),
+               quantile(crds[site == i, 2],na.rm=T)[2],
+               col = col[i],
+               lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
     }
   }    
   
   
   if(hull) {
     for(j in unique(site)){
-      if(!all(is.na(crds[site==j, 2]))){
-        if(j>0){
-          X <- na.omit(crds[site==j,])
-          
-          hpts <- chull(X)
-          hpts <- c(hpts,hpts[1])
-          lines(X[hpts,], 
-                lty = ifelse(sum(names(args)%in%"lty")==1, args$lty, 1),
-                lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 1),
-                col = col[j])
-        }
+      if(j>0){
+        X <- na.omit(crds[site==j,])
+        
+        hpts <- chull(X)
+        hpts <- c(hpts,hpts[1])
+        lines(X[hpts,], 
+              lty = ifelse(sum(names(args)%in%"lty")==1, args$lty, 1),
+              lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 1),
+              col = col[j])
       }
     }
   }
@@ -1863,6 +1875,7 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull
   
   if(!add) par(opar)
 }
+
 
 
 ##' Write a file which plots a trip in Google Earth
@@ -1899,9 +1912,9 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull
 ##'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
 ##' filter <- distanceFilter(hoopoe2,distance=30)
 ##' ## takes time
-##' # trip2kml("trip.kml", hoopoe2$tFirst[filter], hoopoe2$tSecond[filter], hoopoe2$type[filter],
-##' # 		degElevation=-6, col.scheme="heat.colors", cex=0.7,
-##' # 		line.col="goldenrod")
+##' ## trip2kml("trip.kml", hoopoe2$tFirst[filter], hoopoe2$tSecond[filter], hoopoe2$type[filter],
+##' ##		degElevation=-6, col.scheme="heat.colors", cex=0.7,
+##' ##		line.col="goldenrod")
 ##'}
 ##' @export trip2kml
 trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat.colors", point.alpha=0.7, cex=1, line.col="goldenrod")
@@ -2052,8 +2065,8 @@ trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat
 #' @examples
 #'
 #' data(hoopoe2)
-#'   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
-#'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
+#'  hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+#'  hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
 #' crds <- coord(hoopoe2, degElevation = -6)
 #' tripMap(crds, xlim = c(-20,20), ylim = c(0,60), main="hoopoe2")
 #'
@@ -2279,9 +2292,9 @@ twilightCalc <- function(datetime, light, LightThreshold=TRUE, preSelection=TRUE
 #' @examples
 #'
 #' data(calib2)
-#'   calib2$tFirst <- as.POSIXct(calib2$tFirst, tz = "GMT")
-#'   calib2$tSecond <- as.POSIXct(calib2$tSecond, tz = "GMT")
-#' getElevation(calib2$tFirst, calib2$tSecond, calib2$type, known.coord = c(8,47.01))
+#'  calib2$tFirst <- as.POSIXct(calib2$tFirst, tz = "GMT")
+#'  calib2$tSecond <- as.POSIXct(calib2$tSecond, tz = "GMT")
+#' getElevation(calib2, known.coord = c(8,47.01))
 #'
 NULL
 
@@ -2323,9 +2336,9 @@ NULL
 #' @examples
 #'
 #' data(hoopoe2)
-#'    hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
-#'    hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
-#' coord <- with(hoopoe2, coord(tFirst,tSecond,type,degElevation=-6))
+#'  hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+#'  hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
+#' coord <- coord(hoopoe2, degElevation=-6)
 #' ## plot in a map using package maps
 #' # par(oma=c(5,0,0,0))
 #' # map(xlim=c(-20,40),ylim=c(-10,60),interior=F,col="darkgrey")

@@ -4,7 +4,7 @@
 \alias{luxTrans}
 \title{Transformation of *.lux files}
 \usage{
-luxTrans(file = "/path/file.lux")
+luxTrans(file)
 }
 \arguments{
 \item{file}{the full patch and filename with suffix of the *.lux file.}

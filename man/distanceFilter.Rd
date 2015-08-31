@@ -38,14 +38,6 @@ Note that this type of filter significantly depends on the calibration
 (\code{loessFilter}) is independent from positions (uses twilight times)
 and therefore superior.
 }
-\examples{
-data(hoopoe2)
-  hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
-  hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
-crds  <- coord(hoopoe2)
-filter <- distanceFilter(hoopoe2, distance=30)
-tripMap(crds[filter,],xlim=c(-20,20),ylim=c(0,60),main="hoopoe2 (filter)")
-}
 \author{
 Simeon Lisovski, Fraenzi Korner-Nievergelt
 }

@@ -4,29 +4,28 @@
 \alias{changeLight}
 \title{Residency analysis using a changepoint model}
 \usage{
-changeLight(tFirst, tSecond, type, quantile = 0.6, rise.prob = NA,
+changeLight(tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA,
   set.prob = NA, days = 5, plot = TRUE, summary = TRUE)
 }
 \arguments{
-\item{tFirst}{date and time of sunrise/sunset (e.g. 2008-12-01 08:30)}
+\item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}
 
-\item{tSecond}{date and time of sunrise/sunset (e.g. 2008-12-01 17:30)}
+\item{tSecond}{vector of of sunrise/sunset times (e.g. 2008-12-01 17:30).}
 
-\item{type}{either 1 or 2, defining \code{tFirst} as sunrise or sunset
-respectively}
+\item{type}{vector of either 1 or 2, defining \code{tFirst} as sunrise or sunset respectively.}
+
+\item{twl}{data.frame containing twilights and at least \code{tFirst}, \code{tSecond} and \code{type} (alternatively give each parameter separately).}
 
 \item{quantile}{probability threshold for stationary site selection. Higher
 values (above the defined quantile of all probabilities) will be considered
-as changes in the behavior. If specified, \code{rise.prob} and/or
-\code{set.prob} will not be considered.}
+as changes in the behavior. Argmuent will only be considered if either \code{rise.prob} and/or
+\code{set.prob} remain unspecified.}
 
 \item{rise.prob}{the probability threshold for \bold{sunrise}: greater or
-equal values indicates changes in the behaviour of the individual. If,
-\code{NA} sunrise will not be considered.}
+equal values indicates changes in the behaviour of the individual.}
 
 \item{set.prob}{the probability threshold for \bold{sunset}: higher and
-equal values indicates changes in the behaviour of the individual. If,
-\code{NA} sunrise will not be considered.}
+equal values indicates changes in the behaviour of the individual.}
 
 \item{days}{a threshold for the length of stationary period. Periods smaller
 than "days" will not be considered as a residency period}
@@ -50,7 +49,7 @@ changepoint model (\bold{\pkg{R}} Package \code{\link{changepoint}}:
 data.
 }
 \details{
-The \code{cpt.mean} from the codeR Package \code{changepoint} is a
+The \code{cpt.mean} from the \code{R} Package \code{changepoint} is a
 function to find a multiple changes in mean for data where no assumption is
 made on their distribution. The value returned is the result of finding the
 optimal location of up to Q changepoints (in this case as many as possible)
@@ -60,12 +59,13 @@ using the cumulative sums test statistic.
 The sunrise and/or sunset times shown in the graph (if
 \code{plot=TRUE}) represent hours of the day. However if one or both of the
 twilight events cross midnight during the recording period the values will
-be transformed to avoid discontinuity.
+be formed to avoid discontinuity.
 }
 \examples{
 data(hoopoe2)
-attach(hoopoe2)
-residency <- changeLight(tFirst,tSecond,type,quantile=0.9)
+  hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+  hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
+residency <- changeLight(hoopoe2, quantile=0.9)
 }
 \author{
 Simeon Lisovski & Tamara Emmenegger

@@ -15,9 +15,9 @@ used to calibrate the focal dataset.
 }
 \examples{
 data(calib2)
-  calib2$tFirst <- as.POSIXct(calib2$tFirst, tz = "GMT")
-  calib2$tSecond <- as.POSIXct(calib2$tSecond, tz = "GMT")
-getElevation(calib2$tFirst, calib2$tSecond, calib2$type, known.coord = c(8,47.01))
+ calib2$tFirst <- as.POSIXct(calib2$tFirst, tz = "GMT")
+ calib2$tSecond <- as.POSIXct(calib2$tSecond, tz = "GMT")
+getElevation(calib2, known.coord = c(8,47.01))
 }
 \references{
 Lisovski, S., Hewson, C.M, Klaassen, R.H.G., Korner-Nievergelt,
