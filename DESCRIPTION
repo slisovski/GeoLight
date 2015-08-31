@@ -13,10 +13,10 @@ Description: Provides basic functions for global
 License: GPL (>= 2)
 Depends: 
     R (>= 2.10),
-    maps,
+    maps
+Imports:
     changepoint,
-    fields
-Imports: 
+    fields,
     MASS,
 LazyLoad: yes
 LazyData: yes

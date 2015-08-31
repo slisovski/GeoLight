@@ -547,7 +547,7 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
 ##' residency <- changeLight(hoopoe2, quantile=0.9)
 ##'
 ##' @export changeLight
-##' @importFrom changepoint cpt.mean
+##' @importFrom changepoint cpt.mean cpts.full pen.value.full
 changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, set.prob=NA, days=5, plot=TRUE, summary=TRUE) {
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
@@ -722,6 +722,7 @@ changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, 
 #' @author Simeon Lisovski
 #'
 #' @export mergeSites
+#' @importFrom fields rdist.earth
 mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThreshold = 250, 
                        alpha = c(0, 15), plot = TRUE) {
   
