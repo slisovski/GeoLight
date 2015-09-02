@@ -4,7 +4,7 @@ author: "Simeon Lisovski"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{GeoLight_2.0}
+  %\VignetteIndexEntry{"GeoLight2.0"}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -153,6 +153,3 @@ The function schedule may help to derive the temporal pattern of the migration.
 ```{r}
 schedule(twl$tFirst, twl$tSecond, site = mS$site)
 ```
-
-
-
