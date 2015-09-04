@@ -20,7 +20,7 @@ The package is easily built with RStudio
 
 5. Install [maps](http://cran.r-project.org/web/packages/maps/index.html), [changepoint](http://cran.r-project.org/web/packages/changepoint/index.html) packages and dependencies.
 
-6. Clone the repository from GitHub (https://github.com/mdsumner/GeoLight.git).
+6. Clone the repository from GitHub (https://github.com/slisovski/GeoLight.git).
 
 7. Create an Rstudio project in the folder containing this README file.
 

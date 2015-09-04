@@ -1,0 +1,155 @@
+---
+title: "GeoLight_2.0: Workflow & News"
+author: "Simeon Lisovski"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{"GeoLight2.0"}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+The new version of `GeoLight` (2.0) has been subject to major structural changes. Some additional functions were added to improve the analysis of simple light-level geolocation using `GeoLight`.
+
+
+## Import data
+
+This vignette aims to demonstrate (i) the major changes and (ii) illustrate a general workflow and (iii) new analysis approaches using the `hoopoe2` dataset which is part of the `GeoLight` package.
+
+```{r, warning=F, message=FALSE}
+library(GeoLight)
+data(hoopoe1)
+
+head(hoopoe1)
+```
+
+One **(1) major change** in `GeoLight` (Version 2.0) is that date and time information are required be formated into class `POSIXct` before using any functions within `GeoLight`. This change has been made to assure that the user specifies the date/time and assures that the time zone is correct ("GMT" or "UTC") and that errors due to wrong formats can be identified within the functions (error massage).
+
+Several functions exist that transfer specific direct output files of various tags (e.g. `ligTrans` or `luxTrans`). Those functions will transform the date and time information into class `POSIXct` objects. If data is imported otherwise manual transformation is required:
+
+```{r}
+hoopoe1$datetime <- as.POSIXct(strptime(hoopoe1$datetime, format = "%Y-%m-%d %H:%M:%S", tz = "GMT"))
+str(hoopoe1)
+```
+
+See `?strptime` for more information on how to transfer different date and time format into `POSIXct` class objects. The function `str` may also help to check the class of the various columns after the raw data has been imported.
+
+
+## Defining twilights
+
+Defining twilights (e.g. sunrise and sunset) via the threshold method can be done using different applications (e.g. TransEdit, [TAGS](http://tags.animalmigration.org/geologgerui/), etc.). `GeoLight` provides the function `twilightCalc`. And while this function is working, the lacking capability of `R` to produce interactive plots can make this process painful, especially for large datasets, since you can only move forwards and if a bad or a wrongly assigned twilight has been skipped the user needs to start from the beginning. There is at least one other `R` package that provides a much better solution and is worth checking: [BAStag](https://github.com/SWotherspoon/BAStag). Note, that if using another software, the output has to bee transformed into the required format (see: Lisovski and Hahn 2012 Methods in Ecology and Evolution) and the `tFirst` and `tSecond` column are required to be `POSIXct` class objects.
+
+Here, I will use the `twilightCalc` function to define twilight times. Note, that while I am using the option `ask=FALSE`, I strongly recommend to go through the twilights since the procedure may pick wrong twilight times that may significantly affecting the analysis.
+
+
+
+```{r}
+twl <- twilightCalc(hoopoe1$datetime, hoopoe1$light, LightThreshold = 1.5, ask = F)
+head(twl)
+```
+
+
+## Calibration
+
+The calibration can be done with a subset of the data recorded at known position, or using a separate calibration file recorded off the bird but (in the best case) with the same logger and within a similar habitat. For the `hoopoe` dataset, the `calib2` dataset represent such an "off-bird"" calibration file.
+
+```{r, warning = F}
+data(calib2)
+  calib2$tFirst <- as.POSIXct(calib2$tFirst, tz = "GMT")
+  calib2$tSecond <- as.POSIXct(calib2$tSecond, tz = "GMT")
+
+
+## Breeding location
+lon.calib <- 8
+lat.calib <- 47.01
+```
+
+Another **(2) major change** in `GeoLight` (Version 2.0) is, that all functions that require vectors for `tFirst`, `tSecond` and `type` can be used like in older versions in  a way, that all three entities can be provided as separate vectors. However from version 2.0 onwards, those entities can also be provided within a `data.frame` containing all three as separate columns.
+
+```{r, fig.height=5, fig.width=7}
+angle <- getElevation(calib2, known.coord = c(lon.calib, lat.calib), lnorm.pars = T)[1]
+```
+
+The plot shows (left panel) the frequency of sun elevation angles for the calibration and gives the optimal angle (here: -5.87). The right panel shows the discrepancy between the "real" (first recorded sunrise/sunset) and the recorded sunrise sunset times in minutes. Optional one can calculate the best fitting log-normal probability distribution with the parameters meanlog and sdlog. This distribution can be used to describe the expected twilight error and can also be used to parameterise twilight error models such as the one used in the `R` package [`SGAT`](https://github.com/swotherspoon/sgat).
+
+## First location estimates
+
+The **(3) major change** in `GeoLight` (Version 2.0) is, that we implemented an alternative algorithm to estimate locations. In previous versions, the only method that could be applied was based on Montenbruck, O. & Pfleger, T. (2000). There were little bugs in the code that affected the location estimates minimally and especially around the periods of the equinox (most likely far below noticeable values). However, we now provide a more "clean" and solid algorithm that is based on the excel spreadsheet from the [NOAA site](http://www.esrl.noaa.gov/gmd/grad/solcalc/). Both methods can be applied by defining the `method` option either `NOAA` (default) or `Montenbruck`.
+
+The new `tol` argument defines the tolerance on the sine of the solar declination. In other words, it defines how many positions will be discarded around the equinox period.
+
+```{r, message=FALSE, fig.height=5, fig.width=7}
+crds0 <- coord(twl, degElevation = angle, tol = 0)
+crds1 <- coord(twl, degElevation = angle, tol = 0.13)
+
+plot(twl[,1], crds0[,2], type = "o", pch = 16, col = "firebrick", 
+     xlab = "Time", ylab = "Latitude")
+points(twl[,1], crds1[,2], type = "o", pch = 16, col = "cornflowerblue")
+abline(v = as.POSIXct("2008-09-21"), lty = 2)
+legend("topleft", c("equinox", "tol = 0", "tol = 0.13"), pch = c(NA, 16, 16), lty = c(2,1,1), 
+       col = c("black", "firebrick", "cornflowerblue"))
+```
+
+## Movement vs Residency analysis
+
+To separate periods of residency from periods of movement/migration and assign a number to each residency period we can use the function `changeLight`. The calculation is based on on consecutive sunrise and sunset times and a changepoint model (`R` Package `changepoint`) to find multiple changepoints within the data. The function only changed slightly to accommodate recent structural updated within the `changepoint` function and to speed-up calculation time (and some bug fixes).
+
+```{r, fig.height=10, fig.width=7}
+cL <- changeLight(twl$tFirst, twl$tSecond, type = twl$type, quantile=0.95, summary = F, days = 2)
+```
+
+The `siteMap` function can be used to plot positions coloured according to their distinctive site assignment. The `siteMap` function was subject to little modifications: 
+
+1. `type` can be specified as either `points` or as `cross`. The latter shows the site as a 2-dimensional variation bars (quantiles).
+2. `quantiles` vector of length 2 with the quantiles you wish to be plotted (if `type = cross`).
+3. `hull`, if `TRUE` a convex hull will be plotted around teh points of each site.
+
+```{r, fig.height=8, fig.width = 6}
+siteMap(crds = crds1, site = cL$site, xlim = c(-12, 25), ylim = c(0, 50))
+````
+
+Obviously, the `changeLight` function defined many breakpoints during periods of residency (e.g. c-e). This can happen very often, and is potentially due to occasional deviations from the 'normal' shading intensity (e.g. severe weather).
+
+The **(4) major change** in `GeoLight` (Version 2.0) is the introduction of a new function called `mergeSites`. The function uses an optimization routine to fit sunrise and sunset patterns from within the range of the coordinates and across each stationary period to the observed sunrise and sunset times. Based on the optimization of longitude and latitude, the function uses a forward selection process to merge sites that are closer than the defined threshold (`distThreshold`, in km). The output plot shows the initially selected sites (e.g. calculated via `changeLight`) and the new site selection (red line). Furthermore, the best fitting (plus the 95 confidence intervals) theoretical sunrise and sunset patterns are shown below the observed data. And finally the longitude and the latitude values of the track are plotted separately with the initial and the new borders of the residency/movement periods.
+
+```{r, fig.height=10, fig.width=7}
+mS <- mergeSites(twl, site = cL$site, degElevation = angle, distThreshold = 300)
+```
+
+In this example, we see that there are still sites that might be one - the last three sites. However, the equinox is of course to prominent within the first two of those sites and the resulting distance too far. Definitely room for improvement and maybe merging sites according to the twilight fit and not based on distances. Stay tuned.
+
+Plot the results. Note that site (d) is not shown (median with variation), since no information on latitude is available for this site. One need thing about the `mergeSites` function is, that it provides another set of location estimates based on all twilights within one site and thus less susceptible to 'outliers'. We can add the optimized positions (with confidence interval) for the various sites derived from the `mergeSite` function. Note, that the 'problematic' sites (d-e) are plotted with dashed confidence bars and grey dots.
+
+```{r, fig.width=6, fig.height = 10}
+siteMap(crds1, mS$site, type = "cross", hull = F, lwd = 4, cex = 2,
+        xlim = c(-12, 15), ylim = c(-30, 60))
+
+arrows(mS$summary[-c(4,5),2], mS$summary[-c(4,5),5], mS$summary[-c(4,5),2], mS$summary[-c(4,5),7], 
+       lty = 1, length = 0, lwd = 3)
+arrows(mS$summary[-c(4,5),4], mS$summary[-c(4,5),3], mS$summary[-c(4,5),6], mS$summary[-c(4,5),3], 
+       lty = 1, length = 0, lwd = 3)
+points(mS$summary[-c(4,5),2:3], pch = 21, bg = "white", type = "b", lwd = 2, cex = 1.5)
+
+
+arrows(mS$summary[c(4,5),2], mS$summary[c(4,5),5], mS$summary[c(4,5),2], mS$summary[c(4,5),7], 
+       lty = 2, length = 0, lwd = 1)
+arrows(mS$summary[c(4,5),2], mS$summary[c(4,5),5], mS$summary[c(4,5),2], mS$summary[c(4,5),7], 
+       lty = 2, length = 0, lwd = 1)
+points(mS$summary[c(4,5),2:3], pch = 21, bg = "grey90", type = "b", lwd = 1.5, cex = 1)
+
+arrows(4.9, 46.01, -2.88, 40.46, length = 0.25, lwd = 2)
+
+
+legend("bottomleft", pch = 21, 
+       c("Positions based on 'mergeSites' optimization \nroutine (with 95% confidence intervals)."), 
+       lty = 1)
+legend("topleft", pch = 16, 
+       c("Positions based on 'coord' function \nwith median and the 25 and 75 percent variation."), 
+       lty = 1)
+```
+
+The function schedule may help to derive the temporal pattern of the migration.
+
+```{r}
+schedule(twl$tFirst, twl$tSecond, site = mS$site)
+```
