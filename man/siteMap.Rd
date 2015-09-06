@@ -4,8 +4,8 @@
 \alias{siteMap}
 \title{Draws sites of residency and adds a convex hull}
 \usage{
-siteMap(crds, site, type = "points", hull = T, map.range = c("EuroAfrica",
-  "AustralAsia", "America", "World"), ...)
+siteMap(crds, site, type = "points", quantiles = c(0.25, 0.75), hull = T,
+  map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ...)
 }
 \arguments{
 \item{crds}{a \code{SpatialPoints} or \code{matrix} object, containing x
@@ -16,6 +16,8 @@ period. Stationary periods in numerical order and values >0,
 migration/movement periods 0.}
 
 \item{type}{either \emph{points}, or \emph{cross} to show all points for each site or only show the mean position of the site with standard deviation.}
+
+\item{quantiles}{the quantile of the error bars (\emph{cross}) around the median.}
 
 \item{hull}{\code{logical}, if TRUE a convex hull will be plotted around the points of each site.}
 
