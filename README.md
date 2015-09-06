@@ -8,25 +8,21 @@ data and, finally, the calculation of positions.
 
 ## Installing
 
-The package is easily built with RStudio
+The package is easily installed from GitHub, using the devtools package. 
 
-1. Install R
+```R
+devtools::install_github("SLisovski/GeoLight")
+```
 
-2. Install [RStudio](http://www.rstudio.com)
+If you don't have `devtools` installed already, install it first. 
 
-3. Install [Rtools](http://cran.r-project.org/bin/windows/Rtools/) or equivalent for your platform
+```R
+install.packages("devtools")
+```
 
-4. Install [devtools](http://cran.r-project.org/web/packages/devtools/index.html) and [roxygen2](http://cran.r-project.org/web/packages/roxygen2/index.html) packages and dependencies in R
+(GeoLight otherwise does not need devtools for normal use.)
 
-5. Install [maps](http://cran.r-project.org/web/packages/maps/index.html), [changepoint](http://cran.r-project.org/web/packages/changepoint/index.html) packages and dependencies.
 
-6. Clone the repository from GitHub (https://github.com/slisovski/GeoLight.git).
+## TODO
 
-7. Create an Rstudio project in the folder containing this README file.
-
-8. In the build tab, click `Configure Build Tools...` and click
-`Generate documentation with Roxygen`, select `Configure` and choose to generate `Rd files` leaving the other options as they are.
-
-9. Choose `Roxygenize` from the `Build` tab
-
-10. Choose `Build & Reload` to make the package immediately available to R, or choose `More/Build source package` `More/Build binary package` from the `Build` tab to make source or binary packages.
+...
