@@ -337,8 +337,10 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##'   calib2$tFirst  <- as.POSIXct(calib2$tFirst, tz = "GMT")
 ##'   calib2$tSecond <- as.POSIXct(calib2$tSecond, tz = "GMT")
 ##' getElevation(calib2, known.coord = c(7.1,46.3), lnorm.pars = TRUE)
-##' @export getElevation
 ##' @importFrom MASS fitdistr
+##' @importFrom graphics arrows par hist plot lines mtext
+##' @importFrom stats dlnorm median
+##' @export getElevation
 getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lnorm.pars = FALSE) {
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
@@ -443,8 +445,10 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
 ##'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
 ##' residency <- changeLight(hoopoe2, quantile=0.9)
 ##'
+##' @importFrom changepoint cpt.mean cpts.full pen.value.full
+##' @importFrom stats na.omit quantile
+##' @importFrom graphics abline axis layout mtext par plot rect
 ##' @export changeLight
-##' @importFrom changepoint cpt.mean
 changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, set.prob=NA, days=5, plot=TRUE, summary=TRUE) {
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
@@ -481,11 +485,11 @@ changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, 
   N1 <- seq(1,length(rise))
   N2 <- seq(1,length(set))
   
-  tab1 <- merge(data.frame(N=N1,prob=NA),data.frame(N=changepoint::cpts.full(CPs1)[nrow(changepoint::cpts.full(CPs1)),],
-                                                    prob=changepoint::pen.value.full(CPs1)/2),by.x="N",by.y="N",all.x=T)[,-2]
+  tab1 <- merge(data.frame(N=N1,prob=NA),data.frame(N=cpts.full(CPs1)[nrow(cpts.full(CPs1)),],
+                                                    prob=pen.value.full(CPs1)/2),by.x="N",by.y="N",all.x=T)[,-2]
   tab1[is.na(tab1[,2]),2] <- 0
-  tab2 <- merge(data.frame(N=N2,prob=NA),data.frame(N=changepoint::cpts.full(CPs2)[nrow(changepoint::cpts.full(CPs2)),],
-                                                    prob=changepoint::pen.value.full(CPs2)/2),by.x="N",by.y="N",all.x=T)[,-2]
+  tab2 <- merge(data.frame(N=N2,prob=NA),data.frame(N=cpts.full(CPs2)[nrow(cpts.full(CPs2)),],
+                                                    prob=pen.value.full(CPs2)/2),by.x="N",by.y="N",all.x=T)[,-2]
   tab2[is.na(tab2[,2]),2] <- 0
   # end: Change Point Model
   
@@ -573,7 +577,9 @@ changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, 
     mig[mig>0] <- 1
     plot(tab[,1] + (tab[,2] - tab[,1])/2, 
          ifelse(out$site>0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim=c(0,1.5))
-    rect(as.POSIXct(ds$Arrival, "GMT"), 1.1, as.POSIXct(ds$Departure, "GMT"), 1.4, lwd = 0, col="grey")
+    rect(tw[out$site > 0 & !duplicated(out$site), 1], 1.1, 
+         tw[out$site > 0 & !duplicated(out$site, fromLast = T), 1], 1.4, lwd = 0, 
+         col = "grey")
     par(def.par)
   }
   
@@ -614,6 +620,8 @@ changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, 
 #'
 #' @export mergeSites
 #' @importFrom fields rdist.earth
+#' @importFrom graphics abline axis lines mtext par plot points rect 
+#' @importFrom stats optim dnorm
 mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThreshold = 250, 
                        alpha = c(0, 15), plot = TRUE) {
   
@@ -798,6 +806,7 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 ##' "hour", alternative option is "day".
 ##' @return Logical \code{vector}. TRUE means the particular position passed the filter.
 ##' @author Simeon Lisovski, Fraenzi Korner-Nievergelt
+##' @importFrom stats loess
 ##' @export distanceFilter
 distanceFilter <- function(tFirst, tSecond, type, twl, degElevation = -6, distance, units = "hour") {
   
@@ -846,6 +855,7 @@ distanceFilter <- function(tFirst, tSecond, type, twl, degElevation = -6, distan
 #' \bold{\code{GeoLight}}.
 #' @author Simeon Lisovski
 #' @seealso \code{\link{glfTrans}}
+#' @importFrom utils read.table
 #' @export gleTrans
 gleTrans <- function(file) {
   
@@ -900,6 +910,7 @@ gleTrans <- function(file) {
 #' @author Simeon Lisovski
 #' @seealso \code{\link{gleTrans}}; \code{\link{luxTrans}} for transforming
 #' *.lux files produced by \emph{Migrate Technology Ltd}
+#' @importFrom utils read.table
 #' @export glfTrans
 glfTrans <- function(file="/path/file.glf") {
   
@@ -985,6 +996,9 @@ glfTrans <- function(file="/path/file.glf") {
 ##'                   set.prob=0.1, plot=FALSE, summary=FALSE))
 ##' HillEkstromCalib(hoopoe2,site = residency$site)
 ##'
+##' @importFrom grDevices grey.colors
+##' @importFrom graphics abline axis mtext legend lines par plot points text
+##' @importFrom stats var na.omit
 ##' @export HillEkstromCalib
 HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, distanceFilter=FALSE, distance, plot=TRUE) {
   
@@ -1405,27 +1419,6 @@ i.sum.Cl <- function(object) {
   }
 }
 
-i.mode <- function(x, w=NULL) {
-  if(is.null(w)){
-    if(sum(!is.na(x))>1){
-      x <- x[!is.na(x)]
-      xdens <- density(x)
-      xmax <- xdens$x[xdens$y==max(xdens$y, na.rm=TRUE)]
-    }
-    if(sum(!is.na(x))<2) xmax <- NA
-  }
-  if(!is.null(w)){
-    x <- rep(x,w)
-    if(sum(!is.na(x))>1){
-      x <- x[!is.na(x)]
-      xdens <- density(x)
-      xmax <- xdens$x[xdens$y==max(xdens$y, na.rm=TRUE)]
-    }
-    if(sum(!is.na(x))<2) xmax <- NA
-  }  
-  return(mean(xmax))
-}
-
 
 #' Filter to remove noise in light intensity measurements during the night
 #'
@@ -1513,6 +1506,8 @@ lightFilter <- function(light, baseline=NULL, iter=2){
 ##' be produced.
 ##' @return Logical \code{vector} matching positions that pass the filter.
 ##' @author Simeon Lisovski & Eldar Rakhimberdiev
+##' @importFrom graphics axis mtext legend lines par plot points
+##' @importFrom stats loess predict residuals
 ##' @export loessFilter
 loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE){
   
@@ -1604,6 +1599,7 @@ loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE){
 #' @author Simeon Lisovski
 #' @seealso \code{\link{gleTrans}} for transforming *.glf files produced by the
 #' software GeoLocator (\emph{Swiss Ornithological Institute})
+#' @importFrom utils read.table
 #' @export luxTrans
 luxTrans <- function(file) {
   
@@ -1625,6 +1621,7 @@ luxTrans <- function(file) {
 #' @author Tamara Emmenegger
 #' @seealso \code{\link{gleTrans}} for transforming *.glf files produced by the
 #' software GeoLocator (\emph{Swiss Ornithological Institute})
+#' @importFrom utils read.csv
 #' @export ligTrans
 ligTrans <- function(file) {
   df <- cbind(read.csv(file,row.names=NULL)[,c(2,4)])
@@ -1642,6 +1639,7 @@ ligTrans <- function(file) {
 #' @return A \code{data.frame} suitable for further use in
 #' \bold{\code{GeoLight}}.
 #' @author Tamara Emmenegger
+#' @importFrom utils read.table
 #' @export staroddiTrans
 staroddiTrans <- function(file){
   df <- cbind(read.table(file,sep="\t")[,c(2,4)])
@@ -1660,6 +1658,7 @@ staroddiTrans <- function(file){
 #' @return A \code{data.frame} suitable for further use in
 #' \bold{\code{GeoLight}}.
 #' @author Tamara Emmenegger
+#' @importFrom utils read.table
 #' @export trnTrans
 trnTrans<-function(file){
   data<-read.table(file,sep=",")
@@ -1747,6 +1746,7 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' period. Stationary periods in numerical order and values >0,
 #' migration/movement periods 0.
 #' @param type either \emph{points}, or \emph{cross} to show all points for each site or only show the mean position of the site with standard deviation.
+#' @param quantiles the quantile of the error bars (\emph{cross}) around the median.
 #' @param hull \code{logical}, if TRUE a convex hull will be plotted around the points of each site.
 #' @param map.range some possibilities to choose defined areas ("World
 #' (default)", "EuroAfrica","America","AustralAsia").
@@ -1765,10 +1765,12 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' siteMap(crds[filter,], site[filter], xlim=c(-20,20), ylim=c(0,60), 
 #'  lwd=2, pch=20, cex=0.5, main="hoopoe2")
 #'
-#' @export siteMap
 #' @importFrom maps map map.axes
-siteMap <- function(crds, site, type = "points", hull = T, map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ...) {
-  
+#' @importFrom grDevices chull col2rgb rainbow rgb
+#' @importFrom graphics legend mtext par plot points segments
+#' @export siteMap
+siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull = T, 
+                    map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ...) {  
   args <- list(...)
   
   if(all(map.range==c("EuroAfrica", "AustralAsia", "America", "World")) & sum(names(args)%in%c("xlim", "ylim"))!=2) {
@@ -1833,38 +1835,36 @@ siteMap <- function(crds, site, type = "points", hull = T, map.range = c("EuroAf
   }
   if(type=="cross") {
     for (i in 1:max(unique(site))){
-      points(i.mode(crds[site == i, 1],1),
-             i.mode(crds[site == i, 2],1),
-             col = col[i],
-             cex = ifelse(any(names(args)=="cex"), args$cex, 1),
-             pch = ifelse(any(names(args)=="pch"), args$pch, 16)) 
-      segments(quantile(crds[site == i, 1],na.rm=T)[2],
-               i.mode(crds[site == i, 2],1),
-               quantile(crds[site == i, 1],na.rm=T)[4],
-               i.mode(crds[site == i, 2],1),
+      if(!all(is.na(crds[site==i, 2]))){
+        tmp.lon <- quantile(crds[site == i, 1], probs = c(quantiles, 0.5), na.rm = T)
+        tmp.lat <- quantile(crds[site == i, 2], probs = c(quantiles, 0.5), na.rm = T)
+        points(tmp.lon[3], tmp.lat[3],
+               col = col[i],
+               cex = ifelse(any(names(args)=="cex"), args$cex, 1),
+               pch = ifelse(any(names(args)=="pch"), args$pch, 16))
+        segments(tmp.lon[1], tmp.lat[3], tmp.lon[2], tmp.lat[3],
                col = col[i],
                lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
-      segments(i.mode(crds[site == i, 1],1),
-               quantile(crds[site == i, 2],na.rm=T)[4],
-               i.mode(crds[site == i, 1],1),
-               quantile(crds[site == i, 2],na.rm=T)[2],
+        segments(tmp.lon[3], tmp.lat[1], tmp.lon[3], tmp.lat[2],
                col = col[i],
                lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
+      }
     }
   }    
   
   
   if(hull) {
     for(j in unique(site)){
-      if(j>0){
-        X <- na.omit(crds[site==j,])
-        
-        hpts <- chull(X)
-        hpts <- c(hpts,hpts[1])
-        lines(X[hpts,], 
-              lty = ifelse(sum(names(args)%in%"lty")==1, args$lty, 1),
-              lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 1),
-              col = col[j])
+          if(!all(is.na(crds[site==j, 2]))){
+          if(j>0){
+            X <- na.omit(crds[site==j,])
+            hpts <- chull(X)
+            hpts <- c(hpts,hpts[1])
+            lines(X[hpts,], 
+                 lty = ifelse(sum(names(args)%in%"lty")==1, args$lty, 1),
+                       lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 1),
+                       col = col[j])
+        }
       }
     }
   }
@@ -1916,6 +1916,7 @@ siteMap <- function(crds, site, type = "points", hull = T, map.range = c("EuroAf
 ##' ##		degElevation=-6, col.scheme="heat.colors", cex=0.7,
 ##' ##		line.col="goldenrod")
 ##'}
+##' @importFrom grDevices rgb
 ##' @export trip2kml
 trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat.colors", point.alpha=0.7, cex=1, line.col="goldenrod")
 {
@@ -2070,11 +2071,12 @@ trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat
 #' crds <- coord(hoopoe2, degElevation = -6)
 #' tripMap(crds, xlim = c(-20,20), ylim = c(0,60), main="hoopoe2")
 #'
+#' @importFrom maps map map.axes
+#' @importFrom graphics lines legend mtext par plot points
 #' @export tripMap
 tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","America","World"), legend = TRUE, ...) {
   
   args <- list(...)
-  
   if(all(map.range==c("EuroAfrica", "AustralAsia", "America", "World")) & sum(names(args)%in%c("xlim", "ylim"))!=2) {
     range <- c(-180, 180, -80, 90)
   } 
@@ -2177,6 +2179,8 @@ tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","
 #' series forward. Note, that a backward option is not included.
 #' @author Simeon Lisovski
 #' @export twilightCalc
+#' @importFrom grDevices graphics.off
+#' @importFrom graphics abline axis identify legend plot points 
 twilightCalc <- function(datetime, light, LightThreshold=TRUE, preSelection=TRUE, maxLight=NULL, ask=TRUE, nsee=500, allTwilights=FALSE)
 {
   if(class(datetime)[1]!="POSIXct") {
