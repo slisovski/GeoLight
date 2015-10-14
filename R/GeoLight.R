@@ -783,7 +783,6 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 
 
 
-
 ##' Filter for unrealistic positions within a track based on distance
 ##'
 ##' The filter identifies unrealistic positions. The maximal distance per
