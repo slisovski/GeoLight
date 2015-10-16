@@ -587,8 +587,8 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
     plot(tab[, 1] + (tab[, 2] - tab[, 1])/2, ifelse(out$site > 
                                                       0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim = c(0,1.5)) 
     
-    min.r <- aggregate(as.numeric(twl.gl$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) min(x))
-    max.r <- aggregate(as.numeric(twl.gl$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) max(x))
+    min.r <- aggregate(as.numeric(tab$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) min(x))
+    max.r <- aggregate(as.numeric(tab$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) max(x))
     
     rect(min.r[,2], 1.1, max.r[,2], 1.4, col = "grey90", lwd = 0)
     
@@ -639,8 +639,7 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
 mergeSites <- function (tFirst, tSecond, type, twl, site, degElevation, distThreshold = 250, 
                         fixed = NULL, alpha = c(0, 15), plot = TRUE) 
 {
-  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), 
-                                                             FUN = function(x) any(class(x) != "name"))])
+  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(),FUN = function(x) any(class(x) != "name"))])
   site0 <- site
   if(is.null(fixed)) fixed = matrix(FALSE, nrow = nrow(tab), ncol = 2)
   tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond),"GMT"), 
@@ -668,7 +667,7 @@ mergeSites <- function (tFirst, tSecond, type, twl, site, degElevation, distThre
       diff <- as.numeric(difftime(x[, 1], t.tw, units = "mins"))
       -sum(dnorm(diff, alpha[1], alpha[2], log = T), na.rm = T)
     }
-    fit0 <- optim(cbind(median(x[, 3], na.rm = T), median(x[,4], na.rm = T)), 
+    fit0 <- optim(cbind(median(x[, 4], na.rm = T), median(x[,5], na.rm = T)), 
                   loglik, lower = cbind(lonlim[1], latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
                   method = "L-BFGS-B", hessian = T)
     fit <- optim(cbind(fit0$par[1], fit0$par[2]), loglik, 
