@@ -5,7 +5,7 @@
 \title{Function to merge sites}
 \usage{
 mergeSites(tFirst, tSecond, type, twl, site, degElevation,
-  distThreshold = 250, alpha = c(0, 15), plot = TRUE)
+  distThreshold = 250, fixed = NULL, alpha = c(0, 15), plot = TRUE)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}
@@ -26,6 +26,8 @@ twilight"). Either a single value, a \code{vector} with the same length as
 
 \item{distThreshold}{a \code{numerical} value defining the threshold of the distance under
 which consequtive sites should be merged (in km).}
+
+\item{fixed}{...}
 
 \item{alpha}{mean and standard variation for position optimization process.}
 

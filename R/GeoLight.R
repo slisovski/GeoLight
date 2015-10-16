@@ -417,6 +417,7 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
 ##' equal values indicates changes in the behaviour of the individual.
 ##' @param days a threshold for the length of stationary period. Periods smaller
 ##' than "days" will not be considered as a residency period
+##' @param fixed ...
 ##' @param plot logical, if \code{TRUE} a plot will be produced
 ##' @param summary logical, if \code{TRUE} a summary of the results will be
 ##' printed
@@ -449,146 +450,158 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
 ##' @importFrom stats na.omit quantile
 ##' @importFrom graphics abline axis layout mtext par plot rect
 ##' @export changeLight
-changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, set.prob=NA, days=5, plot=TRUE, summary=TRUE) {
+changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA, 
+                         set.prob = NA, days = 5, fixed = NULL, plot = TRUE, summary = TRUE) {
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
+  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), 
+                                                             FUN = function(x) any(class(x) != "name"))])
+  
+  if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
   
   tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
-                   type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
-  tw <- tw[!duplicated(tw$datetime),]
-  tw <- tw[order(tw[,1]),]
+                   type = c(tab$type, ifelse(tab$type == 1, 2, 1)),
+                   fixed = c(fixed[,1], fixed[,2]))
+  tw <- tw[!duplicated(tw$datetime), ]
+  tw <- tw[order(tw[, 1]), ]
+  hours <- as.numeric(format(tw[, 1], "%H")) + as.numeric(format(tw[,1], "%M"))/60
   
-  hours <- as.numeric(format(tw[,1],"%H"))+as.numeric(format(tw[,1],"%M"))/60
-  
-  for(t in 1:2){
+  for (t in 1:2) {
     cor <- rep(NA, 24)
-    for(i in 0:23){
-      cor[i+1] <- max(abs((c(hours[tw$type==t][1],hours[tw$type==t])+i)%%24 -
-                            (c(hours[tw$type==t],hours[tw$type==t][length(hours)])+i)%%24),na.rm=T)
+    for (i in 0:23) {
+      cor[i + 1] <- max(abs((c(hours[tw$type == t][1], 
+                               hours[tw$type == t]) + i)%%24 - (c(hours[tw$type == t], 
+                                                                  hours[tw$type == t][length(hours)]) + i)%%24), na.rm = T)
     }
-    hours[tw$type==t] <- (hours[tw$type==t] + (which.min(round(cor,2)))-1)%%24
+    hours[tw$type == t] <- (hours[tw$type == t] + (which.min(round(cor, 2))) - 1)%%24
   }
   
-  sr <- tw[tw[,2]==1,1]
-  ss <- tw[tw[,2]==2,1]
+  sr <- tw[tw[, 2] == 1, 1]
+  ss <- tw[tw[, 2] == 2, 1]
+  rise <- hours[tw[, 2] == 1]
+  set <- hours[tw[, 2] == 2]
+  CPs1 <- suppressWarnings(changepoint:::cpt.mean(rise, method = "BinSeg", 
+                                                  Q = length(rise)/2, penalty = "Manual", pen.value = 0.001, 
+                                                  test.stat = "CUSUM", param.estimates = FALSE))
+  CPs2 <- suppressWarnings(changepoint:::cpt.mean(set, method = "BinSeg", 
+                                                  Q = length(set)/2, penalty = "Manual", pen.value = 0.001, 
+                                                  test.stat = "CUSUM", param.estimates = FALSE))
+  N1 <- seq(1, length(rise))
+  N2 <- seq(1, length(set))
+  tab1 <- merge(data.frame(N = N1, prob = NA), data.frame(N = changepoint:::cpts.full(CPs1)[nrow(changepoint:::cpts.full(CPs1)),], 
+                                                          prob = changepoint:::pen.value.full(CPs1)/2), by.x = "N", by.y = "N", all.x = T)[, -2]
+  tab1[is.na(tab1[, 2]), 2] <- 0
+  tab1[tw$fixed[tw$type==1],2] <- NA
   
-  rise <- hours[tw[,2]==1]
-  set <- hours[tw[,2]==2]
+  tab2 <- merge(data.frame(N = N2, prob = NA), data.frame(N = changepoint:::cpts.full(CPs2)[nrow(changepoint:::cpts.full(CPs2)),], 
+                                                          prob = changepoint:::pen.value.full(CPs2)/2), by.x = "N", by.y = "N",all.x = T)[, -2]
+  tab2[is.na(tab2[, 2]), 2] <- 0
+  tab2[tw$fixed[tw$type==2],2] <- NA
   
-  # start: Change Point Model
-  # max. possible Change Points (length(sunrise)/2)
-  CPs1 <- suppressWarnings(cpt.mean(rise, method= "BinSeg", Q=length(rise)/2, penalty="Manual",pen.value=0.001, 
-                                    test.stat = "CUSUM",param.estimates=FALSE))
-  CPs2 <- suppressWarnings(cpt.mean(set, method="BinSeg", Q=length(set)/2, penalty="Manual",pen.value=0.001, 
-                                    test.stat = "CUSUM",param.estimates=FALSE))
-  
-  N1 <- seq(1,length(rise))
-  N2 <- seq(1,length(set))
-  
-  tab1 <- merge(data.frame(N=N1,prob=NA),data.frame(N=cpts.full(CPs1)[nrow(cpts.full(CPs1)),],
-                                                    prob=pen.value.full(CPs1)/2),by.x="N",by.y="N",all.x=T)[,-2]
-  tab1[is.na(tab1[,2]),2] <- 0
-  tab2 <- merge(data.frame(N=N2,prob=NA),data.frame(N=cpts.full(CPs2)[nrow(cpts.full(CPs2)),],
-                                                    prob=pen.value.full(CPs2)/2),by.x="N",by.y="N",all.x=T)[,-2]
-  tab2[is.na(tab2[,2]),2] <- 0
-  # end: Change Point Model
-  
-  # quantile calculation
-  if(is.na(rise.prob) & is.na(set.prob)) {
-    rise.prob <- as.numeric(round(as.numeric(quantile(tab1[tab1[,2]!=0,2],probs=quantile,na.rm=TRUE)), digits=5))
-    set.prob  <- as.numeric(round(as.numeric(quantile(tab2[tab2[,2]!=0,2],probs=quantile,na.rm=TRUE)), digits=5))
+  if (is.na(rise.prob) & is.na(set.prob)) {
+    rise.prob <- as.numeric(round(as.numeric(quantile(tab1[tab1[, 
+                                                                2] != 0, 2], probs = quantile, na.rm = TRUE)), digits = 5))
+    set.prob <- as.numeric(round(as.numeric(quantile(tab2[tab2[, 
+                                                               2] != 0, 2], probs = quantile, na.rm = TRUE)), digits = 5))
   }
-  
-  
-  riseProb <- ifelse(tab1[,2]>=rise.prob, NA, TRUE)
-  setProb  <- ifelse(tab2[,2]>=set.prob, NA, TRUE)
-  
-  tmp02 <- rbind(data.frame(time = tw[tw[,2]==1,1], prob = tab1[,2], cut = riseProb), 
-                 data.frame(time = tw[tw[,2]==2,1], prob = tab2[,2], cut = setProb))[order(c(sr, ss)),]
+  riseProb <- ifelse(tab1[, 2] >= rise.prob, NA, TRUE)
+  setProb <- ifelse(tab2[, 2] >= set.prob, NA, TRUE)
+  tmp02 <- rbind(data.frame(time = tw[tw[, 2] == 1, 1], prob = tab1[,2], cut = riseProb, fixed = tw$fixed[tw[, 2] == 1]), 
+                 data.frame(time = tw[tw[, 2] == 2, 1], prob = tab2[, 2], cut = setProb, fixed = tw$fixed[tw[, 2] == 2]))[order(c(sr, ss)), ]
   tmp02 <- cbind(tmp02, NA)
   
   s <- 1
-  for(i in 2:nrow(tmp02)) {
-    if(is.na(tmp02[i-1, 3]) & !is.na(tmp02[i, 3])) {
-      s <- s+1
-      tmp02[i, 4] <- s
-    }
-    if(!is.na(tmp02[i-1, 3]) & !is.na(tmp02[i, 3])) tmp02[i, 4] <- s
+  for (i in 1:nrow(tmp02)) {
+    if(i<nrow(tmp02)) if(tmp02$fixed[i+1] & !tmp02$fixed[i]) tmp02$cut[i] <- NA
+    if(i>1) if(tmp02$fixed[i-1] & !tmp02$fixed[i]) tmp02$cut[i] <- NA
+    
+    if(tmp02[i, 'fixed']) {
+      if(i>1) if(is.na(tmp02$cut[i-1]) & !tmp02$fixed[i-1]) s <- s+1
+      tmp02[i, 5] <- s} else { 
+        if(i%in%c(2:(nrow(tmp02)-1))){
+          if(is.na(tmp02[i - 1, 'cut']) & !is.na(tmp02[i, 'cut'])) {
+            s <- s + 1
+            tmp02[i, 5] <- s
+          }
+          if (!is.na(tmp02[i - 1, 'cut']) & !is.na(tmp02[i, 'cut'])) 
+            tmp02[i, 5] <- s
+        }
+      }
   }
-  
-  ind01 <- tapply(as.numeric(tmp02[,1]), tmp02[,4], FUN = function(x) ((x[length(x)]-x[1])/60/60/24)>days)
-  ind02 <- as.numeric(names(ind01)[ind01])
-  
-  tmp02[,4] <- ifelse(tmp02[,4]%in%ind02, tmp02[,4], NA)
+  ind01 <- aggregate(as.numeric(tmp02[!is.na(tmp02[,5]) & !tmp02$fixed,1]), by = list(tmp02[!is.na(tmp02[,5]) & !tmp02$fixed, 5]), 
+                     FUN =  function(x) (x[length(x)] - x[1])/60/60/24 > days)
+  tmp02[, 5] <- ifelse(tmp02[, 5]%in%c(ind01[ind01[,2],1], unique(tmp02[tmp02$fixed, 5])), tmp02[, 5], NA)
   
   s <- 1
-  for(i in ind02) {
-    tmp02[!is.na(tmp02[,4]) & tmp02[,4]==i, 4] <- s
-    s <- s+1
+  for (i in unique(tmp02[!is.na(tmp02[,5]),5])) {
+    tmp02[!is.na(tmp02[, 5]) & tmp02[, 5] == i, 5] <- s
+    s <- s + 1
   }
-  
-  
-  t02 <- schedule(tab$tFirst, tab$tSecond, tmp02[1:nrow(tab),4])
-  
-  arr <- tmp02[!is.na(tmp02[,4]) & !duplicated(tmp02[,4]),]
-  dep <- tmp02[!is.na(tmp02[,4]) & !duplicated(tmp02[,4], fromLast = T),]
-  
+  t02 <- schedule(tab$tFirst, tab$tSecond, tmp02[1:nrow(tab),5])
+  arr <- tmp02[!is.na(tmp02[, 5]) & !duplicated(tmp02[, 5]),]
+  dep <- tmp02[!is.na(tmp02[, 5]) & !duplicated(tmp02[, 5], fromLast = T), ]
   t02$P.start <- arr$prob
-  t02$P.end   <- dep$prob
-  
+  t02$P.end <- dep$prob
   t02$Days <- apply(t02, 1, function(x) round(as.numeric(difftime(x[3], x[2], units = "days")), 1))
-  ds <- t02[,c(1:3, 6, 4:6,4)]
-  
-  out <- list(riseProb = tab1[,2], setProb = tab2[,2], rise.prob = rise.prob, set.prob = set.prob, 
-              site = ifelse(!is.na(tmp02[,4]), tmp02[,4], 0)[1:nrow(tab)],
-              migTable = ds)
-  
-  
-  if(plot){
+  ds <- t02
+  out <- list(riseProb = tab1[, 2], setProb = tab2[, 2], rise.prob = rise.prob, 
+              set.prob = set.prob, site = ifelse(!is.na(tmp02[, 5]), 
+                                                 tmp02[, 5], 0)[1:nrow(tab)], migTable = ds)
+  if (plot) {
     def.par <- par(no.readonly = TRUE)
-    nf <- layout(matrix(c(4,1,2,3),nrow=4,byrow=T),heights=c(0.5,1,0.5,0.5))
-    
-    par(mar=c(2,4.5,2,5),cex.lab=1.5,cex.axis=1.5,bty="o")
-    plot(sr, rise, type="o",cex=0.2,col="firebrick",ylab="Sunrise (red)", 
-         xlim = range(sr),xaxt="n")
-    par(new=T)
-    plot(ss, set, type="o",cex=0.2,col="cornflowerblue",xaxt="n",yaxt="n",xlab="",
-         ylab="",xlim=range(ss))
+    nf <- layout(matrix(c(4, 1, 2, 3), nrow = 4, byrow = T), 
+                 heights = c(0.5, 1, 0.5, 0.5))
+    par(mar = c(2, 4.5, 2, 5), cex.lab = 1.5, cex.axis = 1.5, 
+        bty = "o")
+    rise[tw$fixed[tw$type==1]] <- NA
+    plot(sr, rise, 
+         type = "o", cex = 0.2, col = "firebrick", 
+         ylab = "Sunrise (red)", xlim = range(sr), xaxt = "n")
+    par(new = T)
+    set[tw$fixed[tw$type==2]] <- NA
+    plot(ss, set, type = "o", cex = 0.2, col = "cornflowerblue", 
+         xaxt = "n", yaxt = "n", xlab = "", ylab = "", xlim = range(ss))
     axis(4)
-    mtext("Sunset (blue)",4,line=2.7,cex=1)
-    axis(1,at=seq(min(ss),max(ss), by=(10*24*60*60)),labels=F)
-    axis(1,at=seq(min(ss),max(ss), by=(30*24*60*60)),lwd.ticks=2,
-         labels=trunc(seq(min(ss),max(ss), by=(30*24*60*60)), "days"),cex.axis=1)
-    
-    par(mar=c(1.5,4.5,0.8,5),bty="n")
-    plot(sr, tab1[,2], type = "h", lwd = 4, col = "firebrick", ylab = "", xaxt = "n",
-         xlim= range(sr) ,ylim = c(0, max(na.omit(c(tab1[,2],tab2[,2])))))
-    if(is.numeric(rise.prob)) abline(h = rise.prob, lty=2, lwd = 1.5)
-    
-    opar <- par(mar=c(1.5,4.5,0.8,5),bty="n")
-    plot(ss, tab2[,2], type = "h", lwd = 4, col = "cornflowerblue", ylab = "", xaxt = "n",
-         xlim= range(ss) ,ylim = c(0, max(na.omit(c(tab1[,2],tab2[,2])))))
-    if(is.numeric(set.prob)) abline(h = set.prob, lty=2, lwd = 1.5)
-    
-    mtext("Probability of change", side=2, at = max(na.omit(c(tab1[,2],tab2[,2]))), line=3)
-    
-    par(mar=c(1,4.5,1,5),bty="o")
+    mtext("Sunset (blue)", 4, line = 2.7, cex = 1)
+    axis(1, at = seq(min(ss), max(ss), by = (10 * 24 * 60 * 
+                                               60)), labels = F)
+    axis(1, at = seq(min(ss), max(ss), by = (30 * 24 * 60 * 
+                                               60)), lwd.ticks = 2, labels = trunc(seq(min(ss), 
+                                                                                       max(ss), by = (30 * 24 * 60 * 60)), "days"), cex.axis = 1)
+    par(mar = c(1.5, 4.5, 0.8, 5), bty = "n")
+    plot(sr, tab1[, 2], type = "h", lwd = 4, col = "firebrick", 
+         ylab = "", xaxt = "n", xlim = range(sr), ylim = c(0, 
+                                                           max(na.omit(c(tab1[, 2], tab2[, 2])))))
+    if (is.numeric(rise.prob)) 
+      abline(h = rise.prob, lty = 2, lwd = 1.5)
+    opar <- par(mar = c(1.5, 4.5, 0.8, 5), bty = "n")
+    plot(ss, tab2[, 2], type = "h", lwd = 4, col = "cornflowerblue", 
+         ylab = "", xaxt = "n", xlim = range(ss), ylim = c(0, 
+                                                           max(na.omit(c(tab1[, 2], tab2[, 2])))))
+    if (is.numeric(set.prob)) 
+      abline(h = set.prob, lty = 2, lwd = 1.5)
+    mtext("Probability of change", side = 2, at = max(na.omit(c(tab1[, 
+                                                                     2], tab2[, 2]))), line = 3)
+    par(mar = c(1, 4.5, 1, 5), bty = "o")
     mig <- out$site
-    mig[mig>0] <- 1
-    plot(tab[,1] + (tab[,2] - tab[,1])/2, 
-         ifelse(out$site>0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim=c(0,1.5))
-    rect(tw[out$site > 0 & !duplicated(out$site), 1], 1.1, 
-         tw[out$site > 0 & !duplicated(out$site, fromLast = T), 1], 1.4, lwd = 0, 
-         col = "grey")
+    mig[mig > 0] <- 1
+    plot(tab[, 1] + (tab[, 2] - tab[, 1])/2, ifelse(out$site > 
+                                                      0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim = c(0,1.5)) 
+    
+    min.r <- aggregate(as.numeric(twl.gl$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) min(x))
+    max.r <- aggregate(as.numeric(twl.gl$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) max(x))
+    
+    rect(min.r[,2], 1.1, max.r[,2], 1.4, col = "grey90", lwd = 0)
+    
+    rect(min.r[,2], 1.1, max.r[,2], 1.4, col = ifelse(unique(out$site[out$site>0])%in%unique(tmp02[tmp02$fixed, 5]), "red", "transparent"),
+         density = 60)
+    
     par(def.par)
   }
-  
-  
-  if(summary){i.sum.Cl(out)}
-  
+  if (summary) {
+    GeoLight:::i.sum.Cl(out)
+  }
   return(out)
 }
-
 
 
 #' Function to merge sites
@@ -613,6 +626,7 @@ changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, 
 ##' \code{tFirst} or \code{nrow(x)}.
 #' @param distThreshold a \code{numerical} value defining the threshold of the distance under 
 #' which consequtive sites should be merged (in km).
+#' @param fixed ...
 #' @param alpha mean and standard variation for position optimization process.
 #' @param plot \code{logical}, if TRUE a plot comparing the inital and the final site selection.
 #' @return A \code{vector} with the merged site numbers
@@ -622,22 +636,26 @@ changeLight <- function(tFirst, tSecond, type, twl, quantile=0.9, rise.prob=NA, 
 #' @importFrom fields rdist.earth
 #' @importFrom graphics abline axis lines mtext par plot points rect 
 #' @importFrom stats optim dnorm
-mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThreshold = 250, 
-                       alpha = c(0, 15), plot = TRUE) {
-  
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), 
-                                                  FUN = function(x) any(class(x) != "name"))])
+mergeSites <- function (tFirst, tSecond, type, twl, site, degElevation, distThreshold = 250, 
+                        fixed = NULL, alpha = c(0, 15), plot = TRUE) 
+{
+  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), 
+                                                             FUN = function(x) any(class(x) != "name"))])
   site0 <- site
-  tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
-                   type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
+  if(is.null(fixed)) fixed = matrix(FALSE, nrow = nrow(tab), ncol = 2)
+  tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond),"GMT"), 
+                   type = c(tab$type, ifelse(tab$type == 1, 2, 1)),
+                   fixed = c(fixed[,1], fixed[,2]))
+  
   tw <- tw[!duplicated(tw$datetime), ]
   tw <- tw[order(tw[, 1]), ]
-  tw <- tw[1:nrow(tab),]
+  tw <- tw[1:nrow(tab), ]
   
   crds0 <- coord(tab, degElevation = degElevation, note = F)
-  tw$lon <- crds0[,1]
-  tw$lat <- crds0[,2]
-  
+  fixed.ind <- apply(fixed, 1, function(x) any(x==TRUE))
+  crds0[fixed.ind] <- cbind(NA, NA)
+  tw$lon <- crds0[, 1]
+  tw$lat <- crds0[, 2]
   lonlim <- range(crds0[, 1], na.rm = T)
   lon.seq <- seq(lonlim[1] - 1, lonlim[2] + 1, by = 1)
   latlim <- range(crds0[, 2], na.rm = T)
@@ -650,12 +668,12 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
       diff <- as.numeric(difftime(x[, 1], t.tw, units = "mins"))
       -sum(dnorm(diff, alpha[1], alpha[2], log = T), na.rm = T)
     }
-    fit0 <- optim(cbind(median(x[,3], na.rm = T), median(x[,4], na.rm = T)), loglik, lower = cbind(lonlim[1], 
-                                                                                                   latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
+    fit0 <- optim(cbind(median(x[, 3], na.rm = T), median(x[,4], na.rm = T)), 
+                  loglik, lower = cbind(lonlim[1], latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
                   method = "L-BFGS-B", hessian = T)
-    fit  <- optim(cbind(fit0$par[1], fit0$par[2]), loglik, lower = cbind(lonlim[1], 
-                                                                         latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
-                  method = "L-BFGS-B", hessian = T)
+    fit <- optim(cbind(fit0$par[1], fit0$par[2]), loglik, 
+                 lower = cbind(lonlim[1], latlim[1]), upper = cbind(lonlim[2], 
+                                                                    latlim[2]), method = "L-BFGS-B", hessian = T)
     fisher_info <- solve(fit$hessian)
     prop_sigma <- sqrt(diag(fisher_info))
     prop_sigma <- diag(prop_sigma)
@@ -666,57 +684,79 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
     matrix(c(fit$par[1], fit$par[2], lon.lower, lat.lower, 
              lon.upper, lat.upper), ncol = 6)
   }
-  out <- data.frame(site = unique(site[site != 0]), t(sapply(split(tw[site != 0, ], f = site[site != 0]), mod)))
+  out <- data.frame(site = unique(site[site != 0 & !fixed.ind]), t(sapply(split(tw[site != 0 & !fixed.ind, ], 
+                                                                                f = site[site != 0 & !fixed.ind]), mod)))
+  
   rep = TRUE
   ite = 1
   repeat {
-    for (i in 1:(length(site[site != 0 & !duplicated(site)]) - 1)) {
-      dist0 <- rdist.earth(out[i:(i + 1), 2:3])[2, 1]
+    for (i in site[site != 0 & !duplicated(site) & !fixed.ind]) {
+      if(i==max(out$site)) break
+      dist0 <- fields:::rdist.earth(out[which(out[,1]==i):(which(out[,1]==i) + 1), 2:3])[2, 1]
       if (dist0 <= distThreshold) 
         break
     }
-    if (i < (length(site[site != 0 & !duplicated(site)]) - 1)) {
+    if (i < max(site[site != 0 & !duplicated(site) & !fixed.ind])) {
       site[(which(site == i)[1]):(which(site == (i + 1))[sum(site == (i + 1))])] <- i
       site[which(site > i)] <- site[which(site > i)] - 1
     } else rep = FALSE
-    out <- data.frame(site = unique(site[site != 0]), t(sapply(split(tw[site !=  0, ], f = site[site != 0]), mod)))
+    out <- data.frame(site = unique(site[site != 0 & !fixed.ind]), t(sapply(split(tw[site != 0 & !fixed.ind, ], 
+                                                                                  f = site[site != 0 & !fixed.ind]), mod)))
     if (!rep) 
       break
     else ite <- ite + 1
   }
   
+  if(any(fixed)) {
+    fs <- site[site != 0 & !duplicated(site) & fixed.ind]
+    out.temp <- as.data.frame(cbind(fs, matrix(NA, nrow = length(fs), ncol = ncol(out)-1)))
+    names(out.temp) <- names(out)
+    out <- rbind(out, out.temp)
+    out <- out[order(out[,1]),]
+  }
+  
   
   if (plot) {
-    hours0 <- as.numeric(format(tw[, 1], "%H")) + as.numeric(format(tw[, 1], "%M"))/60
+    hours0 <- as.numeric(format(tw[, 1], "%H")) + as.numeric(format(tw[, 
+                                                                       1], "%M"))/60
     crd0 <- out[match(site, out$site), 2:3]
-    crd0[!is.na(crd0[,1]),] <- crds0[!is.na(crd0[,1]),]
-    hours1 <- twilight(tw[, 1], rise = ifelse(tw[, 2] == 1, TRUE, FALSE), zenith = 90 - degElevation, 
-                       lon = out[match(site, out$site), 2], lat = out[match(site, out$site), 3])
-    hours1 <- as.numeric(format(hours1, "%H")) + as.numeric(format(hours1, "%M"))/60
-    hours2 <- twilight(tw[, 1], rise = ifelse(tw[, 2] == 1, TRUE, FALSE), zenith = 90 - degElevation, 
-                       lon = out[match(site, out$site), 4], lat = out[match(site, out$site), 3])
-    
-    hours2 <- as.numeric(format(hours2, "%H")) + as.numeric(format(hours2,"%M"))/60
-    hours3 <- twilight(tw[, 1], rise = ifelse(tw[, 2] == 1, TRUE, FALSE), zenith = 90 - degElevation, 
-                       lon = out[match(site, out$site), 6], lat = out[match(site, out$site), 3])
-    hours3 <- as.numeric(format(hours3, "%H")) + as.numeric(format(hours3,"%M"))/60
-    
-    
+    crd0[!is.na(crd0[, 1]), ] <- crds0[!is.na(crd0[, 1]), 
+                                       ]
+    hours1 <- twilight(tw[, 1], rise = ifelse(tw[, 2] == 
+                                                1, TRUE, FALSE), zenith = 90 - degElevation, lon = out[match(site, 
+                                                                                                             out$site), 2], lat = out[match(site, out$site), 3])
+    hours1 <- as.numeric(format(hours1, "%H")) + as.numeric(format(hours1, 
+                                                                   "%M"))/60
+    hours2 <- twilight(tw[, 1], rise = ifelse(tw[, 2] == 
+                                                1, TRUE, FALSE), zenith = 90 - degElevation, lon = out[match(site, 
+                                                                                                             out$site), 4], lat = out[match(site, out$site), 3])
+    hours2 <- as.numeric(format(hours2, "%H")) + as.numeric(format(hours2, 
+                                                                   "%M"))/60
+    hours3 <- twilight(tw[, 1], rise = ifelse(tw[, 2] == 
+                                                1, TRUE, FALSE), zenith = 90 - degElevation, lon = out[match(site, 
+                                                                                                             out$site), 6], lat = out[match(site, out$site), 3])
+    hours3 <- as.numeric(format(hours3, "%H")) + as.numeric(format(hours3, 
+                                                                   "%M"))/60
     for (t in 1:2) {
       cor <- rep(NA, 24)
       for (i in 0:23) {
         cor[i + 1] <- max(abs((c(hours0[tw$type == t][1], 
-                                 hours0[tw$type == t]) + i)%%24 - 
-                                (c(hours0[tw$type == t], 
-                                   hours0[tw$type == t][length(hours0)]) +i)%%24), 
-                          na.rm = T)
+                                 hours0[tw$type == t]) + i)%%24 - (c(hours0[tw$type == 
+                                                                              t], hours0[tw$type == t][length(hours0)]) + 
+                                                                     i)%%24), na.rm = T)
       }
-      hours0[tw$type == t] <- (hours0[tw$type == t] + (which.min(round(cor,2))) - 1)%%24
-      hours1[tw$type == t] <- (hours1[tw$type == t] + (which.min(round(cor,2))) - 1)%%24
-      hours2[tw$type == t] <- (hours2[tw$type == t] + (which.min(round(cor,2))) - 1)%%24
-      hours3[tw$type == t] <- (hours3[tw$type == t] + (which.min(round(cor,2))) - 1)%%24
+      hours0[tw$type == t] <- (hours0[tw$type == t] + (which.min(round(cor, 
+                                                                       2))) - 1)%%24
+      hours1[tw$type == t] <- (hours1[tw$type == t] + (which.min(round(cor, 
+                                                                       2))) - 1)%%24
+      hours2[tw$type == t] <- (hours2[tw$type == t] + (which.min(round(cor, 
+                                                                       2))) - 1)%%24
+      hours3[tw$type == t] <- (hours3[tw$type == t] + (which.min(round(cor, 
+                                                                       2))) - 1)%%24
     }
-    opar <- par(mfrow = c(5, 1), oma = c(5, 0, 0, 0), mar = c(1.5,5, 1, 1))
+    
+    opar <- par(mfrow = c(5, 1), oma = c(5, 0, 0, 0), mar = c(1.5, 
+                                                              5, 1, 1))
     mig1 <- site0
     mig1[mig1 > 0] <- 1
     mig2 <- site
@@ -725,19 +765,26 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
          ylab = NA, ylim = c(0, 1.5), col = "firebrick", lwd = 2, 
          xaxt = "n")
     lines(tw[, 1], ifelse(mig1 > 0, 1, 0), type = "l", lty = 2)
-    rect(tw[site > 0 & !duplicated(site), 1], 1.1, 
-         tw[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, lwd = 0, 
-         col = "grey")
+    
+    
+    rect(tw[site > 0 & !duplicated(site), 1], 1.1, tw[site > 0 & !duplicated(site, fromLast = T), 1], 1.4,
+         lwd = 0, col = "grey")
+    
+    rect(tw[site > 0 & !duplicated(site), 1], 1.1, tw[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, 
+         col = ifelse(unique(site[site>0])%in%unique(site[fixed.ind & site>0]), "red", "transparent"),
+         density = 60)
+    
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
          labels = FALSE)
     plot(tw[tw[, 2] == 1, 1], hours1[tw[, 2] == 1], type = "l", 
          lwd = 2, col = "firebrick", ylab = "Sunrise (red)", 
-         xlim = range(tw[, 1]), ylim = range(hours0[tw[, 2] == 1]), xaxt = "n")
+         xlim = range(tw[, 1]), ylim = range(hours0[tw[, 2] == 
+                                                      1]), xaxt = "n")
     lines(tw[tw[, 2] == 1, 1], hours2[tw[, 2] == 1], type = "l", 
           lwd = 1, lty = 2)
     lines(tw[tw[, 2] == 1, 1], hours3[tw[, 2] == 1], type = "l", 
           lwd = 1, lty = 2)
-    points(tw[tw[, 2] == 1, 1], hours0[tw[, 2] == 1], cex = 0.5, 
+    points(tw[tw[, 2] == 1 & !tw$fixed, 1], hours0[tw[, 2] == 1 & !tw$fixed], cex = 0.5, 
            pch = 21, col = "black", bg = "firebrick", lwd = 0.5)
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
          labels = FALSE)
@@ -749,28 +796,29 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
           lwd = 1, lty = 2)
     lines(tw[tw[, 2] == 2, 1], hours3[tw[, 2] == 2], type = "l", 
           lwd = 1, lty = 2)
-    points(tw[tw[, 2] == 2, 1], hours0[tw[, 2] == 2], cex = 0.5, 
+    points(tw[tw[, 2] == 2 & !tw$fixed, 1], hours0[tw[, 2] == 2 & !tw$fixed], cex = 0.5, 
            pch = 21, col = "black", bg = "cornflowerblue", lwd = 0.5)
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
          labels = FALSE)
     plot(tw[, 1], crds0[, 1], type = "o", pch = 16, cex = 0.5, 
          xaxt = "n", ylab = "Longitude", cex.lab = 1.7, xlab = "")
-    abline(v = c(tw[site0 > 0 & !duplicated(site0), 1], 
-                 tw[site0 > 0 & !duplicated(site0, fromLast = T), 1]), lty = 2)
-    abline(v = c(tw[site > 0 & !duplicated(site), 1], 
-                 tw[site > 0 & !duplicated(site, fromLast = T), 1]), lwd = 1.5, 
+    abline(v = c(tw[site0 > 0 & !duplicated(site0), 1], tw[site0 > 
+                                                             0 & !duplicated(site0, fromLast = T), 1]), lty = 2)
+    abline(v = c(tw[site > 0 & !duplicated(site), 1], tw[site > 
+                                                           0 & !duplicated(site, fromLast = T), 1]), lwd = 1.5, 
            col = "firebrick")
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
          labels = FALSE)
     plot(tw[, 1], crds0[, 2], type = "o", pch = 16, cex = 0.5, 
          xaxt = "n", ylab = "Latitude", cex.lab = 1.7, xlab = "")
-    abline(v = c(tw[site0 > 0 & !duplicated(site0), 1], 
-                 tw[site0 > 0 & !duplicated(site0, fromLast = T), 1]), lty = 2)
-    abline(v = c(tw[site > 0 & !duplicated(site), 1], 
-                 tw[site > 0 & !duplicated(site, fromLast = T), 1]), lwd = 1.5, 
+    abline(v = c(tw[site0 > 0 & !duplicated(site0), 1], tw[site0 > 
+                                                             0 & !duplicated(site0, fromLast = T), 1]), lty = 2)
+    abline(v = c(tw[site > 0 & !duplicated(site), 1], tw[site > 
+                                                           0 & !duplicated(site, fromLast = T), 1]), lwd = 1.5, 
            col = "firebrick")
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
-         labels = format(seq(tw[1, 1], tw[nrow(tw), 1], length = 10), "%d-%b"))
+         labels = format(seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
+                         "%d-%b"))
     mtext("Date", 1, outer = T, line = 1.6, cex = 1.2)
     par(opar)
   }

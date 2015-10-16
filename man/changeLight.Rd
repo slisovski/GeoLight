@@ -5,7 +5,7 @@
 \title{Residency analysis using a changepoint model}
 \usage{
 changeLight(tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA,
-  set.prob = NA, days = 5, plot = TRUE, summary = TRUE)
+  set.prob = NA, days = 5, fixed = NULL, plot = TRUE, summary = TRUE)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}
@@ -29,6 +29,8 @@ equal values indicates changes in the behaviour of the individual.}
 
 \item{days}{a threshold for the length of stationary period. Periods smaller
 than "days" will not be considered as a residency period}
+
+\item{fixed}{...}
 
 \item{plot}{logical, if \code{TRUE} a plot will be produced}
 
