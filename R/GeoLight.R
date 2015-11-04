@@ -1,4 +1,3 @@
-#' @name GeoLight-package
 #' @aliases GeoLight
 #' @title The GeoLight Package
 #' @description This is a summary of all features of \bold{\code{GeoLight}}, a \code{R}-package for 
@@ -1746,8 +1745,8 @@ trnTrans<-function(file){
 schedule <- function(tFirst, tSecond, site) {    
   tm <- tFirst + (tSecond - tFirst)/2
   
-  arr <- tm[!is.na(site) & !duplicated(site)]
-  dep <- tm[!is.na(site) & !duplicated(site, fromLast = T)]
+  arr <- tm[which(!is.na(site) & !duplicated(site) & site>0)]
+  dep <- tm[which(!is.na(site) & !duplicated(site, fromLast = T) & site>0)]
   
   out <- data.frame(Site =  letters[1:length(arr)], Arrival = arr, Departure = dep)
   if(!is.na(site[1])) out$Arrival[1] <- NA
@@ -1755,7 +1754,6 @@ schedule <- function(tFirst, tSecond, site) {
   
   out
 }
-
 
 
 i.twilightEvents <- function (datetime, light, LightThreshold) 
