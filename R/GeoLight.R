@@ -1745,6 +1745,8 @@ trnTrans<-function(file){
 schedule <- function(tFirst, tSecond, site) {    
   tm <- tFirst + (tSecond - tFirst)/2
   
+  site <- ifelse(is.na(site), 0, site)
+  
   arr <- tm[which(!is.na(site) & !duplicated(site) & site>0)]
   dep <- tm[which(!is.na(site) & !duplicated(site, fromLast = T) & site>0)]
   
