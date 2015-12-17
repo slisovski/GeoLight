@@ -635,25 +635,22 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
 #' @importFrom fields rdist.earth
 #' @importFrom graphics abline axis lines mtext par plot points rect 
 #' @importFrom stats optim dnorm
-mergeSites <- function (tFirst, tSecond, type, twl, site, degElevation, distThreshold = 250, 
-                        fixed = NULL, alpha = c(0, 15), plot = TRUE) 
-{
-  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(),FUN = function(x) any(class(x) != "name"))])
-  site0 <- site
-  if(is.null(fixed)) fixed = matrix(FALSE, nrow = nrow(tab), ncol = 2)
-  tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond),"GMT"), 
-                   type = c(tab$type, ifelse(tab$type == 1, 2, 1)),
-                   fixed = c(fixed[,1], fixed[,2]))
+mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThreshold = 250, 
+                       alpha = c(0, 15), plot = TRUE) {
   
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), 
+                                                  FUN = function(x) any(class(x) != "name"))])
+  site0 <- site
+  tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
+                   type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
   tw <- tw[!duplicated(tw$datetime), ]
   tw <- tw[order(tw[, 1]), ]
-  tw <- tw[1:nrow(tab), ]
+  tw <- tw[1:nrow(tab),]
   
   crds0 <- coord(tab, degElevation = degElevation, note = F)
-  fixed.ind <- apply(fixed, 1, function(x) any(x==TRUE))
-  crds0[fixed.ind] <- cbind(NA, NA)
-  tw$lon <- crds0[, 1]
-  tw$lat <- crds0[, 2]
+  tw$lon <- crds0[,1]
+  tw$lat <- crds0[,2]
+  
   lonlim <- range(crds0[, 1], na.rm = T)
   lon.seq <- seq(lonlim[1] - 1, lonlim[2] + 1, by = 1)
   latlim <- range(crds0[, 2], na.rm = T)
@@ -666,12 +663,12 @@ mergeSites <- function (tFirst, tSecond, type, twl, site, degElevation, distThre
       diff <- as.numeric(difftime(x[, 1], t.tw, units = "mins"))
       -sum(dnorm(diff, alpha[1], alpha[2], log = T), na.rm = T)
     }
-    fit0 <- optim(cbind(median(x[, 4], na.rm = T), median(x[,5], na.rm = T)), 
-                  loglik, lower = cbind(lonlim[1], latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
+    fit0 <- optim(cbind(median(x[,3], na.rm = T), median(x[,4], na.rm = T)), loglik, lower = cbind(lonlim[1], 
+                                                                                                   latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
                   method = "L-BFGS-B", hessian = T)
-    fit <- optim(cbind(fit0$par[1], fit0$par[2]), loglik, 
-                 lower = cbind(lonlim[1], latlim[1]), upper = cbind(lonlim[2], 
-                                                                    latlim[2]), method = "L-BFGS-B", hessian = T)
+    fit  <- optim(cbind(fit0$par[1], fit0$par[2]), loglik, lower = cbind(lonlim[1], 
+                                                                         latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
+                  method = "L-BFGS-B", hessian = T)
     fisher_info <- solve(fit$hessian)
     prop_sigma <- sqrt(diag(fisher_info))
     prop_sigma <- diag(prop_sigma)
@@ -682,31 +679,29 @@ mergeSites <- function (tFirst, tSecond, type, twl, site, degElevation, distThre
     matrix(c(fit$par[1], fit$par[2], lon.lower, lat.lower, 
              lon.upper, lat.upper), ncol = 6)
   }
-  out <- data.frame(site = unique(site[site != 0 & !fixed.ind]), t(sapply(split(tw[site != 0 & !fixed.ind, ], 
-                                                                                f = site[site != 0 & !fixed.ind]), mod)))
-  
+  out <- data.frame(site = unique(site[site != 0]), t(sapply(split(tw[site != 0, ], f = site[site != 0]), mod)))
   rep = TRUE
   ite = 1
   repeat {
-    for (i in site[site != 0 & !duplicated(site) & !fixed.ind]) {
+    for (i in site[site != 0 & !duplicated(site) & !fixed.ind & !site%in%(unique(site[fixed.ind])-1)]) {
       if(i==max(out$site)) break
       dist0 <- fields:::rdist.earth(out[which(out[,1]==i):(which(out[,1]==i) + 1), 2:3])[2, 1]
-      if(!(i%in%(unique(site[fixed.ind])-1))) {
-        if (dist0 <= distThreshold) break
-      }
+      if (dist0 <= distThreshold) 
+        break
     }
-    if (i < max(site[site != 0 & !duplicated(site) & !fixed.ind])) {
+    if (i < max(site[site != 0 & !duplicated(site) & !fixed.ind & !site%in%(unique(site[fixed.ind])-1)])) {
       site[(which(site == i)[1]):(which(site == (i + 1))[sum(site == (i + 1))])] <- i
       site[which(site > i)] <- site[which(site > i)] - 1
     } else rep = FALSE
     out <- data.frame(site = unique(site[site != 0 & !fixed.ind]), t(sapply(split(tw[site != 0 & !fixed.ind, ], 
                                                                                   f = site[site != 0 & !fixed.ind]), mod)))
-    if (!rep) break 
-      else ite <- ite + 1
+    if (!rep) 
+      break
+    else ite <- ite + 1
   }
   
   if(any(fixed)) {
-    fs <- site[site != 0 & !duplicated(site) & fixed.ind]
+    fs <- site[site != 0 & !duplicated(site) & fixed.ind & !site%in%(unique(site[fixed.ind])-1)]
     out.temp <- as.data.frame(cbind(fs, matrix(NA, nrow = length(fs), ncol = ncol(out)-1)))
     names(out.temp) <- names(out)
     out <- rbind(out, out.temp)
@@ -715,46 +710,36 @@ mergeSites <- function (tFirst, tSecond, type, twl, site, degElevation, distThre
   
   
   if (plot) {
-    hours0 <- as.numeric(format(tw[, 1], "%H")) + as.numeric(format(tw[, 
-                                                                       1], "%M"))/60
+    hours0 <- as.numeric(format(tw[, 1], "%H")) + as.numeric(format(tw[, 1], "%M"))/60
     crd0 <- out[match(site, out$site), 2:3]
-    crd0[!is.na(crd0[, 1]), ] <- crds0[!is.na(crd0[, 1]), 
-                                       ]
-    hours1 <- twilight(tw[, 1], rise = ifelse(tw[, 2] == 
-                                                1, TRUE, FALSE), zenith = 90 - degElevation, lon = out[match(site, 
-                                                                                                             out$site), 2], lat = out[match(site, out$site), 3])
-    hours1 <- as.numeric(format(hours1, "%H")) + as.numeric(format(hours1, 
-                                                                   "%M"))/60
-    hours2 <- twilight(tw[, 1], rise = ifelse(tw[, 2] == 
-                                                1, TRUE, FALSE), zenith = 90 - degElevation, lon = out[match(site, 
-                                                                                                             out$site), 4], lat = out[match(site, out$site), 3])
-    hours2 <- as.numeric(format(hours2, "%H")) + as.numeric(format(hours2, 
-                                                                   "%M"))/60
-    hours3 <- twilight(tw[, 1], rise = ifelse(tw[, 2] == 
-                                                1, TRUE, FALSE), zenith = 90 - degElevation, lon = out[match(site, 
-                                                                                                             out$site), 6], lat = out[match(site, out$site), 3])
-    hours3 <- as.numeric(format(hours3, "%H")) + as.numeric(format(hours3, 
-                                                                   "%M"))/60
+    crd0[!is.na(crd0[,1]),] <- crds0[!is.na(crd0[,1]),]
+    hours1 <- twilight(tw[, 1], rise = ifelse(tw[, 2] == 1, TRUE, FALSE), zenith = 90 - degElevation, 
+                       lon = out[match(site, out$site), 2], lat = out[match(site, out$site), 3])
+    hours1 <- as.numeric(format(hours1, "%H")) + as.numeric(format(hours1, "%M"))/60
+    hours2 <- twilight(tw[, 1], rise = ifelse(tw[, 2] == 1, TRUE, FALSE), zenith = 90 - degElevation, 
+                       lon = out[match(site, out$site), 4], lat = out[match(site, out$site), 3])
+    
+    hours2 <- as.numeric(format(hours2, "%H")) + as.numeric(format(hours2,"%M"))/60
+    hours3 <- twilight(tw[, 1], rise = ifelse(tw[, 2] == 1, TRUE, FALSE), zenith = 90 - degElevation, 
+                       lon = out[match(site, out$site), 6], lat = out[match(site, out$site), 3])
+    hours3 <- as.numeric(format(hours3, "%H")) + as.numeric(format(hours3,"%M"))/60
+    
+    
     for (t in 1:2) {
       cor <- rep(NA, 24)
       for (i in 0:23) {
         cor[i + 1] <- max(abs((c(hours0[tw$type == t][1], 
-                                 hours0[tw$type == t]) + i)%%24 - (c(hours0[tw$type == 
-                                                                              t], hours0[tw$type == t][length(hours0)]) + 
-                                                                     i)%%24), na.rm = T)
+                                 hours0[tw$type == t]) + i)%%24 - 
+                                (c(hours0[tw$type == t], 
+                                   hours0[tw$type == t][length(hours0)]) +i)%%24), 
+                          na.rm = T)
       }
-      hours0[tw$type == t] <- (hours0[tw$type == t] + (which.min(round(cor, 
-                                                                       2))) - 1)%%24
-      hours1[tw$type == t] <- (hours1[tw$type == t] + (which.min(round(cor, 
-                                                                       2))) - 1)%%24
-      hours2[tw$type == t] <- (hours2[tw$type == t] + (which.min(round(cor, 
-                                                                       2))) - 1)%%24
-      hours3[tw$type == t] <- (hours3[tw$type == t] + (which.min(round(cor, 
-                                                                       2))) - 1)%%24
+      hours0[tw$type == t] <- (hours0[tw$type == t] + (which.min(round(cor,2))) - 1)%%24
+      hours1[tw$type == t] <- (hours1[tw$type == t] + (which.min(round(cor,2))) - 1)%%24
+      hours2[tw$type == t] <- (hours2[tw$type == t] + (which.min(round(cor,2))) - 1)%%24
+      hours3[tw$type == t] <- (hours3[tw$type == t] + (which.min(round(cor,2))) - 1)%%24
     }
-    
-    opar <- par(mfrow = c(5, 1), oma = c(5, 0, 0, 0), mar = c(1.5, 
-                                                              5, 1, 1))
+    opar <- par(mfrow = c(5, 1), oma = c(5, 0, 0, 0), mar = c(1.5,5, 1, 1))
     mig1 <- site0
     mig1[mig1 > 0] <- 1
     mig2 <- site
@@ -763,26 +748,19 @@ mergeSites <- function (tFirst, tSecond, type, twl, site, degElevation, distThre
          ylab = NA, ylim = c(0, 1.5), col = "firebrick", lwd = 2, 
          xaxt = "n")
     lines(tw[, 1], ifelse(mig1 > 0, 1, 0), type = "l", lty = 2)
-    
-    
-    rect(tw[site > 0 & !duplicated(site), 1], 1.1, tw[site > 0 & !duplicated(site, fromLast = T), 1], 1.4,
-         lwd = 0, col = "grey")
-    
-    rect(tw[site > 0 & !duplicated(site), 1], 1.1, tw[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, 
-         col = ifelse(unique(site[site>0])%in%unique(site[fixed.ind & site>0]), "red", "transparent"),
-         density = 60)
-    
+    rect(tw[site > 0 & !duplicated(site), 1], 1.1, 
+         tw[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, lwd = 0, 
+         col = "grey")
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
          labels = FALSE)
     plot(tw[tw[, 2] == 1, 1], hours1[tw[, 2] == 1], type = "l", 
          lwd = 2, col = "firebrick", ylab = "Sunrise (red)", 
-         xlim = range(tw[, 1]), ylim = range(hours0[tw[, 2] == 
-                                                      1]), xaxt = "n")
+         xlim = range(tw[, 1]), ylim = range(hours0[tw[, 2] == 1]), xaxt = "n")
     lines(tw[tw[, 2] == 1, 1], hours2[tw[, 2] == 1], type = "l", 
           lwd = 1, lty = 2)
     lines(tw[tw[, 2] == 1, 1], hours3[tw[, 2] == 1], type = "l", 
           lwd = 1, lty = 2)
-    points(tw[tw[, 2] == 1 & !tw$fixed, 1], hours0[tw[, 2] == 1 & !tw$fixed], cex = 0.5, 
+    points(tw[tw[, 2] == 1, 1], hours0[tw[, 2] == 1], cex = 0.5, 
            pch = 21, col = "black", bg = "firebrick", lwd = 0.5)
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
          labels = FALSE)
@@ -794,29 +772,28 @@ mergeSites <- function (tFirst, tSecond, type, twl, site, degElevation, distThre
           lwd = 1, lty = 2)
     lines(tw[tw[, 2] == 2, 1], hours3[tw[, 2] == 2], type = "l", 
           lwd = 1, lty = 2)
-    points(tw[tw[, 2] == 2 & !tw$fixed, 1], hours0[tw[, 2] == 2 & !tw$fixed], cex = 0.5, 
+    points(tw[tw[, 2] == 2, 1], hours0[tw[, 2] == 2], cex = 0.5, 
            pch = 21, col = "black", bg = "cornflowerblue", lwd = 0.5)
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
          labels = FALSE)
     plot(tw[, 1], crds0[, 1], type = "o", pch = 16, cex = 0.5, 
          xaxt = "n", ylab = "Longitude", cex.lab = 1.7, xlab = "")
-    abline(v = c(tw[site0 > 0 & !duplicated(site0), 1], tw[site0 > 
-                                                             0 & !duplicated(site0, fromLast = T), 1]), lty = 2)
-    abline(v = c(tw[site > 0 & !duplicated(site), 1], tw[site > 
-                                                           0 & !duplicated(site, fromLast = T), 1]), lwd = 1.5, 
+    abline(v = c(tw[site0 > 0 & !duplicated(site0), 1], 
+                 tw[site0 > 0 & !duplicated(site0, fromLast = T), 1]), lty = 2)
+    abline(v = c(tw[site > 0 & !duplicated(site), 1], 
+                 tw[site > 0 & !duplicated(site, fromLast = T), 1]), lwd = 1.5, 
            col = "firebrick")
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
          labels = FALSE)
     plot(tw[, 1], crds0[, 2], type = "o", pch = 16, cex = 0.5, 
          xaxt = "n", ylab = "Latitude", cex.lab = 1.7, xlab = "")
-    abline(v = c(tw[site0 > 0 & !duplicated(site0), 1], tw[site0 > 
-                                                             0 & !duplicated(site0, fromLast = T), 1]), lty = 2)
-    abline(v = c(tw[site > 0 & !duplicated(site), 1], tw[site > 
-                                                           0 & !duplicated(site, fromLast = T), 1]), lwd = 1.5, 
+    abline(v = c(tw[site0 > 0 & !duplicated(site0), 1], 
+                 tw[site0 > 0 & !duplicated(site0, fromLast = T), 1]), lty = 2)
+    abline(v = c(tw[site > 0 & !duplicated(site), 1], 
+                 tw[site > 0 & !duplicated(site, fromLast = T), 1]), lwd = 1.5, 
            col = "firebrick")
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
-         labels = format(seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
-                         "%d-%b"))
+         labels = format(seq(tw[1, 1], tw[nrow(tw), 1], length = 10), "%d-%b"))
     mtext("Date", 1, outer = T, line = 1.6, cex = 1.2)
     par(opar)
   }
