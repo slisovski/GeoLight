@@ -691,8 +691,9 @@ mergeSites <- function (tFirst, tSecond, type, twl, site, degElevation, distThre
     for (i in site[site != 0 & !duplicated(site) & !fixed.ind]) {
       if(i==max(out$site)) break
       dist0 <- fields:::rdist.earth(out[which(out[,1]==i):(which(out[,1]==i) + 1), 2:3])[2, 1]
-      if (dist0 <= distThreshold) 
-        break
+      if(!(i%in%(unique(site[fixed.ind])-1))) {
+        if (dist0 <= distThreshold) break
+      }
     }
     if (i < max(site[site != 0 & !duplicated(site) & !fixed.ind])) {
       site[(which(site == i)[1]):(which(site == (i + 1))[sum(site == (i + 1))])] <- i
@@ -700,9 +701,8 @@ mergeSites <- function (tFirst, tSecond, type, twl, site, degElevation, distThre
     } else rep = FALSE
     out <- data.frame(site = unique(site[site != 0 & !fixed.ind]), t(sapply(split(tw[site != 0 & !fixed.ind, ], 
                                                                                   f = site[site != 0 & !fixed.ind]), mod)))
-    if (!rep) 
-      break
-    else ite <- ite + 1
+    if (!rep) break 
+      else ite <- ite + 1
   }
   
   if(any(fixed)) {
