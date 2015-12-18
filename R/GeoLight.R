@@ -452,13 +452,13 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
 changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA, 
                          set.prob = NA, days = 5, fixed = NULL, plot = TRUE, summary = TRUE) {
   
-  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), 
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), 
                                                              FUN = function(x) any(class(x) != "name"))])
   
   if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
   
   tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
-                   type = c(tab$type, ifelse(tab$type == 1, 2, 1)),
+                   type = c(tab$type, ifelse(tab$type == 1, 2, 1)), row = rep(1:nrow(tab), 2),
                    fixed = c(fixed[,1], fixed[,2]))
   tw <- tw[!duplicated(tw$datetime), ]
   tw <- tw[order(tw[, 1]), ]
@@ -502,10 +502,25 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
     set.prob <- as.numeric(round(as.numeric(quantile(tab2[tab2[, 
                                                                2] != 0, 2], probs = quantile, na.rm = TRUE)), digits = 5))
   }
-  riseProb <- ifelse(tab1[, 2] >= rise.prob, NA, TRUE)
-  setProb <- ifelse(tab2[, 2] >= set.prob, NA, TRUE)
-  tmp02 <- rbind(data.frame(time = tw[tw[, 2] == 1, 1], prob = tab1[,2], cut = riseProb, fixed = tw$fixed[tw[, 2] == 1]), 
-                 data.frame(time = tw[tw[, 2] == 2, 1], prob = tab2[, 2], cut = setProb, fixed = tw$fixed[tw[, 2] == 2]))[order(c(sr, ss)), ]
+  
+  
+  riseProb <- data.frame(time = tw[tw[, 2] == 1, 1], prob = tab1[,2])
+  setProb  <- data.frame(time = tw[tw[, 2] == 2, 1], prob = tab2[,2])
+  
+  tmp02_1 <- rbind(cbind(data.frame(riseProb, type = 1)), data.frame(cbind(setProb, type = 2))) 
+
+  
+  tmp02  <-  data.frame(tab, 
+                        rise.prob = ifelse(tab[,3]==1, 
+                                           tmp02_1$prob[tmp02_1$type==1][apply(cbind(as.numeric(tab$tFirst)), 1, function(x) which.min(abs(x[1]-as.numeric(tmp02_1$time[tmp02_1$type==1]))))],
+                                           tmp02_1$prob[tmp02_1$type==1][apply(cbind(as.numeric(tab$tSecond)), 1, function(x) which.min(abs(x[1]-as.numeric(tmp02_1$time[tmp02_1$type==1]))))]),
+                        set.prob  = ifelse(tab[,3]==2, 
+                                           tmp02_1$prob[tmp02_1$type==2][apply(cbind(as.numeric(tab$tSecond)), 1, function(x) which.min(abs(x[1]-as.numeric(tmp02_1$time[tmp02_1$type==2]))))],
+                                           tmp02_1$prob[tmp02_1$type==2][apply(cbind(as.numeric(tab$tFirst)), 1, function(x) which.min(abs(x[1]-as.numeric(tmp02_1$time[tmp02_1$type==2]))))]))
+                        
+  tmp02$cut   <- ifelse(apply(tmp02[, c("rise.prob", "set.prob", "type")], 1, function(x) any(ifelse(x[3]==1, x[1]>=rise.prob, x[1]>=set.prob), ifelse(x[3]==1, x[2]>=set.prob, x[2]>=rise.prob))), NA, TRUE)
+  tmp02$fixed <- apply(fixed, 1, function(x) any(x))
+  
   tmp02 <- cbind(tmp02, NA)
   
   s <- 1
@@ -515,36 +530,38 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
     
     if(tmp02[i, 'fixed']) {
       if(i>1) if(is.na(tmp02$cut[i-1]) & !tmp02$fixed[i-1]) s <- s+1
-      tmp02[i, 5] <- s} else { 
+      tmp02[i, 8] <- s} else { 
         if(i%in%c(2:(nrow(tmp02)-1))){
           if(is.na(tmp02[i - 1, 'cut']) & !is.na(tmp02[i, 'cut'])) {
             s <- s + 1
-            tmp02[i, 5] <- s
+            tmp02[i, 8] <- s
           }
           if (!is.na(tmp02[i - 1, 'cut']) & !is.na(tmp02[i, 'cut'])) 
-            tmp02[i, 5] <- s
+            tmp02[i, 8] <- s
         }
       }
   }
-  ind01 <- aggregate(as.numeric(tmp02[!is.na(tmp02[,5]) & !tmp02$fixed,1]), by = list(tmp02[!is.na(tmp02[,5]) & !tmp02$fixed, 5]), 
+  ind01 <- aggregate(as.numeric(tmp02[!is.na(tmp02[,8]) & !tmp02$fixed,1]), by = list(tmp02[!is.na(tmp02[,8]) & !tmp02$fixed, 8]), 
                      FUN =  function(x) (x[length(x)] - x[1])/60/60/24 > days)
-  tmp02[, 5] <- ifelse(tmp02[, 5]%in%c(ind01[ind01[,2],1], unique(tmp02[tmp02$fixed, 5])), tmp02[, 5], NA)
+  tmp02[, 8] <- ifelse(tmp02[, 8]%in%c(ind01[ind01[,2],1], unique(tmp02[tmp02$fixed, 8])), tmp02[, 8], NA)
   
   s <- 1
-  for (i in unique(tmp02[!is.na(tmp02[,5]),5])) {
-    tmp02[!is.na(tmp02[, 5]) & tmp02[, 5] == i, 5] <- s
+  for (i in unique(tmp02[!is.na(tmp02[,8]),8])) {
+    tmp02[!is.na(tmp02[, 8]) & tmp02[, 8] == i, 8] <- s
     s <- s + 1
   }
-  t02 <- schedule(tab$tFirst, tab$tSecond, tmp02[1:nrow(tab),5])
-  arr <- tmp02[!is.na(tmp02[, 5]) & !duplicated(tmp02[, 5]),]
-  dep <- tmp02[!is.na(tmp02[, 5]) & !duplicated(tmp02[, 5], fromLast = T), ]
-  t02$P.start <- arr$prob
-  t02$P.end <- dep$prob
+
+  t02 <- schedule(tmp02$tFirst, tmp02$tSecond, tmp02[,8])
+  
+  arr <- tmp02[!is.na(tmp02[, 8]) & !duplicated(tmp02[, 8]),]
+  dep <- tmp02[!is.na(tmp02[, 8]) & !duplicated(tmp02[, 8], fromLast = T), ]
+  t02$P.start <- ifelse(arr$type==1, arr$rise.prob, arr$set.prob)
+  t02$P.end <- ifelse(dep$type==1, dep$rise.prob, dep$set.prob)
   t02$Days <- apply(t02, 1, function(x) round(as.numeric(difftime(x[3], x[2], units = "days")), 1))
   ds <- t02
   out <- list(riseProb = tab1[, 2], setProb = tab2[, 2], rise.prob = rise.prob, 
-              set.prob = set.prob, site = ifelse(!is.na(tmp02[, 5]), 
-                                                 tmp02[, 5], 0)[1:nrow(tab)], migTable = ds)
+              set.prob = set.prob, site = ifelse(is.na(tmp02[,8]), 0 , tmp02[,8]), migTable = ds)
+                                                 
   if (plot) {
     def.par <- par(no.readonly = TRUE)
     nf <- layout(matrix(c(4, 1, 2, 3), nrow = 4, byrow = T), 
@@ -636,10 +653,14 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
 #' @importFrom graphics abline axis lines mtext par plot points rect 
 #' @importFrom stats optim dnorm
 mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThreshold = 250, 
-                       alpha = c(0, 15), plot = TRUE) {
+                       fixed = NULL, alpha = c(0, 15), plot = TRUE) {
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), 
                                                   FUN = function(x) any(class(x) != "name"))])
+  
+  if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
+  fixed.ind <- apply(fixed, 1, function(x) any(x))
+  
   site0 <- site
   tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
                    type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
@@ -648,6 +669,8 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
   tw <- tw[1:nrow(tab),]
   
   crds0 <- coord(tab, degElevation = degElevation, note = F)
+  tab$lon <- crds0[,1]
+  tab$lat <- crds0[,2]
   tw$lon <- crds0[,1]
   tw$lat <- crds0[,2]
   
@@ -657,14 +680,14 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
   lat.seq <- seq(latlim[1] - 1, latlim[2] + 1, by = 1)
   mod <- function(x) {
     loglik <- function(crds) {
-      t.tw <- twilight(x[, 1], lon = crds[1], lat = crds[2], 
-                       rise = ifelse(x[, 2] == 1, TRUE, FALSE), zenith = 90 - 
-                         degElevation)
-      diff <- as.numeric(difftime(x[, 1], t.tw, units = "mins"))
+      t.tw <- twilight(x$tFirst, lon = crds[1], lat = crds[2], 
+                       rise = ifelse(x$type == 1, TRUE, FALSE), zenith = 90 - 
+                       degElevation, iters = 6)
+      diff <- as.numeric(difftime(x$tFirst, t.tw, units = "mins"))
       -sum(dnorm(diff, alpha[1], alpha[2], log = T), na.rm = T)
     }
-    fit0 <- optim(cbind(median(x[,3], na.rm = T), median(x[,4], na.rm = T)), loglik, lower = cbind(lonlim[1], 
-                                                                                                   latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
+    fit0 <- optim(cbind(median(x$lon, na.rm = T), median(x$lat, na.rm = T)), loglik, lower = cbind(lonlim[1], 
+                                                                                                    latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
                   method = "L-BFGS-B", hessian = T)
     fit  <- optim(cbind(fit0$par[1], fit0$par[2]), loglik, lower = cbind(lonlim[1], 
                                                                          latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
@@ -679,7 +702,7 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
     matrix(c(fit$par[1], fit$par[2], lon.lower, lat.lower, 
              lon.upper, lat.upper), ncol = 6)
   }
-  out <- data.frame(site = unique(site[site != 0]), t(sapply(split(tw[site != 0, ], f = site[site != 0]), mod)))
+  out <- data.frame(site = unique(site[site != 0]), t(sapply(split(tab[site != 0, ], f = site[site != 0]), mod)))
   rep = TRUE
   ite = 1
   repeat {
@@ -693,7 +716,7 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
       site[(which(site == i)[1]):(which(site == (i + 1))[sum(site == (i + 1))])] <- i
       site[which(site > i)] <- site[which(site > i)] - 1
     } else rep = FALSE
-    out <- data.frame(site = unique(site[site != 0 & !fixed.ind]), t(sapply(split(tw[site != 0 & !fixed.ind, ], 
+    out <- data.frame(site = unique(site[site != 0 & !fixed.ind]), t(sapply(split(tab[site != 0 & !fixed.ind, ], 
                                                                                   f = site[site != 0 & !fixed.ind]), mod)))
     if (!rep) 
       break
