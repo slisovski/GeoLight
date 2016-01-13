@@ -762,6 +762,7 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
       hours2[tw$type == t] <- (hours2[tw$type == t] + (which.min(round(cor,2))) - 1)%%24
       hours3[tw$type == t] <- (hours3[tw$type == t] + (which.min(round(cor,2))) - 1)%%24
     }
+    
     opar <- par(mfrow = c(5, 1), oma = c(5, 0, 0, 0), mar = c(1.5,5, 1, 1))
     mig1 <- site0
     mig1[mig1 > 0] <- 1
@@ -772,8 +773,11 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
          xaxt = "n")
     lines(tw[, 1], ifelse(mig1 > 0, 1, 0), type = "l", lty = 2)
     rect(tw[site > 0 & !duplicated(site), 1], 1.1, 
-         tw[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, lwd = 0, 
-         col = "grey")
+         tw[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, col = "grey90", lwd = 0)
+    rect(tw[site > 0 & !duplicated(site), 1], 1.1, 
+         tw[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, 
+         col = ifelse(apply(fixed[site>0,], 1, function(x) any(x))[!duplicated(site[site>0])], "red", "transparent"), 
+         density = 60)
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
          labels = FALSE)
     plot(tw[tw[, 2] == 1, 1], hours1[tw[, 2] == 1], type = "l", 
@@ -783,7 +787,7 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
           lwd = 1, lty = 2)
     lines(tw[tw[, 2] == 1, 1], hours3[tw[, 2] == 1], type = "l", 
           lwd = 1, lty = 2)
-    points(tw[tw[, 2] == 1, 1], hours0[tw[, 2] == 1], cex = 0.5, 
+    points(tw[tw[, 2] == 1 & !fixed.ind, 1], hours0[tw[, 2] == 1 & !fixed.ind], cex = 0.5, 
            pch = 21, col = "black", bg = "firebrick", lwd = 0.5)
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
          labels = FALSE)
@@ -795,11 +799,11 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
           lwd = 1, lty = 2)
     lines(tw[tw[, 2] == 2, 1], hours3[tw[, 2] == 2], type = "l", 
           lwd = 1, lty = 2)
-    points(tw[tw[, 2] == 2, 1], hours0[tw[, 2] == 2], cex = 0.5, 
+    points(tw[tw[, 2] == 2 & !fixed.ind, 1], hours0[tw[, 2] == 2 & !fixed.ind], cex = 0.5, 
            pch = 21, col = "black", bg = "cornflowerblue", lwd = 0.5)
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
          labels = FALSE)
-    plot(tw[, 1], crds0[, 1], type = "o", pch = 16, cex = 0.5, 
+    plot(tw[, 1], ifelse(fixed.ind, NA, crds0[, 1]), type = "o", pch = 16, cex = 0.5, 
          xaxt = "n", ylab = "Longitude", cex.lab = 1.7, xlab = "")
     abline(v = c(tw[site0 > 0 & !duplicated(site0), 1], 
                  tw[site0 > 0 & !duplicated(site0, fromLast = T), 1]), lty = 2)
@@ -808,7 +812,7 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
            col = "firebrick")
     axis(1, at = seq(tw[1, 1], tw[nrow(tw), 1], length = 10), 
          labels = FALSE)
-    plot(tw[, 1], crds0[, 2], type = "o", pch = 16, cex = 0.5, 
+    plot(tw[, 1], ifelse(fixed.ind, NA, crds0[, 2]), type = "o", pch = 16, cex = 0.5, 
          xaxt = "n", ylab = "Latitude", cex.lab = 1.7, xlab = "")
     abline(v = c(tw[site0 > 0 & !duplicated(site0), 1], 
                  tw[site0 > 0 & !duplicated(site0, fromLast = T), 1]), lty = 2)
@@ -1714,7 +1718,7 @@ trnTrans<-function(file){
     date1<-as.Date(substr(as.character(data$V1[i]),1,8),format="%d/%m/%y")
     tFirst[i] <- as.POSIXct(paste(as.character(date1),prefix=substr(as.character(data$V1[i]),10,17)),tz="UTC")
     date2<-as.Date(substr(as.character(data$V1[i+1]),1,8),format="%d/%m/%y")
-    tSecond[i] <- as.POSIXct(paste(as.character(date1),prefix=substr(as.character(data$V1[i+1]),10,17)),tz="UTC")
+    tSecond[i] <- as.POSIXct(paste(as.character(date2),prefix=substr(as.character(data$V1[i+1]),10,17)),tz="UTC")
     if(as.character(data$V2[i])=="Sunrise") type[i] <- 1
     if(as.character(data$V2[i])=="Sunset") type[i] <- 2
   }
