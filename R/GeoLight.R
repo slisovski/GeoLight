@@ -608,13 +608,13 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
     
     rect(min.r[,2], 1.1, max.r[,2], 1.4, col = "grey90", lwd = 0)
     
-    rect(min.r[,2], 1.1, max.r[,2], 1.4, col = ifelse(unique(out$site[out$site>0])%in%unique(tmp02[tmp02$fixed, 5]), "red", "transparent"),
+    rect(min.r[,2], 1.1, max.r[,2], 1.4, col = ifelse(unique(out$site[out$site>0])%in%unique(tmp02[tmp02$fixed, 8]), "red", "transparent"),
          density = 60)
     
     par(def.par)
   }
   if (summary) {
-    GeoLight:::i.sum.Cl(out)
+    i.sum.Cl(out)
   }
   return(out)
 }
