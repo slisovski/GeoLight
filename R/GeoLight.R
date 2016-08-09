@@ -1843,7 +1843,7 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull
   
   
   if(any(names(args)%in%"col")) {
-    allcolors <- rainbow(60,v=0.85)[1:50]
+    col <- args$col
     if(any(args$col=="rainbow")) {
       col <- allcolors[round(seq(1,50,length.out=length(unique(site))))]
     }
@@ -1852,8 +1852,8 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull
     }
     if(!any(args$col%in%c("random", "rainbow"))) {
       if(!any(areColors(args$col))) stop("invalid colors", call. = FALSE)
-      if(length(args$col)!=length(unique(site))) {
-        col = rep(args$col, length(unique(site)))[1:length(unique(site))]
+      if(length(args$col)!=length(unique(site[site>0]))) {
+        col = rep(args$col, length(unique(site[site>0])))[1:length(unique(site[site>0]))]
         warning("Length of color vector is not equal to number of sites!", call. = FALSE)
       }
     }
@@ -1884,7 +1884,7 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull
            col = col[as.numeric(site)])
   }
   if(type=="cross") {
-    for (i in 1:max(unique(site))){
+    for (i in 1:max(site)){
       if(!all(is.na(crds[site==i, 2]))){
         tmp.lon <- quantile(crds[site == i, 1], probs = c(quantiles, 0.5), na.rm = T)
         tmp.lat <- quantile(crds[site == i, 2], probs = c(quantiles, 0.5), na.rm = T)
