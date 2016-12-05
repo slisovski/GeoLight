@@ -620,6 +620,82 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
 }
 
 
+##' Estimation of location from a time series of sunrise/sunset data from stationary period
+##'
+##' This function uses a pre-defined error distribution of sunrise/sunset times (e.g. gamma, log-normal) to calculate
+##' the log-likelihood of locations within a boundary to be the site at which a series of sunrise/sunset times have been recorded.
+##'
+##' See vignette ("siteEstimate: A new approach to estimate locations from a period of residency").
+##' 
+##'
+##' @param tFirst vector of sunrise/sunset times (e.g. 2008-12-01 08:30).
+##' @param tSecond vector of of sunrise/sunset times (e.g. 2008-12-01 17:30).
+##' @param type vector of either 1 or 2, defining \code{tFirst} as sunrise or sunset respectively.
+##' @param twl data.frame containing twilights and at least \code{tFirst}, \code{tSecond} and \code{type} (alternatively give each parameter separately).
+##' @param degElevation
+##' @param method
+##' @param parms
+##' @param xlim
+##' @param ylim
+##' @param res
+##' 
+##' @return A \code{list} 
+##' @author Simeon Lisovski
+##' @examples
+##' @export changeLight
+siteEstimate <- function(tFirst, tSecond, type, twl, 
+                         degElevation, 
+                         method = "gamma", parms = c(2.75, 0.91), 
+                         xlim = c(-180, 180), 
+                         ylim = c(-90, 90), res = c(0.5, 0.5)) {
+  
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
+  
+  tw <- data.frame(Twilight = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
+                   Rise = c(ifelse(tab$type==1, TRUE, FALSE), ifelse(tab$type == 1, FALSE, TRUE)))
+  tw <- tw[!duplicated(tw$datetime),]
+  tw <- tw[order(tw[,1]),]
+  
+
+  loglik <- function(crds, zenith) {
+    t.tw <- twilight(Twilight, lon = crds[1], lat = crds[2], 
+                     rise = ifelse(Rise, TRUE, FALSE), zenith = zenith, 
+                     iters = 6)
+    diff.sr <- as.numeric(difftime(Twilight[Rise], t.tw[Rise], units = "mins"))
+    diff.ss <- as.numeric(difftime(t.tw[!Rise], Twilight[!Rise], units = "mins"))
+    if(method=="log-norm") {
+      return(-sum(dlnorm(c(diff.sr, diff.ss), parms[1], parms[2], log = T), na.rm = T))
+    }
+    if(method=="gamma") {
+      return(-sum(dgamma(c(diff.sr, diff.ss), parms[1], parms[2], log = T), na.rm = T))
+    }
+  }
+  
+  lon <- seq(xlim[1], xlim[2], by = res[1])
+  lat <- rev(seq(ylim[1], ylim[2], by = res[2]))
+  
+  crdsm <- data.frame(lon = rep(lon, length(lat)), 
+                      lat = rep(lat, each = length(lon)))
+  
+  out_A  <- array(dim = c(length(lat), length(lon), length(zenith)))
+  colnames(out_A) <- lon
+  rownames(out_A) <- lat
+  out_ML <- matrix(NA, ncol = 2, nrow = length(zenith))
+  
+  
+  for(i in 1:length(zenith)) {
+    nll <- apply(crdsm, 1, function(x) loglik(cbind(x[1], x[2]), zenith[i]))
+    
+    out_A[,,i] <- matrix(nll, ncol = length(lon), nrow = length(lat), byrow = T)
+    out_ML[i,] <- cbind(as.numeric(colnames(out_A)[which(out_A[,,i] == min(out_A[,,i], na.rm = T), arr.ind = TRUE)[2]]),
+                        as.numeric(rownames(out_A)[which(out_A[,,i] == min(out_A[,,i], na.rm = T), arr.ind = TRUE)[1]]))
+  }
+  
+  list(Zenith = zenith,
+       Estimate = out_ML,
+       nLoglik = out_A)
+}
+
 #' Function to merge sites
 #'
 #' The \code{\link{changeLight}} functions provides a vector grouping the twilight times
