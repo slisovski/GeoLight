@@ -619,26 +619,7 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
   return(out)
 }
 
-
-##' Estimation of location from a time series of sunrise/sunset data from stationary period
-##'
-##' This function uses a pre-defined error distribution of sunrise/sunset times (e.g. gamma, log-normal) to calculate
-##' the log-likelihood of locations within a boundary to be the site at which a series of sunrise/sunset times have been recorded.
-##'
-##' See vignette ("siteEstimate: A new approach to estimate locations from a period of residency").
-##' 
-##'
-##' @param tFirst vector of sunrise/sunset times (e.g. 2008-12-01 08:30).
-##' @param tSecond vector of of sunrise/sunset times (e.g. 2008-12-01 17:30).
-##' @param type vector of either 1 or 2, defining \code{tFirst} as sunrise or sunset respectively.
-##' @param twl data.frame containing twilights and at least \code{tFirst}, \code{tSecond} and \code{type} (alternatively give each parameter separately).
-##' @param degElevation
-##' @param method
-##' @param parms
-##' @param xlim
-##' @param ylim
-##' @param res
-##' @export siteEstimate
+ 
 siteEstimate <- function(tFirst, tSecond, type, twl, 
                          degElevation, 
                          method = "gamma", parms = c(2.75, 0.91), 
