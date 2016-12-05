@@ -639,10 +639,10 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
 ##' @param ylim
 ##' @param res
 ##' 
-##' @return A \code{list} 
+##' @return mmm 
 ##' @author Simeon Lisovski
 ##' @examples
-##' @export changeLight
+##' @export siteEstimate
 siteEstimate <- function(tFirst, tSecond, type, twl, 
                          degElevation, 
                          method = "gamma", parms = c(2.75, 0.91), 
