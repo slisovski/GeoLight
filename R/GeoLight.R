@@ -638,10 +638,6 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
 ##' @param xlim
 ##' @param ylim
 ##' @param res
-##' 
-##' @return mmm 
-##' @author Simeon Lisovski
-##' @examples
 ##' @export siteEstimate
 siteEstimate <- function(tFirst, tSecond, type, twl, 
                          degElevation, 
