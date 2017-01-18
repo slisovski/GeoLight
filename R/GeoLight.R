@@ -622,21 +622,21 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
  
 siteEstimate <- function(tFirst, tSecond, type, twl, 
                          degElevation, 
-                         method = "gamma", parms = c(2.75, 0.91), 
+                         method = "gamma", parms = c(3.3, 0.8), 
                          xlim = c(-180, 180), 
                          ylim = c(-90, 90), res = c(0.5, 0.5)) {
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
+  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   
   tw <- data.frame(Twilight = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
                    Rise = c(ifelse(tab$type==1, TRUE, FALSE), ifelse(tab$type == 1, FALSE, TRUE)))
-  tw <- tw[!duplicated(tw$datetime),]
+  tw <- tw[!duplicated(tw$Twilight),]
   tw <- tw[order(tw[,1]),]
   
-
-  loglik <- function(crds, zenith) {
+  
+  loglik <- function(crds, Twilight, Rise, degElevation, method, parms) {
     t.tw <- twilight(Twilight, lon = crds[1], lat = crds[2], 
-                     rise = ifelse(Rise, TRUE, FALSE), zenith = zenith, 
+                     rise = ifelse(Rise, TRUE, FALSE), zenith = 90-degElevation, 
                      iters = 6)
     diff.sr <- as.numeric(difftime(Twilight[Rise], t.tw[Rise], units = "mins"))
     diff.ss <- as.numeric(difftime(t.tw[!Rise], Twilight[!Rise], units = "mins"))
@@ -648,31 +648,51 @@ siteEstimate <- function(tFirst, tSecond, type, twl,
     }
   }
   
+  
   lon <- seq(xlim[1], xlim[2], by = res[1])
   lat <- rev(seq(ylim[1], ylim[2], by = res[2]))
   
   crdsm <- data.frame(lon = rep(lon, length(lat)), 
                       lat = rep(lat, each = length(lon)))
   
-  out_A  <- array(dim = c(length(lat), length(lon), length(zenith)))
+  out_A  <- array(dim = c(length(lat), length(lon), length(degElevation)))
   colnames(out_A) <- lon
   rownames(out_A) <- lat
-  out_ML <- matrix(NA, ncol = 2, nrow = length(zenith))
+  out_ML <- matrix(NA, ncol = 2, nrow = length(degElevation))
   
   
-  for(i in 1:length(zenith)) {
-    nll <- apply(crdsm, 1, function(x) loglik(cbind(x[1], x[2]), zenith[i]))
-    
-    out_A[,,i] <- matrix(nll, ncol = length(lon), nrow = length(lat), byrow = T)
-    out_ML[i,] <- cbind(as.numeric(colnames(out_A)[which(out_A[,,i] == min(out_A[,,i], na.rm = T), arr.ind = TRUE)[2]]),
-                        as.numeric(rownames(out_A)[which(out_A[,,i] == min(out_A[,,i], na.rm = T), arr.ind = TRUE)[1]]))
+  eq.ind <- which(format(tw$Twilight, "%m/%d")%in%c("03/21", "09/21"))
+  
+  if(length(eq.ind)>0) {
+    twl.sp <- split(tw, f = ifelse(1:nrow(tw)<min(eq.ind), 1, ifelse(1:nrow(tw)>max(eq.ind), 2, NA)))
+  } else {
+    twl.sp <- list(tw)
   }
   
-  list(Zenith = zenith,
-       Estimate = out_ML,
-       nLoglik = out_A)
+  mycl <- parallel::makeCluster(parallel::detectCores()-1)
+  tmp  <- parallel::clusterSetRNGStream(mycl)
+  tmp  <- parallel::clusterExport(mycl, c("loglik"), envir=environment())
+  tmp  <- parallel::clusterEvalQ(mycl, library("GeoLight")) 
+  
+  for(i in 1:length(degElevation)) {
+    nll0  <- lapply(twl.sp, function(x) parallel::parRapply(mycl, crdsm, FUN = loglik, Twilight = x$Twilight, Rise = x$Rise, 
+                                                            degElevation = degElevation[i], method = method, parms = parms))
+    nll   <- apply(do.call("cbind", nll0), 1, function(x) ifelse(all(is.infinite(abs(x))), Inf, sum(x)))
+    
+    out_A[,,i] <- matrix(suppressWarnings((max(nll[is.finite(nll)])-nll)/sum(nll[is.finite(nll)], na.rm = T)), 
+                         ncol = length(lon), nrow = length(lat), byrow = T)
+    if(any(is.finite(abs(out_A[,,i])))) {
+      out_ML[i,] <- cbind(as.numeric(colnames(out_A)[which(out_A[,,i] == max(out_A[,,i], na.rm = T), arr.ind = TRUE)[2]]),
+                          as.numeric(rownames(out_A)[which(out_A[,,i] == max(out_A[,,i], na.rm = T), arr.ind = TRUE)[1]]))
+    }
+  }
+  
+  parallel::stopCluster(mycl)
+  
+  list(SunElevation = zenith,
+       Estimate = out_A,
+       mlLoc = out_ML)
 }
-
 #' Function to merge sites
 #'
 #' The \code{\link{changeLight}} functions provides a vector grouping the twilight times
