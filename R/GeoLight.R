@@ -619,14 +619,33 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
   return(out)
 }
 
- 
+#' siteEstimate
+#'
+#' ...
+#'
+#' @param tFirst vector of sunrise/sunset times (e.g. 2008-12-01 08:30).
+#' @param tSecond vector of of sunrise/sunset times (e.g. 2008-12-01 17:30).
+#' @param type vector of either 1 or 2, defining \code{tFirst} as sunrise or sunset respectively.
+#' @param twl data.frame containing twilights and at least \code{tFirst}, \code{tSecond} and \code{type}
+#' @param degElevation the sun elevation angle (in degrees) that defines twilight (e.g. -6 for "civil
+##' twilight"). Either a single value, a \code{vector}.
+#' @param method \code{character} string; only \code{gamma} and \code{log-normal} are implemented.
+#' @param parms a \code{vector} describing the two parameters of the error density distribution (defined by \code{method}).
+#' @param xlim the longitudinal boundaries for which the likelihood will be calculated.
+#' @param ylim the latitudinal boundaries for which the likelihood will be calculated.
+#' @param res the spatial resolution in degrees.
+#' @return A \code{list} with ...
+#' @author Simeon Lisovski
+#'
+#' @export siteEstimate
+#' @importFrom parallel makeCluster clusterSetRNGStream clusterExport clusterEvalQ parRapply stopCluster
 siteEstimate <- function(tFirst, tSecond, type, twl, 
                          degElevation, 
                          method = "gamma", parms = c(3.3, 0.8), 
                          xlim = c(-180, 180), 
                          ylim = c(-90, 90), res = c(0.5, 0.5)) {
   
-  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   
   tw <- data.frame(Twilight = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
                    Rise = c(ifelse(tab$type==1, TRUE, FALSE), ifelse(tab$type == 1, FALSE, TRUE)))
@@ -689,10 +708,11 @@ siteEstimate <- function(tFirst, tSecond, type, twl,
   
   parallel::stopCluster(mycl)
   
-  list(SunElevation = zenith,
+  list(SunElevation = degElevation,
        Estimate = out_A,
        mlLoc = out_ML)
 }
+
 #' Function to merge sites
 #'
 #' The \code{\link{changeLight}} functions provides a vector grouping the twilight times
