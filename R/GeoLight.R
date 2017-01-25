@@ -452,12 +452,12 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lno
 changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA, 
                          set.prob = NA, days = 5, fixed = NULL, plot = TRUE, summary = TRUE) {
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), 
+  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), 
                                                              FUN = function(x) any(class(x) != "name"))])
   
   if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
   
-  tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
+  tw <- data.frame(datetime = as.POSIXct(c(as.numeric(tab$tFirst), as.numeric(tab$tSecond)), origin = "1970-01-01", "GMT"), 
                    type = c(tab$type, ifelse(tab$type == 1, 2, 1)), row = rep(1:nrow(tab), 2),
                    fixed = c(fixed[,1], fixed[,2]))
   tw <- tw[!duplicated(tw$datetime), ]
@@ -474,10 +474,10 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
     hours[tw$type == t] <- (hours[tw$type == t] + (which.min(round(cor, 2))) - 1)%%24
   }
   
-  sr <- tw[tw[, 2] == 1, 1]
-  ss <- tw[tw[, 2] == 2, 1]
+  sr <- tw[tw[, 2]==1, 1]
+  ss <- tw[tw[, 2]==2, 1]
   rise <- hours[tw[, 2] == 1]
-  set <- hours[tw[, 2] == 2]
+  set  <- hours[tw[, 2] == 2]
   CPs1 <- suppressWarnings(changepoint:::cpt.mean(rise, method = "BinSeg", 
                                                   Q = length(rise)/2, penalty = "Manual", pen.value = 0.001, 
                                                   test.stat = "CUSUM", param.estimates = FALSE))
@@ -496,6 +496,7 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
   tab2[is.na(tab2[, 2]), 2] <- 0
   tab2[tw$fixed[tw$type==2],2] <- NA
   
+  
   if (is.na(rise.prob) & is.na(set.prob)) {
     rise.prob <- as.numeric(round(as.numeric(quantile(tab1[tab1[, 
                                                                 2] != 0, 2], probs = quantile, na.rm = TRUE)), digits = 5))
@@ -503,22 +504,18 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
                                                                2] != 0, 2], probs = quantile, na.rm = TRUE)), digits = 5))
   }
   
-  
   riseProb <- data.frame(time = tw[tw[, 2] == 1, 1], prob = tab1[,2])
   setProb  <- data.frame(time = tw[tw[, 2] == 2, 1], prob = tab2[,2])
   
-  tmp02_1 <- rbind(cbind(data.frame(riseProb, type = 1)), data.frame(cbind(setProb, type = 2))) 
-
+  tmp02   <- data.frame(tab, rise.prob = apply(cbind(as.numeric(tab[,1]), as.numeric(tab[,2]), tab$type), 1, 
+                                               function(x) ifelse(x[3]==1, riseProb$prob[which.min(abs(x[1]-as.numeric(riseProb$time)))],
+                                                                  riseProb$prob[which.min(abs(x[2]-as.numeric(riseProb$time)))])),
+                        set.prob = apply(cbind(as.numeric(tab[,1]), as.numeric(tab[,2]), tab$type), 1, 
+                                         function(x) ifelse(x[3]==2, setProb$prob[which.min(abs(x[1]-as.numeric(setProb$time)))],
+                                                            setProb$prob[which.min(abs(x[2]-as.numeric(setProb$time)))])))
   
-  tmp02  <-  data.frame(tab, 
-                        rise.prob = ifelse(tab[,3]==1, 
-                                           tmp02_1$prob[tmp02_1$type==1][apply(cbind(as.numeric(tab$tFirst)), 1, function(x) which.min(abs(x[1]-as.numeric(tmp02_1$time[tmp02_1$type==1]))))],
-                                           tmp02_1$prob[tmp02_1$type==1][apply(cbind(as.numeric(tab$tSecond)), 1, function(x) which.min(abs(x[1]-as.numeric(tmp02_1$time[tmp02_1$type==1]))))]),
-                        set.prob  = ifelse(tab[,3]==2, 
-                                           tmp02_1$prob[tmp02_1$type==2][apply(cbind(as.numeric(tab$tSecond)), 1, function(x) which.min(abs(x[1]-as.numeric(tmp02_1$time[tmp02_1$type==2]))))],
-                                           tmp02_1$prob[tmp02_1$type==2][apply(cbind(as.numeric(tab$tFirst)), 1, function(x) which.min(abs(x[1]-as.numeric(tmp02_1$time[tmp02_1$type==2]))))]))
-                        
-  tmp02$cut   <- ifelse(apply(tmp02[, c("rise.prob", "set.prob", "type")], 1, function(x) any(ifelse(x[3]==1, x[1]>=rise.prob, x[1]>=set.prob), ifelse(x[3]==1, x[2]>=set.prob, x[2]>=rise.prob))), NA, TRUE)
+  
+  tmp02$cut   <- ifelse(apply(tmp02[, c("rise.prob", "set.prob", "type")], 1, function(x) any(ifelse(x[3]==1, x[1]>=rise.prob, x[2]>=set.prob), ifelse(x[3]==1, x[2]>=set.prob, x[1]>=rise.prob))), NA, TRUE)
   tmp02$fixed <- apply(fixed, 1, function(x) any(x))
   
   tmp02 <- cbind(tmp02, NA)
@@ -550,7 +547,7 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
     tmp02[!is.na(tmp02[, 8]) & tmp02[, 8] == i, 8] <- s
     s <- s + 1
   }
-
+  
   t02 <- schedule(tmp02$tFirst, tmp02$tSecond, tmp02[,8])
   
   arr <- tmp02[!is.na(tmp02[, 8]) & !duplicated(tmp02[, 8]),]
@@ -561,7 +558,7 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
   ds <- t02
   out <- list(riseProb = tab1[, 2], setProb = tab2[, 2], rise.prob = rise.prob, 
               set.prob = set.prob, site = ifelse(is.na(tmp02[,8]), 0 , tmp02[,8]), migTable = ds)
-                                                 
+  
   if (plot) {
     def.par <- par(no.readonly = TRUE)
     nf <- layout(matrix(c(4, 1, 2, 3), nrow = 4, byrow = T), 
@@ -618,7 +615,6 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
   }
   return(out)
 }
-
 #' siteEstimate
 #'
 #' ...
