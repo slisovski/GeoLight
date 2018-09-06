@@ -323,12 +323,13 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 
 
 
-##' Function to calculate the median sun elevation angle for light measurements at a
+##' Function to calculate the sun elevation angle for light measurements at a
 ##' known location and the choosen light threshold.
 ##' 
-##' Optionally, shape and scale paramters of the twiligth error (in minutes) can be estimated. The error is assumed
-##' to follow a log-normal distribution and 0 (elev0) is set 0.1 below the minimum sun elevation angle of estimated twilight times.
-##' Those parameters might be of interest for sensitivity analysis or further processing using the R Package SGAT (https://github.com/SWotherspoon/SGAT).
+##' NEW: The function provides two different sun elevation angle. The first (a1) refers to the median twiligth error and
+##' is needed for threshold based locaiton estimation (e.g. \code{\link{coord}}). The second (a0) refers to the zero elevation
+##' angle of the twilight error distribution and is required for e.g. \code{\link{mergeSites2}}, \code{\link{siteEstimate}}. The function
+##' also provides the parameters (log.mean and log.sd) of the fitted log-normal distribution (see red line in plot),
 ##'
 ##' @title Calculate the appropriate sun elevation angle for known location
 ##' @param tFirst vector of sunrise/sunset times (e.g. 2008-12-01 08:30).
@@ -339,8 +340,6 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' known x and y coordinates (in that order) for the selected measurement
 ##' period.
 ##' @param plot \code{logical}, if TRUE a plot will be produced.
-##' @param lnorm.pars \code{logical}, if TRUE shape and scale parameters of the twilight error (log-normal distribution) 
-##' will be estimated and included in the output (see Details).
 ##' @author Simeon Lisovski
 ##' @references Lisovski, S., Hewson, C.M, Klaassen, R.H.G., Korner-Nievergelt,
 ##' F., Kristensen, M.W & Hahn, S. (2012) Geolocation by light: Accuracy and
@@ -355,50 +354,60 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' @importFrom graphics arrows par hist plot lines mtext
 ##' @importFrom stats dlnorm median
 ##' @export getElevation
-getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE, lnorm.pars = FALSE) {
+getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE) {
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   tab <- geolight.convert(tab[,1], tab[,2], tab[,3])  
   
-  sun <- solar(as.POSIXct(tab[,1], "GMT"))
-  z   <- 90-refracted(zenith(sun, known.coord[1], known.coord[2]))
+  sun  <- solar(tab[,1])
+  z    <- refracted(zenith(sun, known.coord[1], known.coord[2]))
+  plot(z)
   
-  tab$z.tm <- as.POSIXct("1900-01-01 00:00:01", "GMT")
-  tab$z.tm[tab[,2]] <- twilight(tab[tab[,2], 1], known.coord[1], known.coord[2], rise = TRUE, zenith = (min(z)-0.1)-90 ,iters = 3) 
-  tab$z.tm[!tab[,2]] <- twilight(tab[!tab[,2],1], known.coord[1], known.coord[2], rise = FALSE, zenith = (min(z)-0.1)-90 ,iters = 3)
+  inc = 0
+  repeat {
+    twl_t   <- twilight(tab[,1], known.coord[1], known.coord[2], rise = tab[,2], zenith = max(z)+inc)
+    twl_dev <- ifelse(tab$Rise, as.numeric(difftime(tab[,1], twl_t, units = "mins")),
+                      as.numeric(difftime(twl_t, tab[,1], units = "mins")))
+    if(all(twl_dev>=0)) {
+      break
+    } else {
+      inc <- inc+0.01
+    }
+  }
+  z0 <- max(z)+inc
   
-  tab$diff <- NA 
+  seq <- seq(0, max(twl_dev), length = 100)
   
-  tab$diff[tab[,2]] <- as.numeric(difftime(tab[tab[,2],1], tab[tab[,2],3], units = "mins"))
-  tab$diff[!tab[,2]] <- as.numeric(difftime(tab[!tab[,2],3], tab[!tab[,2],1], units = "mins"))
+  fitml_ng <- suppressWarnings(fitdistr(twl_dev, "gamma"))
+  lns      <- dgamma(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
   
+  diffz <- as.data.frame(cbind(min = apply(cbind(tab[,1], twilight(tab[,1], known.coord[1], known.coord[2], rise = tab[,2], zenith = z0)), 1, function(x) abs(x[1]-x[2]))/60, z = z))
+  mod  <- lm(z~min, data = diffz)
+  mod2 <- lm(min~z, data = diffz)
+  
+  a1.0 <- seq[which.max(lns)]
+  a1.1 <- 90-predict(mod, newdata = data.frame(min = a1.0))
   
   if(plot) {
-    opar <- par(mfrow = c(1, 2), mar = c(7, 7, 5, 1), oma = c(0, 0, 0, 2), 
-                cex.lab = 1.5, cex.axis = 1.5, las = 1, mgp = c(4.8, 2, 1))
+    opar <- par(mar = c(10, 4, 1, 1))
+    hist(twl_dev, freq = F, breaks = 26, main = "Twilight Model", xlab = "twilight error (min)")
+    lines(seq, lns, col = "firebrick", lwd = 3, lty = 2)
     
-    hist(z, breaks =  seq(min(z)-0.5, max(z)+0.5, length = 18), main = "", 
-         col = "grey60", xlab = "Sun elevaion angle")
-    arrows(median(z), -0.75, median(z), -0.1,  lwd = 3, col = "cornflowerblue", xpd = T)
-    mtext(paste("median elevation", round(median(z),2)), font = 3, col = "cornflowerblue", cex = 1.2, line = 1.6)
+    points(predict(mod2, newdata=data.frame(z = z0)), 0, pch = 21, cex = 5, bg = "white", lwd = 2)
+    text(predict(mod2, newdata=data.frame(z = z0)), 0, "0")
     
-    hist(tab$diff, freq = F, breaks = seq(min(tab$diff)-2, max(tab$diff)+2, length = 18), 
-         main = "", xlab = "Twilight error (minutes)", col = "grey95", ylab = "Probability density")
+    points(a1.0, 0, pch = 21, cex = 5, bg = "white", lwd = 2)
+    text(a1.0, 0, "1")
     
-    if(lnorm.pars) {
-      seq1 <- seq(0, max(tab$diff), length = 100)
-      fit <- fitdistr(tab$diff, "log-Normal")
-      lines(seq1, dlnorm(seq1, fit$estimate[1], fit$estimate[2]), col = "firebrick", lwd = 3, lty = 2)
-      
-      mtext(paste("elev0 =", round((min(z)-0.1), 2), "\nshape =", round(fit$estimate[1],2), 
-                  "\nscale =", round(fit$estimate[2],2)), 
-            font = 3, col = "firebrick", cex = 1.2, line = 0.5)
-    }
+    axis(1, at = seq(0, max(twl_dev), 6), labels = round(90-predict(mod, newdata = data.frame(min = seq(0, max(twl_dev), 6))),1), line = 5)
+    mtext("sun elevation angle (degrees)", 1, line = 8)
+    
+    legend("topright", paste(c("0. Sun elevation angle (zero)", "1. Sun elevation angle (median)", "log-mean", "log-sd"), round(c(90-z0, a1.1, fitml_ng$estimate[1], fitml_ng$estimate[2]),3)), bty = "n")
+    
     par(opar)
   }
   
-  if(lnorm.pars) c(med.elev=median(z), shape = as.numeric(fit$estimate[1]), 
-                   scale = as.numeric(fit$estimate[2])) else c(med.elev = median(z))
+  data.frame(a1 = a1.1, e0 = 90-z0, log.mean =  fitml_ng$estimate[1], log.sd =  fitml_ng$estimate[2])
 }
 
 

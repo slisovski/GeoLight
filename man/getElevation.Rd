@@ -4,8 +4,7 @@
 \alias{getElevation}
 \title{Calculate the appropriate sun elevation angle for known location}
 \usage{
-getElevation(tFirst, tSecond, type, twl, known.coord, plot = TRUE,
-  lnorm.pars = FALSE)
+getElevation(tFirst, tSecond, type, twl, known.coord, plot = TRUE)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}
@@ -21,18 +20,16 @@ known x and y coordinates (in that order) for the selected measurement
 period.}
 
 \item{plot}{\code{logical}, if TRUE a plot will be produced.}
-
-\item{lnorm.pars}{\code{logical}, if TRUE shape and scale parameters of the twilight error (log-normal distribution) 
-will be estimated and included in the output (see Details).}
 }
 \description{
-Function to calculate the median sun elevation angle for light measurements at a
+Function to calculate the sun elevation angle for light measurements at a
 known location and the choosen light threshold.
 }
 \details{
-Optionally, shape and scale paramters of the twiligth error (in minutes) can be estimated. The error is assumed
-to follow a log-normal distribution and 0 (elev0) is set 0.1 below the minimum sun elevation angle of estimated twilight times.
-Those parameters might be of interest for sensitivity analysis or further processing using the R Package SGAT (https://github.com/SWotherspoon/SGAT).
+NEW: The function provides two different sun elevation angle. The first (a1) refers to the median twiligth error and
+is needed for threshold based locaiton estimation (e.g. \code{\link{coord}}). The second (a0) refers to the zero elevation
+angle of the twilight error distribution and is required for e.g. \code{\link{mergeSites2}}, \code{\link{siteEstimate}}. The function
+also provides the parameters (log.mean and log.sd) of the fitted log-normal distribution (see red line in plot),
 }
 \examples{
 data(calib2)
