@@ -5,8 +5,8 @@
 \title{Imporved mergeSites function}
 \usage{
 mergeSites2(tFirst, tSecond, type, twl, site, degElevation,
-  distThreshold = 250, ll.radius.degrees = 30, fixed = NULL,
-  alpha = c(2.5, 1), plot = TRUE)
+  distThreshold = 250, fixed = NULL, alpha = c(2.5, 1), mask = "land",
+  plot = TRUE)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}

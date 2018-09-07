@@ -139,21 +139,6 @@ i.argCheck <- function(y) {
   
 }
 
-spCircle <- function (crds, radius, nv = 100, prj, out="SpatialPolygons") 
-{
-  angle.inc <- 2 * pi/nv
-  angles <- seq(0, 2 * pi - angle.inc, by = angle.inc)
-  
-  xv <- cos(angles) * radius + crds[,1]
-  yv <- sin(angles) * radius + crds[,2]
-  
-  if(out=="SpatialPolygons"){
-    if(missing(prj)) prj <- " +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"
-    SpatialPolygons(list(Polygons(list(Polygon(cbind(c(xv,xv[1]), c(yv,yv[1])))),ID=1)), proj4string=CRS(prj))
-  } else {cbind(xv, yv)}
-  
-}
-
 
 ##' Estimate location from consecutive twilights
 ##'
@@ -339,6 +324,8 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' @param known.coord a \code{SpatialPoint} or \code{matrix} object, containing
 ##' known x and y coordinates (in that order) for the selected measurement
 ##' period.
+##' @param method the function can either estimate the sun elevation angle and the twilight error parameters using a log-normal ("log-norm")
+##' or a gamma ("gamma") error distribution. It is recommended to try both and evaluate the fit using the plot.
 ##' @param plot \code{logical}, if TRUE a plot will be produced.
 ##' @author Simeon Lisovski
 ##' @references Lisovski, S., Hewson, C.M, Klaassen, R.H.G., Korner-Nievergelt,
@@ -354,14 +341,16 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' @importFrom graphics arrows par hist plot lines mtext
 ##' @importFrom stats dlnorm median
 ##' @export getElevation
-getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE) {
+getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-norm", plot=TRUE) {
+
+  if(!(method%in%c("gamma", "log-norm"))) stop("Method can only be `gamma` or `log-norm`.")
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   tab <- geolight.convert(tab[,1], tab[,2], tab[,3])  
   
   sun  <- solar(tab[,1])
   z    <- refracted(zenith(sun, known.coord[1], known.coord[2]))
-  plot(z)
+  # plot(z)
   
   inc = 0
   repeat {
@@ -378,8 +367,15 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE) {
   
   seq <- seq(0, max(twl_dev), length = 100)
   
-  fitml_ng <- suppressWarnings(fitdistr(twl_dev, "gamma"))
-  lns      <- dgamma(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
+  if(method=="log-norm"){
+    fitml_ng <- suppressWarnings(fitdistr(twl_dev, "log-normal"))
+    lns      <- dlnorm(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
+  }
+  if(method=="gamma"){
+    fitml_ng <- suppressWarnings(fitdistr(twl_dev, "gamma"))
+    lns      <- dgamma(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
+  }
+  
   
   diffz <- as.data.frame(cbind(min = apply(cbind(tab[,1], twilight(tab[,1], known.coord[1], known.coord[2], rise = tab[,2], zenith = z0)), 1, function(x) abs(x[1]-x[2]))/60, z = z))
   mod  <- lm(z~min, data = diffz)
@@ -390,7 +386,8 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE) {
   
   if(plot) {
     opar <- par(mar = c(10, 4, 1, 1))
-    hist(twl_dev, freq = F, breaks = 26, main = "Twilight Model", xlab = "twilight error (min)")
+    if(method=="log-norm") hist(twl_dev, freq = F, breaks = 26, main = "Twilight Model (log-norm)", xlab = "twilight error (min)")
+    if(method=="gamma") hist(twl_dev, freq = F, breaks = 26, main = "Twilight Model (gamma)", xlab = "twilight error (min)")
     lines(seq, lns, col = "firebrick", lwd = 3, lty = 2)
     
     points(predict(mod2, newdata=data.frame(z = z0)), 0, pch = 21, cex = 5, bg = "white", lwd = 2)
@@ -402,12 +399,13 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, plot=TRUE) {
     axis(1, at = seq(0, max(twl_dev), 6), labels = round(90-predict(mod, newdata = data.frame(min = seq(0, max(twl_dev), 6))),1), line = 5)
     mtext("sun elevation angle (degrees)", 1, line = 8)
     
-    legend("topright", paste(c("0. Sun elevation angle (zero)", "1. Sun elevation angle (median)", "log-mean", "log-sd"), round(c(90-z0, a1.1, fitml_ng$estimate[1], fitml_ng$estimate[2]),3)), bty = "n")
+    if(method=="log-norm") legend("topright", paste(c("0. Sun elevation angle (zero)", "1. Sun elevation angle (median)", "log-mean", "log-sd"), round(c(90-z0, a1.1, fitml_ng$estimate[1], fitml_ng$estimate[2]),3)), bty = "n")
+    if(method=="gamma") legend("topright", paste(c("0. Sun elevation angle (zero)", "1. Sun elevation angle (median)", "shape", "scale"), round(c(90-z0, a1.1, fitml_ng$estimate[1], fitml_ng$estimate[2]),3)), bty = "n")
     
     par(opar)
   }
   
-  data.frame(a1 = a1.1, e0 = 90-z0, log.mean =  fitml_ng$estimate[1], log.sd =  fitml_ng$estimate[2])
+  c(a1 = a1.1, e0 = 90-z0, log.mean =  fitml_ng$estimate[1], log.sd =  fitml_ng$estimate[2])
 }
 
 
@@ -978,6 +976,7 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 #' 
 #' @param fixed a logical vector indicating locations that should not be merged.
 #' @param alpha log-mean and log-sd of the twilight error (see: \code{\link{getElevation}}).
+#' @param method either, "gamma" or "log-normal". Depending on the error distribution used in \code{\link{getElevation}}.
 #' @param plot \code{logical}, if TRUE a plot comparing the inital and the final site selection.
 #' @return A \code{vector} with the merged site numbers
 #' @author Simeon Lisovski
@@ -988,12 +987,17 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 #' @importFrom stats optim dnorm
 #' @importFrom parallel makeCluster clusterSetRNGStream parRapply stopCluster
 mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
-                        distThreshold = 250, ll.radius.degrees = 30, fixed = NULL, alpha = c(2.5, 1), plot = TRUE) {
+                        distThreshold = 250, fixed = NULL, alpha = c(2.5, 1), method = "gamma", mask = "land", plot = TRUE) {
+  
+  
+  if(!(method%in%c("gamma", "log-norm"))) stop("Method can only be `gamma` or `log-norm`.")
+  
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), 
+                                                  FUN = function(x) any(class(x) != "name"))])
+  
   
   mycl <- parallel::makeCluster(parallel::detectCores()-1)
   tmp  <- parallel::clusterSetRNGStream(mycl)
-  
-  tab <- twl.gl
   
   if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
   fixed.ind <- apply(fixed, 1, function(x) any(x))
@@ -1018,8 +1022,8 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
   latlim <- range(crds0[, 2], na.rm = T)
   lat.seq <- seq(latlim[1] - 1, latlim[2] + 1, by = 1)
   
-  tmp  <- parallel::clusterExport(mycl, envir=environment())
   tmp  <- parallel::clusterEvalQ(mycl, library("GeoLight"))   
+  
   
   mod <- function(x) {
     
@@ -1028,27 +1032,32 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
     
     crdsT <- expand.grid(lons, lats)
     
-    ll.sr    <- parallel::parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE),
-                                    degElevation = gE[1], parms = parms,  twilight = "sr")
-    ll.ss    <- parallel::parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE),
-                                    degElevation = gE[1], parms = parms,  twilight = "ss")
-    ll <- apply(cbind(ll.sr/max(ll.sr, na.rm = T), ll.ss/max(ll.sr, na.rm = T)), 1, function(x) ifelse(any(x<0.01), NA, sum(x)))
+    ll    <- parallel::parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE),
+                                 degElevation = degElevation, parms = alpha, method = method)
     ll <- ll/max(ll, na.rm = T)
     
-    crdsT <- crdsT[!is.na(ll),]
     
-    # r0     <- raster(xmn =-180, xmx = 180, ymn = -75, ymx = 75, nrow = length(lats), ncol = length(lons))
-    # r      <- rasterize(crdsT[!is.na(ll),], r0, field = ll[!is.na(ll)])
-    # plot(r)
+    r0     <- raster(xmn =-180, xmx = 180, ymn = -75, ymx = 75, nrow = length(lats), ncol = length(lons))
+    r      <- rasterize(crdsT[!is.na(ll),], r0, field = ll[!is.na(ll)])
+    # plot(r, breaks = seq(0.4, 1, length = 100), col = rev(terrain.colors(99)))
+    # points(xTab[[1]]$lon, xTab[[1]]$lat)
+    # points(lon.calib, lat.calib, pch = 21, cex = 2, bg = "white")
     
+    crdsT  <- coordinates(r)[r[]>0.4,]
     r0     <- raster(xmn = min(crdsT[,1])-3, xmx = max(crdsT[,1])+3, ymn = min(crdsT[,2])-3, ymx = max(crdsT[,2])+3, res = 0.5)
-    crdsT  <- coordinates(r0)
+    if(!is.null(mask)) {
+      maskR  <- rasterize(wrld_simpl, r0)
+      if(mask=="land")  crdsT  <- coordinates(r0)[!is.na(maskR[]),]
+      if(mask=="ocean") crdsT  <- coordinates(r0)[is.na(maskR[]),]
+    } else {
+      crdsT  <- coordinates(r0)
+    }
     ll.sr  <- parallel::parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE),
-                                  degElevation = gE[1], parms = parms, twilight = "sr")
+                                  degElevation = degElevation, parms = alpha, method = method, twilight = "sr")
     ll.ss    <- parallel::parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE),
-                                    degElevation = gE[1], parms = parms, twilight = "ss")
+                                    degElevation = degElevation, parms = alpha, method = method, twilight = "ss")
     
-    ll <- apply(cbind(ll.sr/max(ll.sr, na.rm = T), ll.ss/max(ll.sr, na.rm = T)), 1, function(x) ifelse(any(x<0.001), NA, sum(x)))
+    ll <- apply(cbind(ll.sr/max(ll.sr, na.rm = T), ll.ss/max(ll.sr, na.rm = T)), 1, function(x) ifelse(any(x<=0.0000001), NA, sum(x)))
     centre <- crdsT[which.max(ll),]
     
     
@@ -1058,10 +1067,13 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
     # plot(r)
     # contour(r, add = T, levels = c(1, 0.495))
     
-    crdsRange <- coordinates(r)[!is.na(r[]) & r[]>0.495,]
+    crdsRange1 <- coordinates(r)[!is.na(r[]) & r[]>0.495,]
+    crdsRange2 <- coordinates(r)[!is.na(r[]) & r[]>0.7  ,]
     
-    matrix(c(centre[1], centre[2], min(crdsRange[,1]), max(crdsRange[,1]), 
-             min(crdsRange[,2]), max(crdsRange[,2])), ncol = 6)
+    
+    matrix(c(centre[1], centre[2], min(crdsRange1[,1]), min(crdsRange2[,1]), max(crdsRange2[,1]), max(crdsRange1[,1]), 
+             min(crdsRange1[,2]), min(crdsRange2[,2]), max(crdsRange2[,2]), max(crdsRange1[,2])), ncol = 10)
+
     
   }
   
@@ -1070,7 +1082,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
   x0 <- xTab[[1]]
   xTab <- xTab[-1]
   
-  sm <- matrix(ncol = 6, nrow = max(site.old))
+  sm <- matrix(ncol = 10, nrow = max(site.old))
   repeat{
     
     for(i in 1:(length(xTab)-1)) {
@@ -1081,7 +1093,6 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
         out  <- do.call("rbind", lapply(xTab[c(i, i+1)], function(x) mod(x)))
         
         sm[i,] <- out[1,]
-        if(i == (length(xTab)-1)) sm[i+1,] <- out[2,]
         
         # plot(out[,1], out[,2], xlim = range(out[,c(1,3,4)]), ylim = range(out[,c(2,5,6)]))
         # plot(wrld_simpl, add = T)
@@ -1093,8 +1104,8 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
           dist <- fields:::rdist.earth(out[,1:2])[2,1]
           
           if(dist<distThreshold & 
-             (out[2,3] < out[1,1] & out[2,4] > out[1,1]) & (out[2,1] > out[1,3] & out[2,1] < out[1,4]) &
-             (out[2,5] < out[1,2] & out[2,6] > out[1,2]) & (out[2,2] > out[1,5] & out[2,2] < out[1,6])) {
+             (out[2,3] < out[1,1] & out[2,6] > out[1,1]) & (out[2,1] > out[1,3] & out[2,1] < out[1,6]) &
+             (out[2,7] < out[1,2] & out[2,10] > out[1,2]) & (out[2,2] > out[1,7] & out[2,2] < out[1,10])) {
             
             tw$site[min(which(tw$site==i)):max(which(tw$site==(i+1)))] <- i
             tw$site[tw$site>0 & tw$site>i] <-  tw$site[tw$site>0 & tw$site>i]-1
@@ -1115,7 +1126,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
         }
       }
     }
-    if(i==(length(xTab)-1)) {
+    if(i==(length(xTab))) {
       xTab <- split(tw, f = tw$site)
       break
     }
@@ -1223,8 +1234,8 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
     par(opar)
   }
   sm        <- as.data.frame(sm)
-  names(sm) <- c("site", "Lon", "Lat", "Lon.upper", "Lat.upper", 
-                 "Lon.lower", "Lat.lower")
+  names(sm) <- c("site", "Lon", "Lat", "Lon.2.5%", "Lon.40%", "Lon.80%", "Lon.97.25%",  
+                                       "Lat.2.5%", "Lat.40%", "Lat.80%", "Lat.97.25%")
   
   diff <- c(apply(cbind(out$datetime[-nrow(out)], 
                         out$datetime[-1]), 1, function(x) c(x[2] - x[1])/60/60), 0)
@@ -1246,6 +1257,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
   
   list(twl = out.gl[,c(1,2)], site = out.gl$site, summary = sm)
 }
+
 
 
 
@@ -1885,14 +1897,16 @@ i.sum.Cl <- function(object) {
   }
 }
 
-gl.loglik <- function(crds, Twilight, Rise, degElevation, parms, twilight = NULL) {
+
+gl.loglik <- function(crds, Twilight, Rise, degElevation, parms, method, twilight = NULL) {
   t.tw <- twilight(Twilight, lon = crds[1], lat = crds[2], 
-                   rise = Rise, zenith = 94, 
+                   rise = Rise, zenith = 90 - degElevation, 
                    iters = 6)
   
   diff.sr <- as.numeric(difftime(Twilight[Rise], t.tw[Rise], units = "mins"))
   diff.ss <- as.numeric(difftime(t.tw[!Rise], Twilight[!Rise], units = "mins"))
   
+  if(method=="log-norm") {
   if(is.null(twilight)) {
     ll <- sum(dlnorm(c(diff.sr, diff.ss), parms[1], parms[2], log = F), na.rm = T)
   } else {
@@ -1902,6 +1916,17 @@ gl.loglik <- function(crds, Twilight, Rise, degElevation, parms, twilight = NULL
     if(twilight=="ss") {
       ll <- sum(dlnorm(diff.ss, parms[1], parms[2], log = F), na.rm = T)
     }}
+  } else {
+    if(is.null(twilight)) {
+      ll <- sum(dgamma(c(diff.sr, diff.ss), parms[1], parms[2], log = F), na.rm = T)
+    } else {
+      if(twilight=="sr"){
+        ll <- sum(dgamma(diff.sr, parms[1], parms[2], log = F), na.rm = T)
+      }
+      if(twilight=="ss") {
+        ll <- sum(dgamma(diff.ss, parms[1], parms[2], log = F), na.rm = T)
+      }}
+  }
   
   return(ifelse(!is.infinite(abs(ll)), ll, -10000))
 }
