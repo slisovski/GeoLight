@@ -405,7 +405,8 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
     par(opar)
   }
   
-  c(a1 = a1.1, e0 = 90-z0, log.mean =  fitml_ng$estimate[1], log.sd =  fitml_ng$estimate[2])
+  c(a1 = as.numeric(median(z)), e0 = as.numeric(90-z0), 
+    shape =  as.numeric(fitml_ng$estimate[1]), scale =  as.numeric(fitml_ng$estimate[2]))
 }
 
 
@@ -1126,7 +1127,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
         }
       }
     }
-    if(i==(length(xTab))) {
+    if(i==(length(xTab)-1)) {
       xTab <- split(tw, f = tw$site)
       break
     }
