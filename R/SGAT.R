@@ -203,25 +203,30 @@ refracted <- function(zenith) {
 ##' @param rise logical vector indicating whether to compute rise or set.
 ##' @param zenith the solar zenith angle that defines twilight.
 ##' @param iters number of iteratve refinements made to the initial
-##' approximation.
+##' @param closest	 if TRUE, attempt to find the twilight closest to tm.
 ##' @return a vector of twilight times.
 ##' @export
-twilight <- function(tm,lon,lat,rise,zenith=96,iters=3) {
+twilight <- function (tm, lon, lat, rise, zenith = 96, iters = 3, closest = FALSE) {
   
-  ## Compute date
   date <- as.POSIXlt(tm)
   date$hour <- date$min <- date$sec <- 0
-  date <- as.POSIXct(date,"GMT")
-  
-  lon <- (lon+180)%%360-180
-  ## GMT equivalent of 6am or 6pm local time
-  twl <- date+240*(ifelse(rise,90,270)-lon)
-  ## Iteratively improve estimate
-  for(k in seq_len(iters)) {
+  date <- as.POSIXct(date, "GMT")
+  lon <- (lon + 180)%%360 - 180
+  twl <- date + 240 * (ifelse(rise, 90, 270) - lon)
+  for (k in seq_len(iters)) {
     s <- solar(twl)
     s$solarTime <- s$solarTime%%360
-    solarTime <- 4*twilight.solartime(s,lon,lat,rise,zenith)-s$eqnTime
-    twl <- date+60*solarTime
+    solarTime <- 4 * twilightSolartime(s, lon, lat, rise, 
+                                       zenith) - s$eqnTime
+    twl <- date + 60 * solarTime
+  }
+  if (closest) {
+    delta <- (as.numeric(tm) - as.numeric(twl))/3600
+    off <- double(length(delta))
+    off[delta > 12] <- 86400
+    off[delta < -12] <- -86400
+    twl <- twilight(tm + off, lon, lat, rise, zenith, iters, 
+                    FALSE)
   }
   twl
 }
