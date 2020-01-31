@@ -1023,8 +1023,11 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
   latlim <- range(crds0[, 2], na.rm = T)
   lat.seq <- seq(latlim[1] - 1, latlim[2] + 1, by = 1)
   
-  tmp  <- parallel::clusterEvalQ(mycl, library("GeoLight"))   
-  
+  tmp  <- parallel::clusterEvalQ(mycl, {
+    library(GeoLight)
+    library(SGAT)
+    library(TwGeos) 
+  })
   
   mod <- function(x) {
     
