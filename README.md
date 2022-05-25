@@ -21,3 +21,7 @@ install.packages("devtools")
 ```
 
 (GeoLight otherwise does not need devtools for normal use.)
+
+## Known issues
+
+The mergeSite2 functions seem to not be stable and may result in errors. The function is rather experimental and I do not recommend using it without a good look into the source code. 
