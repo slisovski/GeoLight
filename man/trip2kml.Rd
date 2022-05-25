@@ -4,9 +4,17 @@
 \alias{trip2kml}
 \title{Write a file which plots a trip in Google Earth}
 \usage{
-trip2kml(file, tFirst, tSecond, type, degElevation,
-  col.scheme = "heat.colors", point.alpha = 0.7, cex = 1,
-  line.col = "goldenrod")
+trip2kml(
+  file,
+  tFirst,
+  tSecond,
+  type,
+  degElevation,
+  col.scheme = "heat.colors",
+  point.alpha = 0.7,
+  cex = 1,
+  line.col = "goldenrod"
+)
 }
 \arguments{
 \item{file}{A character expression giving the whole path and the name of the

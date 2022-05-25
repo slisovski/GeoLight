@@ -4,8 +4,19 @@
 \alias{changeLight}
 \title{Residency analysis using a changepoint model}
 \usage{
-changeLight(tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA,
-  set.prob = NA, days = 5, fixed = NULL, plot = TRUE, summary = TRUE)
+changeLight(
+  tFirst,
+  tSecond,
+  type,
+  twl,
+  quantile = 0.9,
+  rise.prob = NA,
+  set.prob = NA,
+  days = 5,
+  fixed = NULL,
+  plot = TRUE,
+  summary = TRUE
+)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}

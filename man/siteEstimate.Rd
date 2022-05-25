@@ -4,9 +4,18 @@
 \alias{siteEstimate}
 \title{siteEstimate}
 \usage{
-siteEstimate(tFirst, tSecond, type, twl, degElevation, method = "gamma",
-  parms = c(3.3, 0.8), xlim = c(-180, 180), ylim = c(-90, 90),
-  res = c(0.5, 0.5))
+siteEstimate(
+  tFirst,
+  tSecond,
+  type,
+  twl,
+  degElevation,
+  method = "gamma",
+  parms = c(3.3, 0.8),
+  xlim = c(-180, 180),
+  ylim = c(-90, 90),
+  res = c(0.5, 0.5)
+)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}

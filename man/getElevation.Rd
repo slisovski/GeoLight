@@ -4,7 +4,15 @@
 \alias{getElevation}
 \title{Calculate the appropriate sun elevation angle for known location}
 \usage{
-getElevation(tFirst, tSecond, type, twl, known.coord, plot = TRUE)
+getElevation(
+  tFirst,
+  tSecond,
+  type,
+  twl,
+  known.coord,
+  method = "log-norm",
+  plot = TRUE
+)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}
@@ -18,6 +26,9 @@ getElevation(tFirst, tSecond, type, twl, known.coord, plot = TRUE)
 \item{known.coord}{a \code{SpatialPoint} or \code{matrix} object, containing
 known x and y coordinates (in that order) for the selected measurement
 period.}
+
+\item{method}{the function can either estimate the sun elevation angle and the twilight error parameters using a log-normal ("log-norm")
+or a gamma ("gamma") error distribution. It is recommended to try both and evaluate the fit using the plot.}
 
 \item{plot}{\code{logical}, if TRUE a plot will be produced.}
 }
@@ -35,7 +46,7 @@ also provides the parameters (log.mean and log.sd) of the fitted log-normal dist
 data(calib2)
   calib2$tFirst  <- as.POSIXct(calib2$tFirst, tz = "GMT")
   calib2$tSecond <- as.POSIXct(calib2$tSecond, tz = "GMT")
-getElevation(calib2, known.coord = c(7.1,46.3), lnorm.pars = TRUE)
+getElevation(calib2, known.coord = c(7.1,46.3))
 }
 \references{
 Lisovski, S., Hewson, C.M, Klaassen, R.H.G., Korner-Nievergelt,

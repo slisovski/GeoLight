@@ -4,8 +4,13 @@
 \alias{tripMap}
 \title{Draw the positions and the trip on a map}
 \usage{
-tripMap(crds, equinox = TRUE, map.range = c("EuroAfrica", "AustralAsia",
-  "America", "World"), legend = TRUE, ...)
+tripMap(
+  crds,
+  equinox = TRUE,
+  map.range = c("EuroAfrica", "AustralAsia", "America", "World"),
+  legend = TRUE,
+  ...
+)
 }
 \arguments{
 \item{crds}{a \code{SpatialPoints} or \code{matrix} object, containing x

@@ -4,10 +4,12 @@
 \name{hoopoe2}
 \alias{hoopoe2}
 \title{Sunrise and sunset times: From light intensity measurement (hoopoe1)}
-\format{A table with 340 rows and 3 columns. Each row corresponds to
+\format{
+A table with 340 rows and 3 columns. Each row corresponds to
 subsequent twilight events ("tFirst" and "tSecond"). The third column
 ("type") indicates weather the first event is sunrise (1) or sunset (2). All
-dates/times are measured in Universal Time Zone (UTC).}
+dates/times are measured in Universal Time Zone (UTC).
+}
 \source{
 Baechler, E., Hahn, S., Schaub, M., Arlettaz, R., Jenni, L., Fox,
 J.W., Afanasyev, V. & Liechti, F. (2010) Year-Round Tracking of Small

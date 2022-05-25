@@ -21,8 +21,3 @@ install.packages("devtools")
 ```
 
 (GeoLight otherwise does not need devtools for normal use.)
-
-
-## TODO
-
-...

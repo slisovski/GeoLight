@@ -4,8 +4,15 @@
 \alias{siteMap}
 \title{Draws sites of residency and adds a convex hull}
 \usage{
-siteMap(crds, site, type = "points", quantiles = c(0.25, 0.75), hull = T,
-  map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ...)
+siteMap(
+  crds,
+  site,
+  type = "points",
+  quantiles = c(0.25, 0.75),
+  hull = T,
+  map.range = c("EuroAfrica", "AustralAsia", "America", "World"),
+  ...
+)
 }
 \arguments{
 \item{crds}{a \code{SpatialPoints} or \code{matrix} object, containing x

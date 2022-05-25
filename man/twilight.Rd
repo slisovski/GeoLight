@@ -4,7 +4,7 @@
 \alias{twilight}
 \title{Times of Sunrise and Sunset}
 \usage{
-twilight(tm, lon, lat, rise, zenith = 96, iters = 3)
+twilight(tm, lon, lat, rise, zenith = 96, iters = 3, closest = FALSE)
 }
 \arguments{
 \item{tm}{vector of approximate times of twilight.}
@@ -17,8 +17,9 @@ twilight(tm, lon, lat, rise, zenith = 96, iters = 3)
 
 \item{zenith}{the solar zenith angle that defines twilight.}
 
-\item{iters}{number of iteratve refinements made to the initial
-approximation.}
+\item{iters}{number of iteratve refinements made to the initial}
+
+\item{closest}{if TRUE, attempt to find the twilight closest to tm.}
 }
 \value{
 a vector of twilight times.

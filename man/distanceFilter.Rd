@@ -4,8 +4,15 @@
 \alias{distanceFilter}
 \title{Filter for unrealistic positions within a track based on distance}
 \usage{
-distanceFilter(tFirst, tSecond, type, twl, degElevation = -6, distance,
-  units = "hour")
+distanceFilter(
+  tFirst,
+  tSecond,
+  type,
+  twl,
+  degElevation = -6,
+  distance,
+  units = "hour"
+)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}

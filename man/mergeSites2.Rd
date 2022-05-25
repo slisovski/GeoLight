@@ -4,9 +4,21 @@
 \alias{mergeSites2}
 \title{Imporved mergeSites function}
 \usage{
-mergeSites2(tFirst, tSecond, type, twl, site, degElevation,
-  distThreshold = 250, fixed = NULL, alpha = c(2.5, 1), mask = "land",
-  plot = TRUE)
+mergeSites2(
+  tFirst,
+  tSecond,
+  type,
+  twl,
+  site,
+  degElevation,
+  distThreshold = 250,
+  fixed = NULL,
+  alpha = c(2.5, 1),
+  method = "gamma",
+  map,
+  mask = "land",
+  plot = TRUE
+)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}
@@ -31,6 +43,12 @@ which consequtive sites should be merged (in km).}
 \item{fixed}{a logical vector indicating locations that should not be merged.}
 
 \item{alpha}{log-mean and log-sd of the twilight error (see: \code{\link{getElevation}}).}
+
+\item{method}{either, "gamma" or "log-normal". Depending on the error distribution used in \code{\link{getElevation}}.}
+
+\item{map}{A 'SpatialPolygonDataFrame' of the world. E.g., use 'wrld_simpl' from the maptools package.}
+
+\item{mask}{Either 'land' or 'ocean'.}
 
 \item{plot}{\code{logical}, if TRUE a plot comparing the inital and the final site selection.}
 }

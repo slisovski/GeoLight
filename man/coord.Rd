@@ -4,8 +4,16 @@
 \alias{coord}
 \title{Simple Threshold Geolocation Estimates}
 \usage{
-coord(tFirst, tSecond, type, twl, degElevation = -6, tol = 0,
-  method = "NOAA", note = TRUE)
+coord(
+  tFirst,
+  tSecond,
+  type,
+  twl,
+  degElevation = -6,
+  tol = 0,
+  method = "NOAA",
+  note = TRUE
+)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}

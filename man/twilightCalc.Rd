@@ -5,8 +5,16 @@
 \title{Calculate twilight events (sunrise/sunset) from light intensity measurements
 over time}
 \usage{
-twilightCalc(datetime, light, LightThreshold = TRUE, preSelection = TRUE,
-  maxLight = NULL, ask = TRUE, nsee = 500, allTwilights = FALSE)
+twilightCalc(
+  datetime,
+  light,
+  LightThreshold = TRUE,
+  preSelection = TRUE,
+  maxLight = NULL,
+  ask = TRUE,
+  nsee = 500,
+  allTwilights = FALSE
+)
 }
 \arguments{
 \item{datetime}{date and time of light intensity measurements e.g.

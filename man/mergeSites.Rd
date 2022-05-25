@@ -4,8 +4,18 @@
 \alias{mergeSites}
 \title{Function to merge sites}
 \usage{
-mergeSites(tFirst, tSecond, type, twl, site, degElevation,
-  distThreshold = 250, fixed = NULL, alpha = c(0, 15), plot = TRUE)
+mergeSites(
+  tFirst,
+  tSecond,
+  type,
+  twl,
+  site,
+  degElevation,
+  distThreshold = 250,
+  fixed = NULL,
+  alpha = c(0, 15),
+  plot = TRUE
+)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}

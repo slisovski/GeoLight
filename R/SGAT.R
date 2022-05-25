@@ -216,7 +216,7 @@ twilight <- function (tm, lon, lat, rise, zenith = 96, iters = 3, closest = FALS
   for (k in seq_len(iters)) {
     s <- solar(twl)
     s$solarTime <- s$solarTime%%360
-    solarTime <- 4 * twilightSolartime(s, lon, lat, rise, 
+    solarTime <- 4 * twilight.solartime(s, lon, lat, rise, 
                                        zenith) - s$eqnTime
     twl <- date + 60 * solarTime
   }
