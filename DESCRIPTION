@@ -15,7 +15,6 @@ Depends:
     R (>= 4.0.0),
     maps
 Imports:
-    usethis,
     raster,
     changepoint,
     fields,
