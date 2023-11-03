@@ -138,8 +138,6 @@ i.argCheck <- function(y) {
   out  
 }
 
-#fzjuzgjh
-
 ##' Estimate location from consecutive twilights
 ##'
 ##' This function estimates the location given the times at which 
