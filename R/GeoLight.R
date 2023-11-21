@@ -983,7 +983,7 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 #'
 #' @export mergeSites2
 #' @importFrom fields rdist.earth
-#' @importFrom terra rast rasterize crds xFromCell yFromCell
+#' @importFrom terra rast rasterize crds xFromCell yFromCell ncell
 #' @importFrom graphics abline axis lines mtext par plot points rect 
 #' @importFrom stats optim dnorm
 #' @importFrom utils data 
@@ -1074,12 +1074,12 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
     # contour(r, add = T, levels = c(1, 0.495))
     
     
-    crdsRange1.x <- terra::xFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.495]
-    crdsRange1.y <- terra::yFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.495]
+    crdsRange1.x <- terra::xFromCell(r, 1:terra::ncell(r))[!is.na(r[]) & r[]>0.495]
+    crdsRange1.y <- terra::yFromCell(r, 1:terra::ncell(r))[!is.na(r[]) & r[]>0.495]
     crdsRange1 <- cbind(crdsRange1.x, crdsRange1.y)
     
-    crdsRange2.x <- terra::xFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.7]
-    crdsRange2.y <- terra::yFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.7]
+    crdsRange2.x <- terra::xFromCell(r, 1:terra::ncell(r))[!is.na(r[]) & r[]>0.7]
+    crdsRange2.y <- terra::yFromCell(r, 1:terra::ncell(r))[!is.na(r[]) & r[]>0.7]
     crdsRange2 <- cbind(crdsRange2.x, crdsRange2.y)
     
     matrix(c(centre[1], centre[2], min(crdsRange1[,1]), min(crdsRange2[,1]), max(crdsRange2[,1]), max(crdsRange1[,1]),
