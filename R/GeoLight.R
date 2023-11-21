@@ -336,7 +336,7 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' getElevation(calib2, known.coord = c(7.1,46.3))
 ##' @importFrom MASS fitdistr
 ##' @importFrom graphics arrows par hist plot lines mtext
-##' @importFrom stats dlnorm median
+##' @importFrom stats dlnorm median ls dgamma
 ##' @export getElevation
 getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-norm", plot=TRUE) {
 
@@ -944,20 +944,20 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 #'
 #' The \code{\link{changeLight}} functions provides a vector grouping the twilight times
 #' into stationary (>0) and movement (0) periods. The mergeSites functions allows to merge
-#' these stationary periods in case some consequtive sites were separated by e.g. outlayers
+#' these stationary periods in case some consecutive sites were separated by e.g. outliers
 #' or strong shading events. In a nutshell, the function estimates a likelihood surface for each
 #' stationary period that is based on the siteEstimate principle (e.g. fitting sunrise and sunset times
-#' of locations to the recorded sunrise and sunsets and findning the coordintates that results in
+#' of locations to the recorded sunrise and sunsets and finding the coordinates that results in
 #' the best fit).
 #' The decision on whether two consecutive sites should be merged together is made by the provided
 #' `distThreshold` and the overlap of the 95% credible intervals of the location (e.g. the distance
 #' between two consecutive sites needs to be smaller than the `distThreshold` AND the median locations need
 #' to overlap with the credible intervals of the two location estimates to trigger merging of the sites).
 #' The function also requires a sun elevation angle. HOWEVER, the angle defining the zero in the
-#' log-normal distribution of the twilight error is needen and not the sun elevation for the median
+#' log-normal distribution of the twilight error is needed and not the sun elevation for the median
 #' twilight error which is needed for the location estimation using the function `coord`. The function `getElevation`
 #' provides both, the median and the zero sun elevation angle as well as the parameters for the log-normal
-#' distribution that also requirred in the `mergeSites2` function.
+#' distribution that also required in the `mergeSites2` function.
 #'
 #' @param tFirst vector of sunrise/sunset times (e.g. 2008-12-01 08:30).
 #' @param tSecond vector of of sunrise/sunset times (e.g. 2008-12-01 17:30).
@@ -970,20 +970,20 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 ##' twilight"). Either a single value, a \code{vector} with the same length as
 ##' \code{tFirst} or \code{nrow(x)}.
 #' @param distThreshold a \code{numerical} value defining the threshold of the distance under 
-#' which consequtive sites should be merged (in km).
+#' which consecutive sites should be merged (in km).
 #' 
 #' @param fixed a logical vector indicating locations that should not be merged.
 #' @param alpha log-mean and log-sd of the twilight error (see: \code{\link{getElevation}}).
 #' @param method either, "gamma" or "log-normal". Depending on the error distribution used in \code{\link{getElevation}}.
 #' @param map A 'SpatialPolygonDataFrame' of the world. E.g., use 'wrld_simpl' from the maptools package.
 #' @param mask Either 'land' or 'ocean'.
-#' @param plot \code{logical}, if TRUE a plot comparing the inital and the final site selection.
+#' @param plot \code{logical}, if TRUE a plot comparing the initial and the final site selection.
 #' @return A \code{vector} with the merged site numbers
 #' @author Simeon Lisovski
 #'
 #' @export mergeSites2
 #' @importFrom fields rdist.earth
-#' @importFrom raster raster rasterize coordinates
+#' @importFrom terra rast rasterize crds xFromCell yFromCell
 #' @importFrom graphics abline axis lines mtext par plot points rect 
 #' @importFrom stats optim dnorm
 #' @importFrom utils data 
@@ -1036,48 +1036,54 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
     
     crdsT <- expand.grid(lons, lats)
     
-    ll    <- parallel::parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE),
-                                 degElevation = degElevation, parms = alpha, method = method)
+    ll    <- parallel::parRapply(mycl, crdsT, FUN = GeoLight:::gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE), degElevation = degElevation, parms = alpha, method = method)
     ll    <- ll/max(ll, na.rm = T)
     
-    
-    r0     <- raster(xmn =-180, xmx = 180, ymn = -75, ymx = 75, nrow = length(lats), ncol = length(lons))
-    r      <- rasterize(crdsT[!is.na(ll),], r0, field = ll[!is.na(ll)])
+    r0     <- terra::rast(xmin =-180, xmax = 180, ymin = -75, ymax = 75, nrows = length(lats), ncols = length(lons))
+    r      <- terra::rasterize(as.matrix(crdsT[!is.na(ll),]), r0, ll[!is.na(ll)])
     # plot(r, breaks = seq(0.4, 1, length = 100), col = rev(terrain.colors(99)))
     # points(xTab[[1]]$lon, xTab[[1]]$lat)
     # points(lon.calib, lat.calib, pch = 21, cex = 2, bg = "white")
     
-    crdsT  <- coordinates(r)[r[]>0.4,]
-    r0     <- raster(xmn = min(crdsT[,1])-3, xmx = max(crdsT[,1])+3, ymn = min(crdsT[,2])-3, ymx = max(crdsT[,2])+3, res = 0.5)
-    if(!is.null(mask)) {
-      maskR  <- rasterize(map, r0)
-      if(mask=="land")  crdsT  <- coordinates(r0)[!is.na(maskR[]),]
-      if(mask=="ocean") crdsT  <- coordinates(r0)[is.na(maskR[]),]
-    } else {
-      crdsT  <- coordinates(r0)
-    }
-    ll.sr  <- parallel::parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE),
-                                  degElevation = degElevation, parms = alpha, method = method, twilight = "sr")
-    ll.ss    <- parallel::parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE),
-                                    degElevation = degElevation, parms = alpha, method = method, twilight = "ss")
+    crdsT <- terra::crds(r)[r[]>0.4,]           
+    r0     <- terra::rast(xmin = min(crdsT[,1])-3,
+                          xmax = max(crdsT[,1])+3, 
+                          ymin = min(crdsT[,2])-3, 
+                          ymax = max(crdsT[,2])+3, 
+                          res = 0.5)
     
+    if(!is.null(mask)) {
+      maskR  <- terra::rasterize(map, r0)
+      if(mask=="land")  crdsT  <- terra::crds(r0)[!is.na(maskR[]),]
+      
+      if(mask=="ocean") crdsT  <- terra::crds(r0)[is.na(maskR[]),]
+    } else {
+      crdsT  <- terra::crds(r0)
+    }
+    
+    ll.sr  <- parallel::parRapply(mycl, crdsT, FUN = GeoLight:::gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE), degElevation = degElevation, parms = alpha, method = method, twilight = "sr")
+    ll.ss    <- parallel::parRapply(mycl, crdsT, FUN = GeoLight:::gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE), degElevation = degElevation, parms = alpha, method = method, twilight = "ss")
     ll <- apply(cbind(ll.sr/max(ll.sr, na.rm = T), ll.ss/max(ll.sr, na.rm = T)), 1, function(x) ifelse(any(x<=0.0000001), NA, sum(x)))
     centre <- crdsT[which.max(ll),]
+    centre.global <<- centre
     
-    
-    r   <- rasterize(crdsT[!is.na(ll),], r0, field = ll[!is.na(ll)])
+    r      <- terra::rasterize(as.matrix(crdsT[!is.na(ll),]), r0, ll[!is.na(ll)])
     r[] <- r[]/max(r[], na.rm = T)
     
     # plot(r)
     # contour(r, add = T, levels = c(1, 0.495))
     
-    crdsRange1 <- coordinates(r)[!is.na(r[]) & r[]>0.495,]
-    crdsRange2 <- coordinates(r)[!is.na(r[]) & r[]>0.7  ,]
     
+    crdsRange1.x <- terra::xFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.495]
+    crdsRange1.y <- terra::yFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.495]
+    crdsRange1 <- cbind(crdsRange1.x, crdsRange1.y)
     
-    matrix(c(centre[1], centre[2], min(crdsRange1[,1]), min(crdsRange2[,1]), max(crdsRange2[,1]), max(crdsRange1[,1]), 
+    crdsRange2.x <- terra::xFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.7]
+    crdsRange2.y <- terra::yFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.7]
+    crdsRange2 <- cbind(crdsRange2.x, crdsRange2.y)
+    
+    matrix(c(centre[1], centre[2], min(crdsRange1[,1]), min(crdsRange2[,1]), max(crdsRange2[,1]), max(crdsRange1[,1]),
              min(crdsRange1[,2]), min(crdsRange2[,2]), max(crdsRange2[,2]), max(crdsRange1[,2])), ncol = 10)
-
     
   }
   
