@@ -470,10 +470,10 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
 ##' @importFrom graphics abline axis layout mtext par plot rect
 ##' @export changeLight
 changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA, 
-                         set.prob = NA, days = 5, fixed = NULL, plot = TRUE, summary = TRUE) {
+                         set.prob = NA, days = 5, fixed = NULL, plot = TRUE, ggplot= TRUE, summary = TRUE) {
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), 
-                                                  FUN = function(x) any(class(x) != "name"))])
+  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), 
+                                                             FUN = function(x) any(class(x) != "name"))])
   
   if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
   
@@ -580,58 +580,208 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
               set.prob = set.prob, site = ifelse(is.na(tmp02[,8]), 0 , tmp02[,8]), migTable = ds)
   
   if (plot) {
-    def.par <- par(no.readonly = TRUE)
-    nf <- layout(matrix(c(4, 1, 2, 3), nrow = 4, byrow = T), 
-                 heights = c(0.5, 1, 0.5, 0.5))
-    par(mar = c(2, 4.5, 2, 5), cex.lab = 1.5, cex.axis = 1.5, 
-        bty = "o")
-    rise[tw$fixed[tw$type==1]] <- NA
-    plot(sr, rise, 
-         type = "o", cex = 0.2, col = "firebrick", 
-         ylab = "Sunrise (red)", xlim = range(sr), xaxt = "n")
-    par(new = T)
-    set[tw$fixed[tw$type==2]] <- NA
-    plot(ss, set, type = "o", cex = 0.2, col = "cornflowerblue", 
-         xaxt = "n", yaxt = "n", xlab = "", ylab = "", xlim = range(ss))
-    axis(4)
-    mtext("Sunset (blue)", 4, line = 2.7, cex = 1)
-    axis(1, at = seq(min(ss), max(ss), by = (10 * 24 * 60 * 
-                                               60)), labels = F)
-    axis(1, at = seq(min(ss), max(ss), by = (30 * 24 * 60 * 
-                                               60)), lwd.ticks = 2, labels = trunc(seq(min(ss), 
-                                                                                       max(ss), by = (30 * 24 * 60 * 60)), "days"), cex.axis = 1)
-    par(mar = c(1.5, 4.5, 0.8, 5), bty = "n")
-    plot(sr, tab1[, 2], type = "h", lwd = 4, col = "firebrick", 
-         ylab = "", xaxt = "n", xlim = range(sr), ylim = c(0, 
-                                                           max(na.omit(c(tab1[, 2], tab2[, 2])))))
-    if (is.numeric(rise.prob)) 
-      abline(h = rise.prob, lty = 2, lwd = 1.5)
-    opar <- par(mar = c(1.5, 4.5, 0.8, 5), bty = "n")
-    plot(ss, tab2[, 2], type = "h", lwd = 4, col = "cornflowerblue", 
-         ylab = "", xaxt = "n", xlim = range(ss), ylim = c(0, 
-                                                           max(na.omit(c(tab1[, 2], tab2[, 2])))))
-    if (is.numeric(set.prob)) 
-      abline(h = set.prob, lty = 2, lwd = 1.5)
-    mtext("Probability of change", side = 2, at = max(na.omit(c(tab1[, 
-                                                                     2], tab2[, 2]))), line = 3)
-    par(mar = c(1, 4.5, 1, 5), bty = "o")
-    mig <- out$site
-    mig[mig > 0] <- 1
-    plot(tab[, 1] + (tab[, 2] - tab[, 1])/2, ifelse(out$site > 
-                                                      0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim = c(0,1.5)) 
-    
-    min.r <- stats::aggregate(as.numeric(tab$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) min(x))
-    max.r <- stats::aggregate(as.numeric(tab$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) max(x))
-    
-    rect(min.r[,2], 1.1, max.r[,2], 1.4, col = "grey90", lwd = 0)
-    
-    rect(min.r[,2], 1.1, max.r[,2], 1.4, col = ifelse(unique(out$site[out$site>0])%in%unique(tmp02[tmp02$fixed, 8]), "red", "transparent"),
-         density = 60)
-    
-    par(def.par)
+    if (ggplot) {
+      
+      library(ggplot2)
+      library(patchwork)
+      library(dplyr)
+      
+      # needed for poc_plots and sunset/sunrise, also for all xlab labels and breaks
+      tw_rise <- data.frame(sr, rise)
+      tw_set <- data.frame(ss, set)
+      
+      # Old part of code necessary for histogram + rectangles 
+      mig <- out$site
+      mig[mig > 0] <- 1
+      
+      min.r <- stats::aggregate(as.numeric(tab$tFirst[out$site>0]),
+                                by = list(out$site[out$site>0]), 
+                                FUN = function(x) min(x))
+      
+      max.r <- stats::aggregate(as.numeric(tab$tFirst[out$site>0]),
+                                by = list(out$site[out$site>0]),
+                                FUN = function(x) max(x))
+      
+      # New part of code necessary for histogram + rectangles
+      min.r[, 2] <- as.POSIXct(min.r[, 2], 
+                               origin = "1970-01-01",
+                               tz = "UTC")
+      
+      max.r[, 2] <- as.POSIXct(max.r[, 2], 
+                               origin = "1970-01-01",
+                               tz = "UTC")
+      
+      # Histogroam without rectangles
+      histogram <-  ggplot() +
+        geom_line(aes(x = tab[, 1] + (tab[, 2] - tab[, 1])/2, 
+                      y = ifelse(out$site > 0, 1, 0))) +
+        scale_y_continuous(limits = c(0, 1.5)) 
+      
+      # Add rectangles to histogram
+      hist_rect <- histogram + 
+        geom_rect(aes(xmin = min.r[, 2],
+                      xmax = max.r[, 2], 
+                      ymin = 1.1, 
+                      ymax = 1.4),
+                  fill = "grey30",
+                  color = "transparent",
+                  size = 0) +
+        geom_rect(
+          aes(xmin = min.r[, 2],
+              xmax = max.r[, 2],
+              ymin = 1.1, 
+              ymax = 1.4),
+          fill = ifelse(unique(out$site[out$site > 0]) %in% unique(tmp02[tmp02$fixed, 8]), "red", "transparent"),
+          color = "transparent",
+          size = 0,
+          alpha = 0.5
+        ) +
+        theme_bw() +
+        labs(x = "", 
+             y = "") +
+        theme(panel.background = element_rect(fill = "white"),
+              panel.grid = element_blank(),
+              axis.text.y = element_blank(),
+              axis.ticks.y = element_blank(),
+              axis.text.x = element_blank()) +
+        scale_x_datetime(breaks = seq(min(sr), 
+                                      max(sr), 
+                                      length.out = 10), 
+                         date_labels = "%b %y")
+      
+      # sunrise sunset plot 
+      
+      axis_increase <- 7 #increase two have sunrise and sunset on equal height in plot
+      
+      rise_set <- ggplot() +
+        geom_line(data = tw_rise, 
+                  aes(x = sr, 
+                      y = rise), 
+                  size = 2,
+                  color = "firebrick", 
+                  lwd = 0.5) +
+        geom_line(data = tw_set, 
+                  aes(x = ss,
+                      y = set + axis_increase), 
+                  color = "cornflowerblue", 
+                  size = 2, 
+                  lwd = 0.5) +
+        scale_y_continuous(name = "Sunrise (red)",
+                           sec.axis = sec_axis(~.-axis_increase, 
+                                               name="Sunset (blue)")) +
+        scale_x_datetime(name = "",
+                         breaks = seq(min(sr), 
+                                      max(sr), 
+                                      length.out = 10), 
+                         date_labels = "%b %y") +
+        theme_bw() +
+        theme(panel.background = element_rect(fill = "white"),
+              panel.grid = element_blank(),
+              axis.text.x = element_blank())
+      
+      poc_red <- ggplot() +
+        geom_bar(aes(x = sr,
+                     y = tab1[, 2]), 
+                 stat = "identity", 
+                 color = "firebrick") +
+        labs(x = "",
+             subtitle = "Sunrise", 
+             y = "Probabilty of change") +
+        theme_bw() +
+        theme (panel.background = element_rect(fill = "white"),
+               axis.text.x = element_blank(),
+               panel.grid = element_blank()) +
+        scale_x_datetime(breaks = seq(min(sr), 
+                                      max(sr), 
+                                      length.out = 10), 
+                         date_labels = "%b %y") 
+      
+      if (is.numeric(rise.prob)) {
+        poc_red +
+          geom_hline(yintercept = rise.prob, 
+                     lty = 2, 
+                     lwd = 1.5)
+      }
+      
+      poc_blue <- ggplot()+
+        geom_bar(aes(x = ss,
+                     y = tab2[, 2]),
+                 stat = "identity",
+                 color = "cornflowerblue") +
+        labs(x = "Time",
+             subtitle = "Sunset",
+             y = "Probabilty of change") + 
+        theme_bw() +
+        theme (panel.background = element_rect(fill = "white"),
+               panel.grid = element_blank()) +
+        scale_x_datetime(breaks = seq(min(sr), 
+                                      max(sr), 
+                                      length.out = 10), 
+                         date_labels = "%b %y") 
+      
+      if (is.numeric(set.prob)) 
+        poc_blue +
+        geom_hline(yintercept = set.prob, lty = 2, lwd = 1.5)
+      
+      print( hist_rect / (rise_set) / (poc_red) / (poc_blue)) # use of patchwork syntax to show all plots below each other
+      
+    } else {
+      
+      def.par <- par(no.readonly = TRUE)
+      nf <- layout(matrix(c(4, 1, 2, 3), nrow = 4, byrow = T), 
+                   heights = c(0.5, 1, 0.5, 0.5))
+      par(mar = c(2, 4.5, 2, 5), cex.lab = 1.5, cex.axis = 1.5, 
+          bty = "o")
+      rise[tw$fixed[tw$type==1]] <- NA
+      plot(sr, rise, 
+           type = "o", cex = 0.2, col = "firebrick", 
+           ylab = "Sunrise (red)", xlim = range(sr), xaxt = "n")
+      par(new = T)
+      set[tw$fixed[tw$type==2]] <- NA
+      plot(ss, set, type = "o", cex = 0.2, col = "cornflowerblue", 
+           xaxt = "n", yaxt = "n", xlab = "", ylab = "", xlim = range(ss))
+      axis(4)
+      mtext("Sunset (blue)", 4, line = 2.7, cex = 1)
+      axis(1, at = seq(min(ss), max(ss), by = (10 * 24 * 60 * 
+                                                 60)), labels = F)
+      axis(1, at = seq(min(ss), max(ss), by = (30 * 24 * 60 * 
+                                                 60)), lwd.ticks = 2, labels = trunc(seq(min(ss), 
+                                                                                         max(ss), by = (30 * 24 * 60 * 60)), "days"), cex.axis = 1)
+      par(mar = c(1.5, 4.5, 0.8, 5), bty = "n")
+      plot(sr, tab1[, 2], type = "h", lwd = 4, col = "firebrick", 
+           ylab = "", xaxt = "n", xlim = range(sr), ylim = c(0, 
+                                                             max(na.omit(c(tab1[, 2], tab2[, 2])))))
+      if (is.numeric(rise.prob)) 
+        abline(h = rise.prob, lty = 2, lwd = 1.5)
+      opar <- par(mar = c(1.5, 4.5, 0.8, 5), bty = "n")
+      plot(ss, tab2[, 2], type = "h", lwd = 4, col = "cornflowerblue", 
+           ylab = "", xaxt = "n", xlim = range(ss), ylim = c(0, 
+                                                             max(na.omit(c(tab1[, 2], tab2[, 2])))))
+      if (is.numeric(set.prob)) 
+        abline(h = set.prob, lty = 2, lwd = 1.5)
+      mtext("Probability of change", side = 2, at = max(na.omit(c(tab1[, 
+                                                                       2], tab2[, 2]))), line = 3)
+      par(mar = c(1, 4.5, 1, 5), bty = "o")
+      mig <- out$site
+      mig[mig > 0] <- 1
+      plot(tab[, 1] + (tab[, 2] - tab[, 1])/2, ifelse(out$site > 
+                                                        0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim = c(0,1.5)) 
+      
+      min.r <- stats::aggregate(as.numeric(tab$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) min(x))
+      max.r <- stats::aggregate(as.numeric(tab$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) max(x))
+      
+      rect(min.r[,2], 1.1, max.r[,2], 1.4, col = "grey90", lwd = 0)
+      
+      rect(min.r[,2], 1.1, max.r[,2], 1.4, col = ifelse(unique(out$site[out$site>0])%in%unique(tmp02[tmp02$fixed, 8]), "red", "transparent"),
+           density = 60)
+      
+      par(def.par)
+      
+    }
   }
+  
   if (summary) {
-    i.sum.Cl(out)
+    GeoLight:::i.sum.Cl(out)
   }
   return(out)
 }
