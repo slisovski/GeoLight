@@ -345,7 +345,6 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
   
   tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   #gets GeoLgiht data
   tab <- geolight.convert(tab[,1], tab[,2], tab[,3])  #converst data to other format where first row beginning time and second row rise or fall
-  tab <- geolight.convert(tab.global[,1], tab.global[,2], tab.global[,3])  #
   
   sun  <- solar(tab[,1])  #Calculate solar time, the equation of time and solar declination
   z    <- refracted(zenith(sun, known.coord[1], known.coord[2])) # Adjust the solar zenith angle for atmospheric refraction.
@@ -454,25 +453,25 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
                       y = unique(height) + 0.007 , 
                       label = "sun elevation angle (degrees)")) +
         annotate("text", 
-                 x = annotate_x, #x location based on max value 
+                 x = max(twl_dev)-10, #x location based on max value 
                  y = unique(height) - 0.005, # adjusted to be under sun elevation angle
                  hjust = 0, # text is left aligned
                  vjust = 1, # position regarding the other annotations
                  label = paste("0. Sun elevation angle (zero):", round(90 - a1.1, 3))) + 
-        annotate("text", x = annotate_x, y = unique(height) - 0.005, hjust = 0, vjust = 3,
+        annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.005, hjust = 0, vjust = 3,
                  label = paste("1. Sun elevation angle (median):", round(90 - a1.1, 3))) 
       
       
       if(method=="log-norm") hist_w_legend <- hist_wo_legend +
-        annotate("text", x = annotate_x, y = unique(height) - 0.005, hjust = 0, vjust = 5,
+        annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.005, hjust = 0, vjust = 5,
                  label = paste("Log-mean:", round(fitml_ng$estimate[1], 3))) +
-        annotate("text", x = annotate_x, y = unique(height) - 0.005, hjust = 0, vjust = 7,
+        annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.005, hjust = 0, vjust = 7,
                  label = paste("Log-sd:", round(fitml_ng$estimate[2], 3)))
       
       if(method=="gamma") hist_w_legend <- hist_wo_legend +
-        annotate("text", x = annotate_x, y = unique(height) - 0.005, hjust = 0, vjust = 5,
+        annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.005, hjust = 0, vjust = 5,
                  label = paste("Shape:", round(fitml_ng$estimate[1], 3))) +
-        annotate("text", x = annotate_x, y = unique(height) - 0.005, hjust = 0, vjust = 7,
+        annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.005, hjust = 0, vjust = 7,
                  label = paste("Scale:", round(fitml_ng$estimate[2], 3)))
       
       print(hist_w_legend)
