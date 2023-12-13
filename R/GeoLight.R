@@ -2886,11 +2886,20 @@ trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat
 #' @importFrom maps map map.axes
 #' @importFrom graphics lines legend mtext par plot points
 #' @export tripMap
-tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","America","World"), legend = TRUE, ...) {
+tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","America","World"), legend = TRUE, ..., ggplot = TRUE) {
   
   args <- list(...)
   if(all(map.range==c("EuroAfrica", "AustralAsia", "America", "World")) & sum(names(args)%in%c("xlim", "ylim"))!=2) {
-    range <- c(-180, 180, -80, 90)
+    #range <- c(-180, 180, -80, 90) 
+    
+    #instead of using the world as basic range, min and max extend of coordinates +- puffer are used
+    no_na_crds <- na.omit(crds) # only remove NAs locally as NAs are needed for equinox
+    range <- c(
+      min(no_na_crds[,1]) -1,
+      max(no_na_crds[,1]) +1, 
+      min(no_na_crds[,2]) -1, 
+      max(no_na_crds[,2]) +1
+    )
   } 
   if(all(map.range=="EuroAfrica")) range <- c(-24, 55, -55, 70)
   if(all(map.range=="AustralAsia")) range <- c(60, 190, -55, 78)
@@ -2902,26 +2911,92 @@ tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","
   if(sum(names(args)%in%"add")==1) add <- args$add else add = FALSE
   
   if(!add) {
-    opar <- par(mar = c(6,5,1,1))
-    plot(NA,xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-    map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), fill=T,lwd=0.01,col=c("grey90"),add=TRUE)
-    map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),interior=TRUE,col=c("darkgrey"),add=TRUE)
-    mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude"), side=1, line=2.2, font=3)
-    mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude"), side=2, line=2.5, font=3)
-    map.axes()
-    
-    mtext(ifelse(sum(names(args)%in%"main")==1, args$main, ""), line=0.6, cex=1.2)
+    if(ggplot) {
+      
+      #packages
+      library(sf); sf_use_s2(FALSE)
+      library(ggplot2)
+      library(patchwork)
+      
+      # base map
+      map <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf") 
+      map_crop_proj <- map %>% 
+        st_intersection(st_bbox(c(xmin = range[1], 
+                                  xmax = range[2], 
+                                  ymin = range[3], 
+                                  ymax = range[4]), 
+                                crs = 4326) %>% 
+                          st_as_sfc()) %>% 
+        st_transform("+proj=moll")
+      
+      # Base map
+      basePlot <- ggplot() +
+        geom_sf(data = map_crop_proj) +
+        ggtitle(ifelse(sum(names(args)%in%"main")==1, args$main, "")) +
+        xlab(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude")) + 
+        ylab(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude")) + 
+        theme_minimal() +
+        coord_sf(crs = "+proj=lonlat +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs")
+      #print(basePlot)
+      
+    } else{
+      opar <- par(mar = c(6,5,1,1))
+      plot(NA, xlim=c(range[1], range[2]), ylim=c(range[3], range[4]), xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+      maps::map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), fill=T,lwd=0.01,col=c("grey90"),add=TRUE)
+      maps::map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),interior=TRUE,col=c("darkgrey"),add=TRUE)
+      mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude"), side=1, line=2.2, font=3)
+      mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude"), side=2, line=2.5, font=3)
+      map.axes()
+      mtext(ifelse(sum(names(args)%in%"main")==1, args$main, ""), line=0.6, cex=1.2)
+    }
   }
   
-  points(crds, 
-         pch = ifelse(sum(names(args)%in%"pch")==1, args$pch, 3),
-         cex = ifelse(sum(names(args)%in%"cex")==1, args$cex, 0.7))
-  lines(crds,
-        lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 0.5),
-        col = ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"))
+  if(ggplot){
+    ##### add feature is not yet implemented
+    
+    # crds to sf
+    points_sf <- data.frame(crds) %>%
+      na.omit() %>% 
+      st_as_sf(coords = c("lon","lat")) %>% 
+      st_set_crs(4326) 
+    
+    # adds crosses
+    pointPlot <- basePlot + 
+      #geom_sf(data = points_sf, aes(color = as.factor(group))) 
+      geom_point(data = points_sf, 
+                 aes(geometry = geometry), 
+                 stat = "sf_coordinates",
+                 shape = ifelse(sum(names(args)%in%"pch")==1, args$pch, 3),
+                 size = ifelse(sum(names(args)%in%"cex")==1, args$cex, 1.5))  #this version has more capabilities of changing colors, shapes etc.
+    #print(pointPlot)
+    
+    # adds lines between crosses 
+    linePlot <- pointPlot +
+      geom_line(data = points_sf, 
+                aes(geometry = geometry), 
+                stat = "sf_coordinates",
+                color = ifelse(sum(names(args)%in%"col")==1, args$pch, "grey10"),
+                linewidth = ifelse(sum(names(args)%in%"lwd")==1, args$cex, 0.3))
+    #print(linePlot)
+    
+  } else {
+    points(crds,
+           pch = ifelse(sum(names(args)%in%"pch")==1, args$pch, 3),
+           cex = ifelse(sum(names(args)%in%"cex")==1, args$cex, 0.7))
+    
+    lines(crds,
+          lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 0.3),
+          col = ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"))
+  }
   
   if(equinox){
+    line_segments_df <- data.frame(x_start = numeric(0),
+                                   y_start = numeric(0), 
+                                   x_end = numeric(0), 
+                                   y_end = numeric(0))
+    
     nrow <- 1
+    
     repeat{
       while(is.na(crds[nrow,2])==FALSE) {
         nrow <- nrow + 1
@@ -2936,15 +3011,129 @@ tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","
       if(nrow==nrow(crds)) break
       end    <- nrow
       
-      lines(c(crds[start,1], crds[end,1]),c(crds[start,2], crds[end,2]), col="blue", lwd=3, lty=1)
+      # Append line segment coordinates to the data frame
+      line_segments_df <- rbind(line_segments_df, data.frame(
+        x_start = crds[start, 1],
+        y_start = crds[start, 2],
+        x_end = crds[end, 1],
+        y_end = crds[end, 2]))
+      
+      if(!ggplot) {
+        lines(c(crds[start,1], crds[end,1]),c(crds[start,2], crds[end,2]), col="blue", lwd=3, lty=1)
+      } 
     }
     
-    if(legend) legend("bottomright", lty=c(0,1,1), pch=c(3,-1,-1), lwd=c(1,0.5,3), col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),c("Positions","Trip","Equinox"),bty="n",bg="grey90",border="grey90",cex=0.8)
-  } else {
-    if(legend) 	  legend("bottomright",lty=c(0,1),pch=c(3,-1),lwd=c(1,0.5),col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),c("Positions","Trip"),bty="n",bg="grey90",border="grey90",cex=0.8)
+    if(ggplot) {
+      # Create an sf object with LINESTRING geometries
+      sf_lines <- st_sf(
+        geometry = st_sfc(
+          lapply(1:nrow(line_segments_df), function(i) {
+            st_linestring(matrix(
+              c(line_segments_df[i, "x_start"], line_segments_df[i, "y_start"],
+                line_segments_df[i, "x_end"], line_segments_df[i, "y_end"]), ncol = 2, byrow = TRUE
+            ))
+          })
+        )
+      ) %>% 
+        st_set_crs(4326) 
+      
+      # Plot the ggplot with sf geometries
+      equiPlot <- linePlot +
+        geom_sf(data = sf_lines, 
+                #aes(color = "blue"), 
+                color = "blue",
+                size = 3, 
+                linetype = "solid") +
+        theme_minimal() +
+        coord_sf(crs = "+proj=lonlat +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs") + 
+        labs(color = "Legend")
+      
+      #print(equiPlot)
+    }
   }
-  if(!add) par(opar)
-  
+  # Check if legend should be added
+  if(legend) {
+    if(ggplot) {
+      
+      # I don't know if there is a way to create completely individual legends for ggplot objects. therefore I created indipented text points
+      
+      max_x <- max(st_coordinates(points_sf)[, "X"]) - 3
+      min_y <- min(st_coordinates(points_sf)[, "Y"])
+      
+      independent_point <- st_sf(geometry = st_sfc(st_point(c(max_x - 10, min_y + 5)))) %>% 
+        st_set_crs(4326)
+      
+      if(equinox) {
+        
+        legendPlot <- equiPlot + 
+          geom_text(data = independent_point, 
+                    aes(geometry = geometry, label = "+ Position"), 
+                    stat = "sf_coordinates", 
+                    vjust = 1, 
+                    hjust = 0) +
+          geom_text(data = independent_point, 
+                    aes(geometry = geometry, label = "——— Trip"), 
+                    stat = "sf_coordinates", 
+                    vjust = 3, 
+                    hjust = 0) +
+          geom_text(data = independent_point, 
+                    aes(geometry = geometry, label = "——— Equinox"),
+                    col = "blue", 
+                    stat = "sf_coordinates", 
+                    vjust = 5, 
+                    hjust = 0) 
+        
+      } else {
+        
+        legendPlot <- linePlot + 
+          geom_text(data = independent_point, 
+                    aes(geometry = geometry, label = "+ Position"), 
+                    stat = "sf_coordinates", 
+                    vjust = 1, 
+                    hjust = 0) +
+          geom_text(data = independent_point, 
+                    aes(geometry = geometry, label = "——— Trip"), 
+                    stat = "sf_coordinates", 
+                    vjust = 3, 
+                    hjust = 0) 
+        
+      }
+      print(legendPlot)
+    } else {
+      if(equinox) {
+        legend("bottomright", 
+               lty=c(0,1,1), 
+               pch=c(3,-1,-1),
+               lwd=c(1,0.5,3), 
+               col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),
+               c("Positions","Trip","Equinox"),
+               bty="n",
+               bg="grey90",
+               border="grey90",
+               cex=0.8)
+      } else {
+        legend("bottomright",
+               lty=c(0,1),
+               pch=c(3,-1),
+               lwd=c(1,0.5),
+               col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),
+               c("Positions","Trip"),
+               bty="n",
+               bg="grey90",
+               border="grey90",
+               cex=0.8)
+      }
+      if(!ggplot) if(!add) par(opar)
+    }
+  } else { #if not plot without legend
+    if(ggplot) {
+      if(equinox) {
+        print(equiPlot)
+      } else {
+        print(linePlot)
+      }
+    }
+  }
 }
 
 #' Calculate twilight events (sunrise/sunset) from light intensity measurements
