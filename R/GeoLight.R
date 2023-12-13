@@ -338,15 +338,17 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' @importFrom graphics arrows par hist plot lines mtext
 ##' @importFrom stats dlnorm median ls dgamma
 ##' @export getElevation
-getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-norm", plot=TRUE) {
+
+getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-norm", plot=TRUE, ggplot = TRUE) {
   
   if(!(method%in%c("gamma", "log-norm"))) stop("Method can only be `gamma` or `log-norm`.")
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
-  tab <- geolight.convert(tab[,1], tab[,2], tab[,3])  
+  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   #gets GeoLgiht data
+  tab <- geolight.convert(tab[,1], tab[,2], tab[,3])  #converst data to other format where first row beginning time and second row rise or fall
+  tab <- geolight.convert(tab.global[,1], tab.global[,2], tab.global[,3])  #
   
-  sun  <- solar(tab[,1])
-  z    <- refracted(zenith(sun, known.coord[1], known.coord[2]))
+  sun  <- solar(tab[,1])  #Calculate solar time, the equation of time and solar declination
+  z    <- refracted(zenith(sun, known.coord[1], known.coord[2])) # Adjust the solar zenith angle for atmospheric refraction.
   # plot(z)
   
   inc = 0
@@ -365,11 +367,11 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
   seq <- seq(0, max(twl_dev), length = 100)
   
   if(method=="log-norm"){
-    fitml_ng <- suppressWarnings(fitdistr(twl_dev, "log-normal"))
+    fitml_ng <- suppressWarnings(MASS::fitdistr(twl_dev, "log-normal"))
     lns      <- stats::dlnorm(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
   }
   if(method=="gamma"){
-    fitml_ng <- suppressWarnings(fitdistr(twl_dev, "gamma"))
+    fitml_ng <- suppressWarnings(MASS::fitdistr(twl_dev, "gamma"))
     lns      <- stats::dgamma(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
   }
   
@@ -382,24 +384,120 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
   a1.1 <- 90-predict(mod, newdata = data.frame(min = a1.0))
   
   if(plot) {
-    opar <- par(mar = c(10, 4, 1, 1))
-    if(method=="log-norm") hist(twl_dev, freq = F, breaks = 26, main = "Twilight Model (log-norm)", xlab = "twilight error (min)")
-    if(method=="gamma") hist(twl_dev, freq = F, breaks = 26, main = "Twilight Model (gamma)", xlab = "twilight error (min)")
-    lines(seq, lns, col = "firebrick", lwd = 3, lty = 2)
-    
-    points(predict(mod2, newdata=data.frame(z = z0)), 0, pch = 21, cex = 5, bg = "white", lwd = 2)
-    text(predict(mod2, newdata=data.frame(z = z0)), 0, "0")
-    
-    points(a1.0, 0, pch = 21, cex = 5, bg = "white", lwd = 2)
-    text(a1.0, 0, "1")
-    
-    axis(1, at = seq(0, max(twl_dev), 6), labels = round(90-predict(mod, newdata = data.frame(min = seq(0, max(twl_dev), 6))),1), line = 5)
-    mtext("sun elevation angle (degrees)", 1, line = 8)
-    
-    if(method=="log-norm") legend("topright", paste(c("0. Sun elevation angle (zero)", "1. Sun elevation angle (median)", "log-mean", "log-sd"), round(c(90-z0, a1.1, fitml_ng$estimate[1], fitml_ng$estimate[2]),3)), bty = "n")
-    if(method=="gamma") legend("topright", paste(c("0. Sun elevation angle (zero)", "1. Sun elevation angle (median)", "shape", "scale"), round(c(90-z0, a1.1, fitml_ng$estimate[1], fitml_ng$estimate[2]),3)), bty = "n")
-    
-    par(opar)
+    if(ggplot)
+    {
+      
+      # base histograms
+      base_hist <- ggplot() +
+        geom_histogram(aes(x = twl_dev, y = ..density..),
+                       bins = round(max(twl_dev)) + 1 ,
+                       #bins =  28,
+                       col = "black",
+                       fill="lightgrey" )
+      
+      # Only label changes to log-norm/gamme
+      if(method=="log-norm") lab_hist <- base_hist +
+          labs(title =  "Twilight Model (log-norm)",
+               x = "twilight error (min)",
+               y = "Density")
+      
+      
+      if(method=="gamma") lab_hist <- base_hist + 
+          labs(title =  "Twilight Model (gamma)",
+               x = "twilight error (min)",
+               y = "Density")
+      
+      # base plot + red lines, two points, legends 
+      labels <- round(90-predict(mod, newdata = data.frame(min = seq(0, max(twl_dev), 6))),1) # labels for sun elevation degree 
+      at <- seq(0, max(twl_dev), 6) # x values for sun elevation degree 
+      
+      # here we get the warning: "argument ‘freq’ is not made use of", because we use freq and turn of plotting, as freq also adjusts something in the graphic representation. Therefore I silenced the warnings in the following chunk
+      height <- suppressWarnings({ rep((max(hist(twl_dev, 
+                                                 freq = FALSE, 
+                                                 breaks = round(max(twl_dev)),
+                                                 plot = FALSE)$density)) + 0.02 
+                                       , times = 6) })# y for sun elevation degree
+      
+      sun.elv.angle.df <- as.data.frame(cbind(labels, at, height)) # combine all to df for ease of use
+      
+      hist_wo_legend <- lab_hist + theme_minimal() +
+        geom_line(data = as.data.frame(cbind(lns, seq)),
+                  aes(x=seq, y = lns),
+                  col = "darkred",
+                  size = 1,
+                  linetype = "dashed") +
+        geom_point(aes(x = predict(mod2, newdata=data.frame(z = z0)),
+                       y = 0,),
+                   cex = 10,
+                   bg="white",
+                   pch = 21) +
+        geom_text(aes(x = predict(mod2, newdata=data.frame(z = z0)),
+                      y = 0),
+                  label = "0") +
+        geom_point(aes(x = a1.0,
+                       y = 0),
+                   cex = 10,
+                   bg="white",
+                   pch = 21,) +
+        geom_text(aes(x = a1.0,
+                      y = 0),
+                  label = "1") +
+        geom_line(data = sun.elv.angle.df, 
+                  aes(x = at, 
+                      y = height)) + 
+        geom_label(data = sun.elv.angle.df,
+                   aes(x = at, 
+                       y = height, 
+                       label = labels))  +
+        geom_text(data = sun.elv.angle.df,
+                  aes(x = mean(at), 
+                      y = unique(height) + 0.007 , 
+                      label = "sun elevation angle (degrees)")) +
+        annotate("text", 
+                 x = annotate_x, #x location based on max value 
+                 y = unique(height) - 0.005, # adjusted to be under sun elevation angle
+                 hjust = 0, # text is left aligned
+                 vjust = 1, # position regarding the other annotations
+                 label = paste("0. Sun elevation angle (zero):", round(90 - a1.1, 3))) + 
+        annotate("text", x = annotate_x, y = unique(height) - 0.005, hjust = 0, vjust = 3,
+                 label = paste("1. Sun elevation angle (median):", round(90 - a1.1, 3))) 
+      
+      
+      if(method=="log-norm") hist_w_legend <- hist_wo_legend +
+        annotate("text", x = annotate_x, y = unique(height) - 0.005, hjust = 0, vjust = 5,
+                 label = paste("Log-mean:", round(fitml_ng$estimate[1], 3))) +
+        annotate("text", x = annotate_x, y = unique(height) - 0.005, hjust = 0, vjust = 7,
+                 label = paste("Log-sd:", round(fitml_ng$estimate[2], 3)))
+      
+      if(method=="gamma") hist_w_legend <- hist_wo_legend +
+        annotate("text", x = annotate_x, y = unique(height) - 0.005, hjust = 0, vjust = 5,
+                 label = paste("Shape:", round(fitml_ng$estimate[1], 3))) +
+        annotate("text", x = annotate_x, y = unique(height) - 0.005, hjust = 0, vjust = 7,
+                 label = paste("Scale:", round(fitml_ng$estimate[2], 3)))
+      
+      print(hist_w_legend)
+      
+    } else {
+      
+      opar <- par(mar = c(10, 4, 1, 1))
+      if(method=="log-norm") hist(twl_dev, freq = F, breaks = 26, main = "Twilight Model (log-norm)", xlab = "twilight error (min)")
+      if(method=="gamma") hist(twl_dev, freq = F, breaks = 26, main = "Twilight Model (gamma)", xlab = "twilight error (min)")
+      lines(seq, lns, col = "firebrick", lwd = 3, lty = 2)
+      
+      points(predict(mod2, newdata=data.frame(z = z0)), 0, pch = 21, cex = 5, bg = "white", lwd = 2)
+      text(predict(mod2, newdata=data.frame(z = z0)), 0, "0")
+      
+      points(a1.0, 0, pch = 21, cex = 5, bg = "white", lwd = 2)
+      text(a1.0, 0, "1")
+      
+      axis(1, at = seq(0, max(twl_dev), 6), labels = round(90-predict(mod, newdata = data.frame(min = seq(0, max(twl_dev), 6))),1), line = 5)
+      mtext("sun elevation angle (degrees)", 1, line = 8)
+      
+      if(method=="log-norm") legend("topright", paste(c("0. Sun elevation angle (zero)", "1. Sun elevation angle (median)", "log-mean", "log-sd"), round(c(90-z0, a1.1, fitml_ng$estimate[1], fitml_ng$estimate[2]),3)), bty = "n")
+      if(method=="gamma") legend("topright", paste(c("0. Sun elevation angle (zero)", "1. Sun elevation angle (median)", "shape", "scale"), round(c(90-z0, a1.1, fitml_ng$estimate[1], fitml_ng$estimate[2]),3)), bty = "n")
+      
+      par(opar)
+    }
   }
   
   c(a1 = as.numeric(median(z)), e0 = as.numeric(90-z0), 
