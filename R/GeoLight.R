@@ -1236,18 +1236,19 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 #' @importFrom utils data 
 #' @importFrom parallel makeCluster clusterSetRNGStream parRapply stopCluster
 mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
-                        distThreshold = 250, fixed = NULL, alpha = c(2.5, 1), method = "gamma", map, mask = "land", plot = TRUE) {
+                        distThreshold = 250, fixed = NULL, alpha = c(2.5, 1), method = "gamma", map, mask = "land", plot = TRUE, ggplot = TURE) {
   
   if(!(method%in%c("gamma", "log-norm"))) stop("Method can only be `gamma` or `log-norm`.")
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), 
-                                                  FUN = function(x) any(class(x) != "name"))])
-  
+  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), 
+                                                             FUN = function(x) any(class(x) != "name"))])
   
   mycl <- parallel::makeCluster(parallel::detectCores()-1)
   tmp  <- parallel::clusterSetRNGStream(mycl)
   
   if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
+  if(is.null(fixed)) stop("fixed is NULL")
+  
   fixed.ind <- apply(fixed, 1, function(x) any(x))
   
   site0 <- site
@@ -1298,7 +1299,6 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
                           ymin = min(crdsT[,2])-3, 
                           ymax = max(crdsT[,2])+3, 
                           res = 0.5)
-    
     if(!is.null(mask)) {
       maskR  <- terra::rasterize(map, r0)
       if(mask=="land")  crdsT  <- terra::crds(r0)[!is.na(maskR[]),]
@@ -1312,7 +1312,6 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
     ll.ss    <- parallel::parRapply(mycl, crdsT, FUN = GeoLight:::gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE), degElevation = degElevation, parms = alpha, method = method, twilight = "ss")
     ll <- apply(cbind(ll.sr/max(ll.sr, na.rm = T), ll.ss/max(ll.sr, na.rm = T)), 1, function(x) ifelse(any(x<=0.0000001), NA, sum(x)))
     centre <- crdsT[which.max(ll),]
-    centre.global <<- centre
     
     r      <- terra::rasterize(as.matrix(crdsT[!is.na(ll),]), r0, ll[!is.na(ll)])
     r[] <- r[]/max(r[], na.rm = T)
@@ -1348,7 +1347,6 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
         
         cat(sprintf('\n comparing site %d and %d', i, i+1)) 
         out  <- do.call("rbind", lapply(xTab[c(i, i+1)], function(x) mod(x)))
-        
         sm[i,] <- out[1,]
         
         # plot(out[,1], out[,2], xlim = range(out[,c(1,3,4)]), ylim = range(out[,c(2,5,6)]))
@@ -1429,67 +1427,179 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
       hours3[out$Rise == t] <- (hours3[out$Rise == t] + (which.min(round(cor,2))) - 1)%%24
     }
     
+    
     opar <- par(mfrow = c(5, 1), oma = c(5, 0, 0, 0), mar = c(1.5,5, 1, 1))
     mig1 <- site.old
     mig1[mig1 > 0] <- 1
     mig2 <- out$site
     mig2[mig2 > 0] <- 1
-    plot(out[, 1], ifelse(mig2 > 0, 1, 0), type = "l", yaxt = "n", 
-         ylab = NA, ylim = c(0, 1.5), col = "firebrick", lwd = 2, 
-         xaxt = "n")
-    lines(out[, 1], ifelse(mig1 > 0, 1, 0), type = "l", lty = 2)
-    rect(out[site > 0 & !duplicated(site), 1], 1.1, 
-         out[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, col = "grey90", lwd = 0)
-    rect(out[site > 0 & !duplicated(site), 1], 1.1, 
-         out[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, 
-         col = ifelse(apply(fixed[site>0,], 1, function(x) any(x))[!duplicated(site[site>0])], "red", "transparent"), 
-         density = 60)
-    axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
-         labels = FALSE)
     
-    plot(out[out$Rise, 1], hours1[out$Rise], type = "l", 
-         lwd = 2, col = "firebrick", ylab = "Sunrise (red)", 
-         xlim = range(out[, 1]), ylim = range(hours0[out[, 2] == 1]), xaxt = "n")
-    lines(out[out$Rise, 1], hours2[out$Rise], type = "l", 
-          lwd = 1, lty = 2)
-    lines(out[out[, 2] == 1, 1], hours3[out[, 2] == 1], type = "l", 
-          lwd = 1, lty = 2)
-    points(out[out[, 2] == 1 & !fixed.ind, 1], hours0[out[, 2] == 1 & !fixed.ind], cex = 0.5, 
-           pch = 21, col = "black", bg = "firebrick", lwd = 0.5)
-    axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
-         labels = FALSE)
-    plot(out[!out$Rise, 1], hours1[!out$Rise], type = "l", 
-         lwd = 2, col = "cornflowerblue", ylab = "Sunset (blue)", 
-         xlim = range(out[, 1]), ylim = range(hours0[!out$Rise]), xaxt = "n")
-    lines(out[!out$Rise, 1], hours2[!out$Rise], type = "l", 
-          lwd = 1, lty = 2)
-    lines(out[!out$Rise, 1], hours3[!out$Rise], type = "l", 
-          lwd = 1, lty = 2)
-    points(out[!out$Rise & !fixed.ind, 1], hours0[!out$Rise & !fixed.ind], cex = 0.5, 
-           pch = 21, col = "black", bg = "cornflowerblue", lwd = 0.5)
-    axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
-         labels = FALSE)
-    
-    plot(out[, 1], ifelse(fixed.ind, NA, crds0[, 1]), type = "o", pch = 16, cex = 0.5, 
-         xaxt = "n", ylab = "Longitude", cex.lab = 1.7, xlab = "")
-    abline(v = c(out[site.old > 0 & !duplicated(site.old), 1], 
-                 out[site.old > 0 & !duplicated(site.old, fromLast = T), 1]), lty = 2)
-    abline(v = c(out[out$site  > 0 & !duplicated(out$site), 1], 
-                 out[out$site  > 0 & !duplicated(out$site, fromLast = T), 1]), lwd = 1.5, col = "firebrick")
-    axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
-         labels = FALSE)
-    plot(out[, 1], ifelse(fixed.ind, NA, crds0[, 2]), type = "o", pch = 16, cex = 0.5, 
-         xaxt = "n", ylab = "Latitude", cex.lab = 1.7, xlab = "")
-    abline(v = c(out[site.old > 0 & !duplicated(site.old), 1], 
-                 out[site.old > 0 & !duplicated(site.old, fromLast = T), 1]), lty = 2)
-    abline(v = c(out[out$site > 0 & !duplicated(out$site), 1], 
-                 out[out$site > 0 & !duplicated(out$site, fromLast = T), 1]), lwd = 1.5, 
-           col = "firebrick")
-    axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
-         labels = format(seq(out[1, 1], out[nrow(out), 1], length = 10), "%d-%b"))
-    mtext("Date", 1, outer = T, line = 1.6, cex = 1.2)
-    par(opar)
+    if(ggplot) {
+      hist_rec <- ggplot() +
+        geom_line(aes(x = out[, 1], y = ifelse(mig2 > 0, 1, 0)), 
+                  col = "firebrick", size = 1) +
+        geom_line(aes(x = out[, 1], y = ifelse(mig1 > 0, 1, 0)), 
+                  linetype = 2) +
+        geom_rect(
+          aes(xmin = out[site > 0 & !duplicated(site), 1], xmax = out[site > 0 & !duplicated(site, fromLast = T), 1], ymin = 1.1, ymax = 1.4),
+          fill = "grey30",
+          color = "transparent",
+          size = 0
+        ) +
+        geom_rect(
+          aes(xmin = out[site > 0 & !duplicated(site), 1], xmax = out[site > 0 & !duplicated(site, fromLast = T), 1], ymin = 1.1, ymax = 1.4),
+          color = ifelse(apply(fixed[site>0, ], 1, function(x) any(x))[!duplicated(site[site>0])], "red", "transparent"), 
+          alpha = 0.6) +
+        scale_x_datetime(breaks = seq(out[1, 1], out[nrow(out), 1], length.out = 10), date_labels = "%b %d") +
+        theme_bw() +
+        theme(
+          axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.title.y = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank()
+        ) 
+      
+      red_ts <- ggplot() +
+        geom_line(aes(x = out[out$Rise, 1], y = hours1[out$Rise]), 
+                  col = "firebrick", size = 2, linewidth = 0.5, na.rm = TRUE) +
+        geom_line(aes(x = out[out$Rise, 1], y = hours2[out$Rise]), 
+                  linetype = 2, linewidth = 0.5, na.rm = TRUE) +
+        geom_line(aes(x = out[out[, 2] == 1, 1], y = hours3[out[, 2] == 1]), 
+                  linetype = 2, linewidth = 0.5, na.rm = TRUE) +
+        labs(y = "Sunrise (red)") +
+        geom_point(aes(out[out[, 2] == 1 & !fixed.ind, 1], hours0[out[, 2] == 1 & !fixed.ind]), color = "black", fill = "firebrick", shape = 21, size = 0.5) +
+        scale_x_datetime(breaks = seq(out[1, 1], out[nrow(out), 1], length.out = 10), date_labels = "%b %d") +
+        theme_bw() +
+        theme(
+          axis.title.x = element_blank(),
+          axis.text.x = element_blank()
+        ) 
+      
+      blue_ts <- ggplot() +
+        geom_line(aes(x = out[!out$Rise, 1], y = hours1[!out$Rise]), 
+                  col = "cornflowerblue", size = 2, linewidth = 0.5, na.rm = TRUE) +
+        geom_line(aes(x = out[!out$Rise, 1], y = hours2[!out$Rise]), 
+                  linetype = 2, size = 1, linewidth = 0.5, na.rm = TRUE) +
+        geom_line(aes(x = out[!out[, 2] == 1, 1], y = hours3[!out[, 2] == 1]), 
+                  linetype = 2, size = 1, linewidth = 0.5, na.rm = TRUE) +
+        geom_point(aes(out[!out[, 2] == 1 & !fixed.ind, 1], hours0[!out[, 2] == 1 & !fixed.ind]), color = "black", fill = "cornflowerblue", shape = 21, size = 0.5) +
+        labs(y = "Sunset (blue)", x = "") +
+        scale_x_datetime(breaks = seq(out[1, 1], out[nrow(out), 1], length.out = 10), date_labels = "%b %d") + 
+        theme_bw() +
+        theme(
+          axis.title.x = element_blank(),
+          axis.text.x = element_blank()
+        ) 
+      
+      
+      lon_plot <- ggplot() +
+        geom_point(aes(out[, 1,], ifelse(fixed.ind, NA, crds0[, 1])), size = 0.5, na.rm = TRUE) +
+        geom_line(aes(out[, 1,], ifelse(fixed.ind, NA, crds0[, 1]))) + 
+        geom_vline(
+          xintercept = c(
+            out[site.old > 0 & !duplicated(site.old), 1],
+            out[site.old > 0 & !duplicated(site.old, fromLast = TRUE), 1]
+          ),
+          linetype = "dashed"
+        ) +
+        geom_vline(xintercept = c(
+          out[out$site  > 0 & !duplicated(out$site), 1],
+          out[out$site  > 0 & !duplicated(out$site, fromLast = T), 1]),
+          col = "firebrick") +
+        scale_x_datetime(breaks = seq(out[1, 1], out[nrow(out), 1], length.out = 10), date_labels = "%b %d") + 
+        labs(y = "Longitude", x = "") +
+        theme_bw() +
+        theme(
+          axis.title.x = element_blank(),
+          axis.text.x = element_blank()
+        ) 
+      
+      lat_plot <- ggplot() +
+        geom_point(aes(out[, 1,], ifelse(fixed.ind, NA, crds0[, 2])), size = 0.5, na.rm = TRUE) +
+        geom_line(aes(out[, 1,], ifelse(fixed.ind, NA, crds0[, 2]))) + 
+        geom_vline(
+          xintercept = c(
+            out[site.old > 0 & !duplicated(site.old), 1],
+            out[site.old > 0 & !duplicated(site.old, fromLast = TRUE), 1]
+          ),
+          linetype = "dashed"
+        ) +
+        geom_vline(xintercept = c(
+          out[out$site  > 0 & !duplicated(out$site), 1],
+          out[out$site  > 0 & !duplicated(out$site, fromLast = T), 1]),
+          col = "firebrick") +
+        scale_x_datetime(breaks = seq(out[1, 1], out[nrow(out), 1], length.out = 10), date_labels = "%b %d") + 
+        labs(y = "Lattidue", x = "") +
+        theme_bw()
+      
+      library(patchwork)
+      #return( hist_rec / red_ts / blue_ts / lon_plot / lat_plot )
+      print(hist_rec / red_ts / blue_ts / lon_plot / lat_plot )
+      
+      
+    } else {
+      plot(out[, 1], ifelse(mig2 > 0, 1, 0), type = "l", yaxt = "n", 
+           ylab = NA, ylim = c(0, 1.5), col = "firebrick", lwd = 2, 
+           xaxt = "n")
+      lines(out[, 1], ifelse(mig1 > 0, 1, 0), type = "l", lty = 2)
+      rect(out[site > 0 & !duplicated(site), 1], 1.1, 
+           out[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, col = "grey90", lwd = 0)
+      rect(out[site > 0 & !duplicated(site), 1], 1.1, 
+           out[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, 
+           col = ifelse(apply(fixed[site>0,], 1, function(x) any(x))[!duplicated(site[site>0])], "red", "transparent"), 
+           density = 60)
+      axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
+           labels = FALSE)
+      
+      
+      
+      
+      plot(out[out$Rise, 1], hours1[out$Rise], type = "l", 
+           lwd = 2, col = "firebrick", ylab = "Sunrise (red)", 
+           xlim = range(out[, 1]), ylim = range(hours0[out[, 2] == 1]), xaxt = "n")
+      lines(out[out$Rise, 1], hours2[out$Rise], type = "l", 
+            lwd = 1, lty = 2)
+      lines(out[out[, 2] == 1, 1], hours3[out[, 2] == 1], type = "l", 
+            lwd = 1, lty = 2)
+      points(out[out[, 2] == 1 & !fixed.ind, 1], hours0[out[, 2] == 1 & !fixed.ind], cex = 0.5, 
+             pch = 21, col = "black", bg = "firebrick", lwd = 0.5)
+      axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
+           labels = FALSE)
+      plot(out[!out$Rise, 1], hours1[!out$Rise], type = "l", 
+           lwd = 2, col = "cornflowerblue", ylab = "Sunset (blue)", 
+           xlim = range(out[, 1]), ylim = range(hours0[!out$Rise]), xaxt = "n")
+      lines(out[!out$Rise, 1], hours2[!out$Rise], type = "l", 
+            lwd = 1, lty = 2)
+      lines(out[!out$Rise, 1], hours3[!out$Rise], type = "l", 
+            lwd = 1, lty = 2)
+      points(out[!out$Rise & !fixed.ind, 1], hours0[!out$Rise & !fixed.ind], cex = 0.5, 
+             pch = 21, col = "black", bg = "cornflowerblue", lwd = 0.5)
+      axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
+           labels = FALSE)
+      
+      plot(out[, 1], ifelse(fixed.ind, NA, crds0[, 1]), type = "o", pch = 16, cex = 0.5, 
+           xaxt = "n", ylab = "Longitude", cex.lab = 1.7, xlab = "")
+      abline(v = c(out[site.old > 0 & !duplicated(site.old), 1], 
+                   out[site.old > 0 & !duplicated(site.old, fromLast = T), 1]), lty = 2)
+      abline(v = c(out[out$site  > 0 & !duplicated(out$site), 1], 
+                   out[out$site  > 0 & !duplicated(out$site, fromLast = T), 1]), lwd = 1.5, col = "firebrick")
+      axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
+           labels = FALSE)
+      plot(out[, 1], ifelse(fixed.ind, NA, crds0[, 2]), type = "o", pch = 16, cex = 0.5, 
+           xaxt = "n", ylab = "Latitude", cex.lab = 1.7, xlab = "")
+      abline(v = c(out[site.old > 0 & !duplicated(site.old), 1], 
+                   out[site.old > 0 & !duplicated(site.old, fromLast = T), 1]), lty = 2)
+      abline(v = c(out[out$site > 0 & !duplicated(out$site), 1], 
+                   out[out$site > 0 & !duplicated(out$site, fromLast = T), 1]), lwd = 1.5, 
+             col = "firebrick")
+      axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
+           labels = format(seq(out[1, 1], out[nrow(out), 1], length = 10), "%d-%b"))
+      mtext("Date", 1, outer = T, line = 1.6, cex = 1.2)
+      par(opar)
+    }
   }
+  
   sm        <- as.data.frame(sm)
   names(sm) <- c("site", "Lon", "Lat", "Lon.2.5%", "Lon.40%", "Lon.80%", "Lon.97.25%",  
                  "Lat.2.5%", "Lat.40%", "Lat.80%", "Lat.97.25%")
@@ -1497,22 +1607,22 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
   diff <- c(apply(cbind(out$datetime[-nrow(out)], 
                         out$datetime[-1]), 1, function(x) c(x[2] - x[1])/60/60), 0)
   
-  out.gl <- data.frame(tFirst = as.POSIXct("1900-01-01 01:01", "GMT"), tSecond = as.POSIXct("1900-01-01 01:01", "GMT"),  type = 0, site = 0, fixed = 0, diff.max = 0)
+  out <- data.frame(tFirst = as.POSIXct("1900-01-01 01:01", "GMT"), tSecond = as.POSIXct("1900-01-01 01:01", "GMT"),  type = 0, site = 0, fixed = 0, diff.max = 0)
   rw <- 1
   for (k in 1:(nrow(out) - 1)) {
     if (as.numeric(difftime(out$datetime[k], out$datetime[k + 1])) < 24 & out$datetime[k] != out$datetime[k + 1]) {
-      out.gl[rw, 1] <- out$datetime[k]
-      out.gl[rw, 2] <- out$datetime[k + 1]
-      out.gl[rw, 3] <- ifelse(out$Rise[k], 1, 2)
-      out.gl[rw, 4] <- out$site[k]
-      out.gl[rw, 5] <- out$fixed[k]
-      out.gl[rw, 6] <- max(diff[k:(k + 1)])
+      out[rw, 1] <- out$datetime[k]
+      out[rw, 2] <- out$datetime[k + 1]
+      out[rw, 3] <- ifelse(out$Rise[k], 1, 2)
+      out[rw, 4] <- out$site[k]
+      out[rw, 5] <- out$fixed[k]
+      out[rw, 6] <- max(diff[k:(k + 1)])
       rw <- rw + 1
     }
   }
-  out.gl <- out.gl[out.gl$diff.max < 23,]
+  out <- out[out$diff.max < 23,]
   
-  list(twl = out.gl[,c(1,2)], site = out.gl$site, summary = sm)
+  list(twl = out[,c(1,2)], site = out$site, summary = sm)
 }
 
 
