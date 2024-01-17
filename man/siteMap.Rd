@@ -9,9 +9,10 @@ siteMap(
   site,
   type = "points",
   quantiles = c(0.25, 0.75),
-  hull = T,
+  hull = TRUE,
   map.range = c("EuroAfrica", "AustralAsia", "America", "World"),
-  ...
+  ...,
+  ggplot = TRUE
 )
 }
 \arguments{
@@ -32,6 +33,8 @@ migration/movement periods 0.}
 (default)", "EuroAfrica","America","AustralAsia").}
 
 \item{...}{Arguments to be passed to methods, such as graphical parameters (see par).}
+
+\item{ggplot}{logical. if TRUE plots will be created using ggplot2}
 }
 \description{
 Draw a map (from the \code{R} Package \code{maps}) showing the defined

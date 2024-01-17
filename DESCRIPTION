@@ -12,13 +12,15 @@ Description: Provides basic functions for global
     calculation of positions.
 License: GPL (>= 2)
 Depends: 
-    R (>= 4.2.2),
-    maps
+    R (>= 4.2.0)
 Imports:
-    raster,
     changepoint,
+    SGAT,
     fields,
     MASS,
+    rnaturalearth,
+    terra,
+    maps
 LazyLoad: yes
 LazyData: yes
 NeedsCompilation: no
@@ -26,5 +28,6 @@ Suggests:
     knitr,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
-RoxygenNote: 7.2.0
+RoxygenNote: 7.3.0
 Config/testthat/edition: 3
+Encoding: UTF-8

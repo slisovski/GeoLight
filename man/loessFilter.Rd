@@ -4,7 +4,7 @@
 \alias{loessFilter}
 \title{Filter to remove outliers in defined twilight times based on smoother function}
 \usage{
-loessFilter(tFirst, tSecond, type, twl, k = 3, plot = TRUE)
+loessFilter(tFirst, tSecond, type, twl, k = 3, plot = TRUE, ggplot = TRUE)
 }
 \arguments{
 \item{tFirst}{vector of sunrise/sunset times (e.g. 2008-12-01 08:30).}
@@ -20,6 +20,8 @@ that a particular twilight event is an outlier}
 
 \item{plot}{codelogical, if TRUE a plot indicating the filtered times will
 be produced.}
+
+\item{ggplot}{logical. if TRUE plots will be created using ggplot2}
 }
 \value{
 Logical \code{vector} matching positions that pass the filter.

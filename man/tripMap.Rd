@@ -9,7 +9,8 @@ tripMap(
   equinox = TRUE,
   map.range = c("EuroAfrica", "AustralAsia", "America", "World"),
   legend = TRUE,
-  ...
+  ...,
+  ggplot = TRUE
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ broken blue line.}
 \item{legend}{\code{logical}; if \code{TRUE}, a legend will be added to the plot.}
 
 \item{...}{Arguments to be passed to methods, such as graphical parameters (see par).}
+
+\item{ggplot}{logical. if TRUE plots will be created using ggplot2}
 }
 \description{
 Draw a map (from the \code{R} Package \code{maps}) with calculated positions

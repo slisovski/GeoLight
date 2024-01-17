@@ -324,6 +324,7 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' @param method the function can either estimate the sun elevation angle and the twilight error parameters using a log-normal ("log-norm")
 ##' or a gamma ("gamma") error distribution. It is recommended to try both and evaluate the fit using the plot.
 ##' @param plot \code{logical}, if TRUE a plot will be produced.
+##' @param ggplot logical. if TRUE plots will be created using ggplot2
 ##' @author Simeon Lisovski
 ##' @references Lisovski, S., Hewson, C.M, Klaassen, R.H.G., Korner-Nievergelt,
 ##' F., Kristensen, M.W & Hahn, S. (2012) Geolocation by light: Accuracy and
@@ -336,14 +337,14 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' getElevation(calib2, known.coord = c(7.1,46.3))
 ##' @importFrom MASS fitdistr
 ##' @importFrom graphics arrows par hist plot lines mtext
-##' @importFrom stats dlnorm median ls dgamma
+##' @importFrom stats dlnorm median lm dgamma
 ##' @export getElevation
 
 getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-norm", plot=TRUE, ggplot = TRUE) {
   
   if(!(method%in%c("gamma", "log-norm"))) stop("Method can only be `gamma` or `log-norm`.")
   
-  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   #gets GeoLgiht data
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   #gets GeoLgiht data
   tab <- geolight.convert(tab[,1], tab[,2], tab[,3])  #converst data to other format where first row beginning time and second row rise or fall
   
   sun  <- solar(tab[,1])  #Calculate solar time, the equation of time and solar declination
@@ -366,18 +367,18 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
   seq <- seq(0, max(twl_dev), length = 100)
   
   if(method=="log-norm"){
-    fitml_ng <- suppressWarnings(MASS::fitdistr(twl_dev, "log-normal"))
-    lns      <- stats::dlnorm(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
+    fitml_ng <- suppressWarnings(fitdistr(twl_dev, "log-normal"))
+    lns      <- dlnorm(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
   }
   if(method=="gamma"){
-    fitml_ng <- suppressWarnings(MASS::fitdistr(twl_dev, "gamma"))
-    lns      <- stats::dgamma(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
+    fitml_ng <- suppressWarnings(fitdistr(twl_dev, "gamma"))
+    lns      <- dgamma(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
   }
   
   
   diffz <- as.data.frame(cbind(min = apply(cbind(tab[,1], twilight(tab[,1], known.coord[1], known.coord[2], rise = tab[,2], zenith = z0)), 1, function(x) abs(x[1]-x[2]))/60, z = z))
-  mod  <- stats::lm(z~min, data = diffz)
-  mod2 <- stats::lm(min~z, data = diffz)
+  mod  <- lm(z~min, data = diffz)
+  mod2 <- lm(min~z, data = diffz)
   
   a1.0 <- seq[which.max(lns)]
   a1.1 <- 90-predict(mod, newdata = data.frame(min = a1.0))
@@ -537,6 +538,7 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
 ##' @param plot logical, if \code{TRUE} a plot will be produced
 ##' @param summary logical, if \code{TRUE} a summary of the results will be
 ##' printed
+##' @param ggplot logical. if TRUE plots will be created using ggplot2 
 ##' @return A \code{list} with probabilities for \emph{sunrise} and
 ##' \emph{sunset} the user settings of the probabilities and the resulting
 ##' stationary periods given as a \code{vector}, with the residency sites as
@@ -569,7 +571,7 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
 changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA, 
                          set.prob = NA, days = 5, fixed = NULL, plot = TRUE, ggplot= TRUE, summary = TRUE) {
   
-  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), 
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), 
                                                              FUN = function(x) any(class(x) != "name"))])
   
   if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
@@ -595,21 +597,21 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
   ss <- tw[tw[, 2]==2, 1]
   rise <- hours[tw[, 2] == 1]
   set  <- hours[tw[, 2] == 2]
-  CPs1 <- suppressWarnings(changepoint::cpt.mean(rise, method = "BinSeg", 
+  CPs1 <- suppressWarnings(cpt.mean(rise, method = "BinSeg", 
                                                  Q = length(rise)/2, penalty = "Manual", pen.value = 0.001, 
                                                  test.stat = "CUSUM", param.estimates = FALSE))
-  CPs2 <- suppressWarnings(changepoint::cpt.mean(set, method = "BinSeg", 
+  CPs2 <- suppressWarnings(cpt.mean(set, method = "BinSeg", 
                                                  Q = length(set)/2, penalty = "Manual", pen.value = 0.001, 
                                                  test.stat = "CUSUM", param.estimates = FALSE))
   N1 <- seq(1, length(rise))
   N2 <- seq(1, length(set))
-  tab1 <- merge(data.frame(N = N1, prob = NA), data.frame(N = changepoint::cpts.full(CPs1)[nrow(changepoint::cpts.full(CPs1)),], 
-                                                          prob = changepoint::pen.value.full(CPs1)/2), by.x = "N", by.y = "N", all.x = T)[, -2]
+  tab1 <- merge(data.frame(N = N1, prob = NA), data.frame(N = cpts.full(CPs1)[nrow(cpts.full(CPs1)),], 
+                                                          prob = pen.value.full(CPs1)/2), by.x = "N", by.y = "N", all.x = T)[, -2]
   tab1[is.na(tab1[, 2]), 2] <- 0
   tab1[tw$fixed[tw$type==1],2] <- NA
   
-  tab2 <- merge(data.frame(N = N2, prob = NA), data.frame(N = changepoint::cpts.full(CPs2)[nrow(changepoint::cpts.full(CPs2)),], 
-                                                          prob = changepoint::pen.value.full(CPs2)/2), by.x = "N", by.y = "N",all.x = T)[, -2]
+  tab2 <- merge(data.frame(N = N2, prob = NA), data.frame(N = cpts.full(CPs2)[nrow(cpts.full(CPs2)),], 
+                                                          prob = pen.value.full(CPs2)/2), by.x = "N", by.y = "N",all.x = T)[, -2]
   tab2[is.na(tab2[, 2]), 2] <- 0
   tab2[tw$fixed[tw$type==2],2] <- NA
   
@@ -655,7 +657,7 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
         }
       }
   }
-  ind01 <- stats::aggregate(as.numeric(tmp02[!is.na(tmp02[,8]) & !tmp02$fixed,1]), by = list(tmp02[!is.na(tmp02[,8]) & !tmp02$fixed, 8]), 
+  ind01 <- aggregate(as.numeric(tmp02[!is.na(tmp02[,8]) & !tmp02$fixed,1]), by = list(tmp02[!is.na(tmp02[,8]) & !tmp02$fixed, 8]), 
                             FUN =  function(x) (x[length(x)] - x[1])/60/60/24 > days)
   tmp02[, 8] <- ifelse(tmp02[, 8]%in%c(ind01[ind01[,2],1], unique(tmp02[tmp02$fixed, 8])), tmp02[, 8], NA)
   
@@ -691,11 +693,11 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
       mig <- out$site
       mig[mig > 0] <- 1
       
-      min.r <- stats::aggregate(as.numeric(tab$tFirst[out$site>0]),
+      min.r <- aggregate(as.numeric(tab$tFirst[out$site>0]),
                                 by = list(out$site[out$site>0]), 
                                 FUN = function(x) min(x))
       
-      max.r <- stats::aggregate(as.numeric(tab$tFirst[out$site>0]),
+      max.r <- aggregate(as.numeric(tab$tFirst[out$site>0]),
                                 by = list(out$site[out$site>0]),
                                 FUN = function(x) max(x))
       
@@ -864,8 +866,8 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
       plot(tab[, 1] + (tab[, 2] - tab[, 1])/2, ifelse(out$site > 
                                                         0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim = c(0,1.5)) 
       
-      min.r <- stats::aggregate(as.numeric(tab$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) min(x))
-      max.r <- stats::aggregate(as.numeric(tab$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) max(x))
+      min.r <- aggregate(as.numeric(tab$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) min(x))
+      max.r <- aggregate(as.numeric(tab$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) max(x))
       
       rect(min.r[,2], 1.1, max.r[,2], 1.4, col = "grey90", lwd = 0)
       
@@ -878,7 +880,7 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
   }
   
   if (summary) {
-    GeoLight:::i.sum.Cl(out)
+    i.sum.Cl(out)
   }
   return(out)
 }
@@ -923,10 +925,10 @@ siteEstimate <- function(tFirst, tSecond, type, twl,
     diff.sr <- as.numeric(difftime(Twilight[Rise], t.tw[Rise], units = "mins"))
     diff.ss <- as.numeric(difftime(t.tw[!Rise], Twilight[!Rise], units = "mins"))
     if(method=="log-norm") {
-      return(-sum(stats::dlnorm(c(diff.sr, diff.ss), parms[1], parms[2], log = T), na.rm = T))
+      return(-sum(dlnorm(c(diff.sr, diff.ss), parms[1], parms[2], log = T), na.rm = T))
     }
     if(method=="gamma") {
-      return(-sum(stats::dgamma(c(diff.sr, diff.ss), parms[1], parms[2], log = T), na.rm = T))
+      return(-sum(dgamma(c(diff.sr, diff.ss), parms[1], parms[2], log = T), na.rm = T))
     }
   }
   
@@ -951,13 +953,13 @@ siteEstimate <- function(tFirst, tSecond, type, twl,
     twl.sp <- list(tw)
   }
   
-  mycl <- parallel::makeCluster(parallel::detectCores()-1)
-  tmp  <- parallel::clusterSetRNGStream(mycl)
-  tmp  <- parallel::clusterExport(mycl, c("loglik"), envir=environment())
-  tmp  <- parallel::clusterEvalQ(mycl, library("GeoLight")) 
+  mycl <- makeCluster(detectCores()-1)
+  tmp  <- clusterSetRNGStream(mycl)
+  tmp  <- clusterExport(mycl, c("loglik"), envir=environment())
+  tmp  <- clusterEvalQ(mycl, library("GeoLight")) 
   
   for(i in 1:length(degElevation)) {
-    nll0  <- lapply(twl.sp, function(x) parallel::parRapply(mycl, crdsm, FUN = loglik, Twilight = x$Twilight, Rise = x$Rise, 
+    nll0  <- lapply(twl.sp, function(x) parRapply(mycl, crdsm, FUN = loglik, Twilight = x$Twilight, Rise = x$Rise, 
                                                             degElevation = degElevation[i], method = method, parms = parms))
     nll   <- apply(do.call("cbind", nll0), 1, function(x) ifelse(all(is.infinite(abs(x))), Inf, sum(x)))
     
@@ -969,7 +971,7 @@ siteEstimate <- function(tFirst, tSecond, type, twl,
     }
   }
   
-  parallel::stopCluster(mycl)
+  stopCluster(mycl)
   
   list(SunElevation = degElevation,
        Estimate = out_A,
@@ -1064,7 +1066,7 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
   repeat {
     for (i in site[site != 0 & !duplicated(site) & !fixed.ind & !site%in%(unique(site[fixed.ind])-1)]) {
       if(i==max(out$site)) break
-      dist0 <- fields::rdist.earth(out[which(out[,1]==i):(which(out[,1]==i) + 1), 2:3])[2, 1]
+      dist0 <- rdist.earth(out[which(out[,1]==i):(which(out[,1]==i) + 1), 2:3])[2, 1]
       if (dist0 <= distThreshold) 
         break
     }
@@ -1225,6 +1227,7 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 #' @param map A 'SpatialPolygonDataFrame' of the world. E.g., use 'wrld_simpl' from the maptools package.
 #' @param mask Either 'land' or 'ocean'.
 #' @param plot \code{logical}, if TRUE a plot comparing the initial and the final site selection.
+#' @param ggplot logical. if TRUE plots will be created using ggplot2
 #' @return A \code{vector} with the merged site numbers
 #' @author Simeon Lisovski
 #'
@@ -1236,15 +1239,15 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 #' @importFrom utils data 
 #' @importFrom parallel makeCluster clusterSetRNGStream parRapply stopCluster
 mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
-                        distThreshold = 250, fixed = NULL, alpha = c(2.5, 1), method = "gamma", map, mask = "land", plot = TRUE, ggplot = TURE) {
+                        distThreshold = 250, fixed = NULL, alpha = c(2.5, 1), method = "gamma", map, mask = "land", plot = TRUE, ggplot = TRUE) {
   
   if(!(method%in%c("gamma", "log-norm"))) stop("Method can only be `gamma` or `log-norm`.")
   
-  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), 
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), 
                                                              FUN = function(x) any(class(x) != "name"))])
   
-  mycl <- parallel::makeCluster(parallel::detectCores()-1)
-  tmp  <- parallel::clusterSetRNGStream(mycl)
+  mycl <- makeCluster(detectCores()-1)
+  tmp  <- clusterSetRNGStream(mycl)
   
   if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
   if(is.null(fixed)) stop("fixed is NULL")
@@ -1271,7 +1274,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
   latlim <- range(crds0[, 2], na.rm = T)
   lat.seq <- seq(latlim[1] - 1, latlim[2] + 1, by = 1)
   
-  tmp  <- parallel::clusterEvalQ(mycl, {
+  tmp  <- clusterEvalQ(mycl, {
     library(GeoLight)
     library(SGAT)
     library(TwGeos) 
@@ -1284,48 +1287,48 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
     
     crdsT <- expand.grid(lons, lats)
     
-    ll    <- parallel::parRapply(mycl, crdsT, FUN = GeoLight:::gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE), degElevation = degElevation, parms = alpha, method = method)
+    ll    <- parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE), degElevation = degElevation, parms = alpha, method = method)
     ll    <- ll/max(ll, na.rm = T)
     
-    r0     <- terra::rast(xmin =-180, xmax = 180, ymin = -75, ymax = 75, nrows = length(lats), ncols = length(lons))
-    r      <- terra::rasterize(as.matrix(crdsT[!is.na(ll),]), r0, ll[!is.na(ll)])
+    r0     <- rast(xmin =-180, xmax = 180, ymin = -75, ymax = 75, nrows = length(lats), ncols = length(lons))
+    r      <- rasterize(as.matrix(crdsT[!is.na(ll),]), r0, ll[!is.na(ll)])
     # plot(r, breaks = seq(0.4, 1, length = 100), col = rev(terrain.colors(99)))
     # points(xTab[[1]]$lon, xTab[[1]]$lat)
     # points(lon.calib, lat.calib, pch = 21, cex = 2, bg = "white")
     
-    crdsT <- terra::crds(r)[r[]>0.4,]           
-    r0     <- terra::rast(xmin = min(crdsT[,1])-3,
+    crdsT <- crds(r)[r[]>0.4,]           
+    r0     <- rast(xmin = min(crdsT[,1])-3,
                           xmax = max(crdsT[,1])+3, 
                           ymin = min(crdsT[,2])-3, 
                           ymax = max(crdsT[,2])+3, 
                           res = 0.5)
     if(!is.null(mask)) {
-      maskR  <- terra::rasterize(map, r0)
-      if(mask=="land")  crdsT  <- terra::crds(r0)[!is.na(maskR[]),]
+      maskR  <- rasterize(map, r0)
+      if(mask=="land")  crdsT  <- crds(r0)[!is.na(maskR[]),]
       
-      if(mask=="ocean") crdsT  <- terra::crds(r0)[is.na(maskR[]),]
+      if(mask=="ocean") crdsT  <- crds(r0)[is.na(maskR[]),]
     } else {
-      crdsT  <- terra::crds(r0)
+      crdsT  <- crds(r0)
     }
     
-    ll.sr  <- parallel::parRapply(mycl, crdsT, FUN = GeoLight:::gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE), degElevation = degElevation, parms = alpha, method = method, twilight = "sr")
-    ll.ss    <- parallel::parRapply(mycl, crdsT, FUN = GeoLight:::gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE), degElevation = degElevation, parms = alpha, method = method, twilight = "ss")
+    ll.sr  <- parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE), degElevation = degElevation, parms = alpha, method = method, twilight = "sr")
+    ll.ss    <- parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE), degElevation = degElevation, parms = alpha, method = method, twilight = "ss")
     ll <- apply(cbind(ll.sr/max(ll.sr, na.rm = T), ll.ss/max(ll.sr, na.rm = T)), 1, function(x) ifelse(any(x<=0.0000001), NA, sum(x)))
     centre <- crdsT[which.max(ll),]
     
-    r      <- terra::rasterize(as.matrix(crdsT[!is.na(ll),]), r0, ll[!is.na(ll)])
+    r      <- rasterize(as.matrix(crdsT[!is.na(ll),]), r0, ll[!is.na(ll)])
     r[] <- r[]/max(r[], na.rm = T)
     
     # plot(r)
     # contour(r, add = T, levels = c(1, 0.495))
     
     
-    crdsRange1.x <- terra::xFromCell(r, 1:terra::ncell(r))[!is.na(r[]) & r[]>0.495]
-    crdsRange1.y <- terra::yFromCell(r, 1:terra::ncell(r))[!is.na(r[]) & r[]>0.495]
+    crdsRange1.x <- xFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.495]
+    crdsRange1.y <- yFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.495]
     crdsRange1 <- cbind(crdsRange1.x, crdsRange1.y)
     
-    crdsRange2.x <- terra::xFromCell(r, 1:terra::ncell(r))[!is.na(r[]) & r[]>0.7]
-    crdsRange2.y <- terra::yFromCell(r, 1:terra::ncell(r))[!is.na(r[]) & r[]>0.7]
+    crdsRange2.x <- xFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.7]
+    crdsRange2.y <- yFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.7]
     crdsRange2 <- cbind(crdsRange2.x, crdsRange2.y)
     
     matrix(c(centre[1], centre[2], min(crdsRange1[,1]), min(crdsRange2[,1]), max(crdsRange2[,1]), max(crdsRange1[,1]),
@@ -1356,7 +1359,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
         
         if(all(!xTab[[i]]$fixed)) {
           
-          dist <- fields::rdist.earth(out[,1:2])[2,1]
+          dist <- rdist.earth(out[,1:2])[2,1]
           
           if(dist<distThreshold & 
              (out[2,3] < out[1,1] & out[2,6] > out[1,1]) & (out[2,1] > out[1,3] & out[2,1] < out[1,6]) &
@@ -1387,7 +1390,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
     }
   }
   
-  parallel::stopCluster(mycl)
+  stopCluster(mycl)
   
   sm  <- cbind(1:sum(!is.na(sm[,1])), sm[!is.na(sm[,1]),])
   
@@ -2272,23 +2275,23 @@ gl.loglik <- function(crds, Twilight, Rise, degElevation, parms, method, twiligh
   
   if(method=="log-norm") {
     if(is.null(twilight)) {
-      ll <- sum(stats::dlnorm(c(diff.sr, diff.ss), parms[1], parms[2], log = F), na.rm = T)
+      ll <- sum(dlnorm(c(diff.sr, diff.ss), parms[1], parms[2], log = F), na.rm = T)
     } else {
       if(twilight=="sr"){
-        ll <- sum(stats::dlnorm(diff.sr, parms[1], parms[2], log = F), na.rm = T)
+        ll <- sum(dlnorm(diff.sr, parms[1], parms[2], log = F), na.rm = T)
       }
       if(twilight=="ss") {
-        ll <- sum(stats::dlnorm(diff.ss, parms[1], parms[2], log = F), na.rm = T)
+        ll <- sum(dlnorm(diff.ss, parms[1], parms[2], log = F), na.rm = T)
       }}
   } else {
     if(is.null(twilight)) {
-      ll <- sum(stats::dgamma(c(diff.sr, diff.ss), parms[1], parms[2], log = F), na.rm = T)
+      ll <- sum(dgamma(c(diff.sr, diff.ss), parms[1], parms[2], log = F), na.rm = T)
     } else {
       if(twilight=="sr"){
-        ll <- sum(stats::dgamma(diff.sr, parms[1], parms[2], log = F), na.rm = T)
+        ll <- sum(dgamma(diff.sr, parms[1], parms[2], log = F), na.rm = T)
       }
       if(twilight=="ss") {
-        ll <- sum(stats::dgamma(diff.ss, parms[1], parms[2], log = F), na.rm = T)
+        ll <- sum(dgamma(diff.ss, parms[1], parms[2], log = F), na.rm = T)
       }}
   }
   
@@ -2380,6 +2383,7 @@ lightFilter <- function(light, baseline=NULL, iter=2){
 ##' that a particular twilight event is an outlier
 ##' @param plot codelogical, if TRUE a plot indicating the filtered times will
 ##' be produced.
+##' @param ggplot logical. if TRUE plots will be created using ggplot2
 ##' @return Logical \code{vector} matching positions that pass the filter.
 ##' @author Simeon Lisovski & Eldar Rakhimberdiev
 ##' @importFrom graphics axis mtext legend lines par plot points
@@ -2388,7 +2392,7 @@ lightFilter <- function(light, baseline=NULL, iter=2){
 
 loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE, ggplot = TRUE){
   
-  tab <- GeoLight:::i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   
   tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
                    type = c(tab$type, ifelse(tab$type == 1, 2, 1)))
@@ -2422,9 +2426,9 @@ loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE, ggplot =
     predict.dawn <- predict(loess(dawn$hours[!dawn$filter]~as.numeric(dawn$datetime[!dawn$filter]),span=0.1))
     predict.dusk <- predict(loess(dusk$hours[!dusk$filter]~as.numeric(dusk$datetime[!dusk$filter]),span=0.1))
     
-    del.dawn <-	GeoLight:::i.get.outliers(as.vector(residuals(loess(dawn$hours[!dawn$filter]~
+    del.dawn <-	i.get.outliers(as.vector(residuals(loess(dawn$hours[!dawn$filter]~
                                                                       as.numeric(dawn$datetime[!dawn$filter]),span=0.1))),k=d)
-    del.dusk <-	GeoLight:::i.get.outliers(as.vector(residuals(loess(dusk$hours[!dusk$filter]~
+    del.dusk <-	i.get.outliers(as.vector(residuals(loess(dusk$hours[!dusk$filter]~
                                                                       as.numeric(dusk$datetime[!dusk$filter]),span=0.1))),k=d)
     
     if(length(del.dawn)>0) dawn$filter[!dawn$filter][del.dawn] <- TRUE
@@ -2673,6 +2677,7 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' @param map.range some possibilities to choose defined areas ("World
 #' (default)", "EuroAfrica","America","AustralAsia").
 #' @param ... Arguments to be passed to methods, such as graphical parameters (see par).
+#' @param ggplot logical. if TRUE plots will be created using ggplot2
 #' @details Standard graphical paramters like \code{pch}, \code{cex}, \code{lwd}, \code{lty} and \code{col} are implemented. 
 #' The color can be specified as either a vector of colors (e.g. c("blue", "red", ...)) or as a character string indicating a color ramp (at the moment only "random" and "rainbow" is available )
 #' @author Simeon Lisovski & Tamara Emmenegger
@@ -2690,6 +2695,7 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' @importFrom maps map map.axes
 #' @importFrom grDevices chull col2rgb rainbow rgb
 #' @importFrom graphics legend mtext par plot points segments
+#' @importFrom rnaturalearth ne_countries
 #' @export siteMap
 siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull = TRUE, map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ..., ggplot = TRUE) {  
   if (ggplot) {
@@ -2908,7 +2914,7 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull
     if(!add) {
       opar <- par(mar = c(6,5,1,1))
       plot(NA, xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), xaxt = "n", yaxt = "n", xlab = "", ylab = "", bty = "n")
-      maps::map(xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), fill=T, lwd=0.01, col=c("grey90"), add=TRUE)
+      map(xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), fill=T, lwd=0.01, col=c("grey90"), add=TRUE)
       mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude"), side=1, line=2.2, font=3)
       mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude"), side=2, line=2.5, font=3)
       map.axes()
@@ -3150,6 +3156,7 @@ trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat
 #' "World").
 #' @param ... Arguments to be passed to methods, such as graphical parameters (see par).
 #' @param legend \code{logical}; if \code{TRUE}, a legend will be added to the plot.
+#' @param ggplot logical. if TRUE plots will be created using ggplot2
 #' @author Simeon Lisovski
 #' @examples
 #'
@@ -3195,7 +3202,7 @@ tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","
       library(patchwork)
       
       # base map
-      map <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf") 
+      map <- ne_countries(scale = "medium", returnclass = "sf") 
       map_crop_proj <- map %>% 
         st_intersection(st_bbox(c(xmin = range[1], 
                                   xmax = range[2], 
@@ -3218,8 +3225,8 @@ tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","
     } else{
       opar <- par(mar = c(6,5,1,1))
       plot(NA, xlim=c(range[1], range[2]), ylim=c(range[3], range[4]), xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-      maps::map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), fill=T,lwd=0.01,col=c("grey90"),add=TRUE)
-      maps::map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),interior=TRUE,col=c("darkgrey"),add=TRUE)
+      map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), fill=T,lwd=0.01,col=c("grey90"),add=TRUE)
+      map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),interior=TRUE,col=c("darkgrey"),add=TRUE)
       mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude"), side=1, line=2.2, font=3)
       mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude"), side=2, line=2.5, font=3)
       map.axes()

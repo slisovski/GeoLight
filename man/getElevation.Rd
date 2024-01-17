@@ -11,7 +11,8 @@ getElevation(
   twl,
   known.coord,
   method = "log-norm",
-  plot = TRUE
+  plot = TRUE,
+  ggplot = TRUE
 )
 }
 \arguments{
@@ -31,6 +32,8 @@ period.}
 or a gamma ("gamma") error distribution. It is recommended to try both and evaluate the fit using the plot.}
 
 \item{plot}{\code{logical}, if TRUE a plot will be produced.}
+
+\item{ggplot}{logical. if TRUE plots will be created using ggplot2}
 }
 \description{
 Function to calculate the sun elevation angle for light measurements at a
