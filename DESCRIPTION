@@ -15,12 +15,14 @@ Depends:
     R (>= 4.2.0)
 Imports:
     changepoint,
-    SGAT,
     fields,
     MASS,
     rnaturalearth,
     terra,
-    maps
+    maps,
+    ggplot2,
+    magrittr,
+    sf
 LazyLoad: yes
 LazyData: yes
 NeedsCompilation: no

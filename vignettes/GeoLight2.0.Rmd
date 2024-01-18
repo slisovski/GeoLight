@@ -96,7 +96,7 @@ legend("topleft", c("equinox", "tol = 0", "tol = 0.13"), pch = c(NA, 16, 16), lt
 To separate periods of residency from periods of movement/migration and assign a number to each residency period we can use the function `changeLight`. The calculation is based on on consecutive sunrise and sunset times and a changepoint model (`R` Package `changepoint`) to find multiple changepoints within the data. The function only changed slightly to accommodate recent structural updated within the `changepoint` function and to speed-up calculation time (and some bug fixes).
 
 ```{r, fig.height=10, fig.width=7}
-cL <- changeLight(twl$tFirst, twl$tSecond, type = twl$type, quantile=0.95, summary = F, days = 2)
+#cL <- changeLight(twl$tFirst, twl$tSecond, type = twl$type, quantile=0.95, summary = F, days = 2)
 ```
 
 The `siteMap` function can be used to plot positions coloured according to their distinctive site assignment. The `siteMap` function was subject to little modifications: 
@@ -127,7 +127,7 @@ siteMap(crds1, mS$site, type = "cross", hull = F, lwd = 4, cex = 2,
 
 arrows(mS$summary[-c(4,5),2], mS$summary[-c(4,5),5], mS$summary[-c(4,5),2], mS$summary[-c(4,5),7], 
        lty = 1, length = 0, lwd = 3)
-arrows(mS$summary[-c(4,5),4], mS$summary[-c(4,5),3], mS$summary[-c(4,5),6], mS$summary[-c(4,5),3], 
+arrows(mS$summary[-c(4, 5), 4], mS$summary[-c(4, 5), 3], mS$summary[-c(4, 5), 6], mS$summary[-c(4, 5), 3], 
        lty = 1, length = 0, lwd = 3)
 points(mS$summary[-c(4,5),2:3], pch = 21, bg = "white", type = "b", lwd = 2, cex = 1.5)
 

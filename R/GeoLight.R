@@ -338,6 +338,7 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' @importFrom MASS fitdistr
 ##' @importFrom graphics arrows par hist plot lines mtext
 ##' @importFrom stats dlnorm median lm dgamma
+##' @importFrom ggplot2 geom_histogram labs theme_minimal geom_point geom_text geom_label annotate
 ##' @export getElevation
 
 getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-norm", plot=TRUE, ggplot = TRUE) {
@@ -567,6 +568,7 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
 ##' @importFrom changepoint cpt.mean cpts.full pen.value.full
 ##' @importFrom stats na.omit quantile aggregate
 ##' @importFrom graphics abline axis layout mtext par plot rect
+##' @importFrom ggplot2 ggplot aes geom_line scale_y_continuous geom_rect theme_bw labs theme element_rect element_blank scale_x_datetime sec_axis geom_bar geom_hline
 ##' @export changeLight
 changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA, 
                          set.prob = NA, days = 5, fixed = NULL, plot = TRUE, ggplot= TRUE, summary = TRUE) {
@@ -680,10 +682,6 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
   
   if (plot) {
     if (ggplot) {
-      
-      library(ggplot2)
-      library(patchwork)
-      library(dplyr)
       
       # needed for poc_plots and sunset/sunrise, also for all xlab labels and breaks
       tw_rise <- data.frame(sr, rise)
@@ -903,7 +901,7 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
 #' @author Simeon Lisovski
 #'
 #' @export siteEstimate
-#' @importFrom parallel makeCluster clusterSetRNGStream clusterExport clusterEvalQ parRapply stopCluster
+#' @importFrom parallel makeCluster clusterSetRNGStream clusterExport clusterEvalQ parRapply stopCluster detectCores
 siteEstimate <- function(tFirst, tSecond, type, twl, 
                          degElevation, 
                          method = "gamma", parms = c(3.3, 0.8), 
@@ -1237,7 +1235,8 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 #' @importFrom graphics abline axis lines mtext par plot points rect 
 #' @importFrom stats optim dnorm
 #' @importFrom utils data 
-#' @importFrom parallel makeCluster clusterSetRNGStream parRapply stopCluster
+#' @importFrom parallel makeCluster clusterSetRNGStream parRapply stopCluster detectCores
+#' @importFrom ggplot2 scale_x_datetime theme_bw theme element_blank labs geom_point geom_vline
 mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
                         distThreshold = 250, fixed = NULL, alpha = c(2.5, 1), method = "gamma", map, mask = "land", plot = TRUE, ggplot = TRUE) {
   
@@ -1536,7 +1535,6 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
         labs(y = "Lattidue", x = "") +
         theme_bw()
       
-      library(patchwork)
       #return( hist_rec / red_ts / blue_ts / lon_plot / lat_plot )
       print(hist_rec / red_ts / blue_ts / lon_plot / lat_plot )
       
@@ -2388,6 +2386,7 @@ lightFilter <- function(light, baseline=NULL, iter=2){
 ##' @author Simeon Lisovski & Eldar Rakhimberdiev
 ##' @importFrom graphics axis mtext legend lines par plot points
 ##' @importFrom stats loess predict residuals
+##' @importFrom ggplot2 ggplot geom_point labs theme_bw theme element_blank
 ##' @export loessFilter
 
 loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE, ggplot = TRUE){
@@ -2437,8 +2436,6 @@ loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE, ggplot =
   
   if(plot){
     if(ggplot){
-      library(ggplot2)
-      library(patchwork)
       
       sunrise_plot <- ggplot() +
         geom_point(aes(dawn$datetime[dawn$type==1],
@@ -2696,6 +2693,9 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' @importFrom grDevices chull col2rgb rainbow rgb
 #' @importFrom graphics legend mtext par plot points segments
 #' @importFrom rnaturalearth ne_countries
+#' @importFrom ggplot2 theme_bw coord_cartesian labs geom_sf coord_sf geom_point geom_segment geom_polygon guides guide_legend scale_color_hue
+#' @importFrom magrittr %>% 
+#' @importFrom sf sf_use_s2 st_intersection st_bbox st_as_sfc st_transform
 #' @export siteMap
 siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull = TRUE, map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ..., ggplot = TRUE) {  
   if (ggplot) {
@@ -3168,6 +3168,8 @@ trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat
 #'
 #' @importFrom maps map map.axes
 #' @importFrom graphics lines legend mtext par plot points
+#' @importFrom ggplot2 ggtitle xlab ylab
+#' @importFrom sf st_as_sf st_set_crs st_sf st_sfc st_linestring st_coordinates st_point
 #' @export tripMap
 tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","America","World"), legend = TRUE, ..., ggplot = TRUE) {
   
@@ -3195,11 +3197,6 @@ tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","
   
   if(!add) {
     if(ggplot) {
-      
-      #packages
-      library(sf); sf_use_s2(FALSE)
-      library(ggplot2)
-      library(patchwork)
       
       # base map
       map <- ne_countries(scale = "medium", returnclass = "sf") 
@@ -3355,12 +3352,12 @@ tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","
                     vjust = 1, 
                     hjust = 0) +
           geom_text(data = independent_point, 
-                    aes(geometry = geometry, label = "——— Trip"), 
+                    aes(geometry = geometry, label = "_____ Trip"), #used to be ——— but is not ASCII character 
                     stat = "sf_coordinates", 
                     vjust = 3, 
                     hjust = 0) +
           geom_text(data = independent_point, 
-                    aes(geometry = geometry, label = "——— Equinox"),
+                    aes(geometry = geometry, label = "_____ Equinox"), #used to be ——— but is not ASCII character
                     col = "blue", 
                     stat = "sf_coordinates", 
                     vjust = 5, 
@@ -3375,7 +3372,7 @@ tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","
                     vjust = 1, 
                     hjust = 0) +
           geom_text(data = independent_point, 
-                    aes(geometry = geometry, label = "——— Trip"), 
+                    aes(geometry = geometry, label = "____ Trip"), 
                     stat = "sf_coordinates", 
                     vjust = 3, 
                     hjust = 0) 
