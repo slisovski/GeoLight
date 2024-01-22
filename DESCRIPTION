@@ -22,7 +22,8 @@ Imports:
     maps,
     ggplot2,
     magrittr,
-    sf
+    sf,
+    patchwork
 LazyLoad: yes
 LazyData: yes
 NeedsCompilation: no

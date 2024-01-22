@@ -569,6 +569,7 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
 ##' @importFrom stats na.omit quantile aggregate
 ##' @importFrom graphics abline axis layout mtext par plot rect
 ##' @importFrom ggplot2 ggplot aes geom_line scale_y_continuous geom_rect theme_bw labs theme element_rect element_blank scale_x_datetime sec_axis geom_bar geom_hline
+##' @importFrom patchwork wrap_plots
 ##' @export changeLight
 changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA, 
                          set.prob = NA, days = 5, fixed = NULL, plot = TRUE, ggplot= TRUE, summary = TRUE) {
@@ -820,7 +821,7 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
         poc_blue +
         geom_hline(yintercept = set.prob, lty = 2, lwd = 1.5)
       
-      print( hist_rect / (rise_set) / (poc_red) / (poc_blue)) # use of patchwork syntax to show all plots below each other
+      print(wrap_plots(hist_rect / (rise_set) / (poc_red) / (poc_blue))) # use of patchwork syntax to show all plots below each other
       
     } else {
       
@@ -1237,6 +1238,7 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 #' @importFrom utils data 
 #' @importFrom parallel makeCluster clusterSetRNGStream parRapply stopCluster detectCores
 #' @importFrom ggplot2 scale_x_datetime theme_bw theme element_blank labs geom_point geom_vline
+#' @importFrom patchwork wrap_plots
 mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
                         distThreshold = 250, fixed = NULL, alpha = c(2.5, 1), method = "gamma", map, mask = "land", plot = TRUE, ggplot = TRUE) {
   
@@ -1536,7 +1538,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
         theme_bw()
       
       #return( hist_rec / red_ts / blue_ts / lon_plot / lat_plot )
-      print(hist_rec / red_ts / blue_ts / lon_plot / lat_plot )
+      print(wrap_plots( hist_rec / red_ts / blue_ts / lon_plot / lat_plot ))
       
       
     } else {
@@ -2387,6 +2389,7 @@ lightFilter <- function(light, baseline=NULL, iter=2){
 ##' @importFrom graphics axis mtext legend lines par plot points
 ##' @importFrom stats loess predict residuals
 ##' @importFrom ggplot2 ggplot geom_point labs theme_bw theme element_blank
+##' @importFrom patchwork wrap_plots
 ##' @export loessFilter
 
 loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE, ggplot = TRUE){
@@ -2473,7 +2476,7 @@ loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE, ggplot =
         theme(axis.ticks.y = element_blank(),
               axis.text.y = element_blank())
       
-      print(sunrise_plot / sunset_plot)
+      print(wrap_plots(sunrise_plot / sunset_plot))
       
     } else {
       opar <- par(mfrow=c(2,1),mar=c(3,3,0.5,3),oma=c(2,2,0,0))
