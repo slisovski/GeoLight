@@ -9,10 +9,11 @@ siteMap(
   site,
   type = "points",
   quantiles = c(0.25, 0.75),
+  xlim = NULL,
+  ylim = NULL,
   hull = TRUE,
-  map.range = c("EuroAfrica", "AustralAsia", "America", "World"),
-  ...,
-  ggplot = TRUE
+  palette = "rainbow",
+  ...
 )
 }
 \arguments{
@@ -27,14 +28,15 @@ migration/movement periods 0.}
 
 \item{quantiles}{the quantile of the error bars (\emph{cross}) around the median.}
 
+\item{xlim}{Longitude limits of map.}
+
+\item{ylim}{Lattitude limits of map.}
+
 \item{hull}{\code{logical}, if TRUE a convex hull will be plotted around the points of each site.}
 
-\item{map.range}{some possibilities to choose defined areas ("World
-(default)", "EuroAfrica","America","AustralAsia").}
+\item{palette}{Color palette for sites.}
 
 \item{...}{Arguments to be passed to methods, such as graphical parameters (see par).}
-
-\item{ggplot}{logical. if TRUE plots will be created using ggplot2}
 }
 \description{
 Draw a map (from the \code{R} Package \code{maps}) showing the defined
@@ -45,15 +47,14 @@ Standard graphical paramters like \code{pch}, \code{cex}, \code{lwd}, \code{lty}
 The color can be specified as either a vector of colors (e.g. c("blue", "red", ...)) or as a character string indicating a color ramp (at the moment only "random" and "rainbow" is available )
 }
 \examples{
-data(hoopoe2)
- hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
- hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
-crds <- coord(hoopoe2, degElevation = -6)
-filter <- distanceFilter(hoopoe2, distance = 30)
-site <- changeLight(hoopoe2, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, 
- summary = FALSE)$site
-siteMap(crds[filter,], site[filter], xlim=c(-20,20), ylim=c(0,60), 
- lwd=2, pch=20, cex=0.5, main="hoopoe2")
+#data(hoopoe2)
+#  hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+# hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
+#crds <- coord(hoopoe2, degElevation = -6)
+#filter <- distanceFilter(hoopoe2, distance = 30)
+#site <- changeLight(hoopoe2, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, 
+#  summary = FALSE)$site
+#siteMap(crds[filter,], site[filter], linewidth=2, shape=20, size=0.5, main="hoopoe2")
 
 }
 \author{

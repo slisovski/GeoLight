@@ -21,9 +21,9 @@ Imports:
     terra,
     maps,
     ggplot2,
-    magrittr,
     sf,
-    patchwork
+    patchwork,
+    dplyr
 LazyLoad: yes
 LazyData: yes
 NeedsCompilation: no

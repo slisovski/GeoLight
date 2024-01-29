@@ -106,7 +106,7 @@ The `siteMap` function can be used to plot positions coloured according to their
 3. `hull`, if `TRUE` a convex hull will be plotted around teh points of each site.
 
 ```{r, fig.height=8, fig.width = 6}
-siteMap(crds = crds1, site = cL$site, xlim = c(-12, 25), ylim = c(0, 50))
+#siteMap(crds = crds1, site = cL$site, xlim = c(-12, 25), ylim = c(0, 50))
 ```
 
 Obviously, the `changeLight` function defined many breakpoints during periods of residency (e.g. c-e). This can happen very often, and is potentially due to occasional deviations from the 'normal' shading intensity (e.g. severe weather).
