@@ -15,7 +15,6 @@ changeLight(
   days = 5,
   fixed = NULL,
   plot = TRUE,
-  ggplot = TRUE,
   summary = TRUE
 )
 }
@@ -45,8 +44,6 @@ than "days" will not be considered as a residency period}
 \item{fixed}{...}
 
 \item{plot}{logical, if \code{TRUE} a plot will be produced}
-
-\item{ggplot}{logical. if TRUE plots will be created using ggplot2}
 
 \item{summary}{logical, if \code{TRUE} a summary of the results will be
 printed}

@@ -278,4 +278,3 @@ geolight.convert <- function(tFirst,tSecond,type) {
   ord <- order(tm)
   data.frame(Twilight=tm[ord],Rise=rise[ord])
 }
-
