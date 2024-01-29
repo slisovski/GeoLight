@@ -1191,9 +1191,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
   lat.seq <- seq(latlim[1] - 1, latlim[2] + 1, by = 1)
   
   tmp  <- clusterEvalQ(mycl, {
-    library(GeoLight)
-    library(SGAT)
-    library(TwGeos) 
+    library(GeoLight) 
   })
   
   mod <- function(x) {
