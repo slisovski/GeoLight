@@ -1,7 +1,7 @@
 #' @aliases GeoLight
 #' @title The GeoLight Package
-#' @description This is a summary of all features of \bold{\code{GeoLight}}, a \code{R}-package for 
-#' analyzing light based geolocator data
+#' @description This is a summary of all features of \bold{\code{GeoLight}}, a \code{R}-Package For 
+#' Analyzing Light Based Geolocator Data
 #' @details \bold{\code{GeoLight}} is a package to derive geographical positions from daily light intensity pattern. 
 #' Positioning and calibration methods are based on the threshold-method (Ekstrom 2004, Lisovski \emph{et al.} 2012). 
 #' A changepoint model from the \code{R} package \code{changepoint} is implemented to distinguish between periods of 
@@ -114,32 +114,6 @@
 #' Wilson, R.P., Ducamp, J.J., Rees, G., Culik, B.M. & Niekamp, K. (1992) Estimation of location: global coverage using light intensity. \emph{Wildlife telemetry: remote monitoring and tracking of animals} (eds I.M. Priede & S.M. Swift), pp. 131-134. Ellis Horward, Chichester.
 
 #globalVariables(c("."))
-
-##' @title Checkup of arguments in GeoLight tables
-##' @param y GeoLigth data table.
-##' @author Simeon Lisovski
-##' @noRd
-i.argCheck <- function(y) {
-  if(any(sapply(y, function(x) class(x))=="data.frame")) {
-    ind01 <- which(sapply(y, function(x) class(x))=="data.frame")
-    if(!all(ind02 <- c("tFirst", "tSecond", "type")%in%names(y[[ind01]]))) {
-      whc <- paste("The following columns in data frame twl are missing with no default: ", paste(c("tFirst", "tSecond", "type")[!ind02], collapse = " and "), sep = "")
-      stop(whc , call. = F)
-    } 
-    out <- y[[ind01]]
-  } else {
-    if(!all(c("tFirst", "tSecond", "type")%in%names(y))) {
-      ind03 <- c("tFirst", "tSecond", "type")%in%names(y)
-      stop(sprintf(paste(paste(c("tFirst", "tSecond", "type")[!ind03], collapse = " and "), "is missing with no default.")))
-    } else {
-      out <- data.frame(tFirst = y$tFirst, tSecond = y$tSecond, type = y$type)
-    }
-  }
-  if(any(c(class(out[,1])[1], class(out[,2])[1])!="POSIXct")) {
-    stop(sprintf("Date and time inforamtion (e.g. tFirst and tSecond) need to be provided as POSIXct class objects."), call. = F)
-  }
-  out  
-}
 
 ##' Estimate location from consecutive twilights
 ##'
@@ -307,6 +281,31 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
   cbind(degLongitude, degLatitude)
 }
 
+##' @title Checkup of arguments in GeoLight tables
+##' @param y GeoLigth data table.
+##' @author Simeon Lisovski
+##' @noRd
+i.argCheck <- function(y) {
+  if(any(sapply(y, function(x) class(x))=="data.frame")) {
+    ind01 <- which(sapply(y, function(x) class(x))=="data.frame")
+    if(!all(ind02 <- c("tFirst", "tSecond", "type")%in%names(y[[ind01]]))) {
+      whc <- paste("The following columns in data frame twl are missing with no default: ", paste(c("tFirst", "tSecond", "type")[!ind02], collapse = " and "), sep = "")
+      stop(whc , call. = F)
+    } 
+    out <- y[[ind01]]
+  } else {
+    if(!all(c("tFirst", "tSecond", "type")%in%names(y))) {
+      ind03 <- c("tFirst", "tSecond", "type")%in%names(y)
+      stop(sprintf(paste(paste(c("tFirst", "tSecond", "type")[!ind03], collapse = " and "), "is missing with no default.")))
+    } else {
+      out <- data.frame(tFirst = y$tFirst, tSecond = y$tSecond, type = y$type)
+    }
+  }
+  if(any(c(class(out[,1])[1], class(out[,2])[1])!="POSIXct")) {
+    stop(sprintf("Date and time inforamtion (e.g. tFirst and tSecond) need to be provided as POSIXct class objects."), call. = F)
+  }
+  out  
+}
 
 ##' Function to calculate the sun elevation angle for light measurements at a
 ##' known location and the choosen light threshold.
