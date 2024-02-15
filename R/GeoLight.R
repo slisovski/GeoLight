@@ -1238,10 +1238,8 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
     
     r      <- rasterize(as.matrix(crdsT[!is.na(ll),]), r0, ll[!is.na(ll)])
     r[] <- r[]/max(r[], na.rm = T)
-    
     # plot(r)
     # contour(r, add = T, levels = c(1, 0.495))
-    
     
     crdsRange1.x <- xFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.495]
     crdsRange1.y <- yFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.495]
@@ -1360,7 +1358,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
     if(ggplot) {
       hist_rec <- ggplot() +
         geom_line(aes(x = out[, 1], y = ifelse(mig2 > 0, 1, 0)), 
-                  col = "firebrick", size = 1) +
+                  col = "firebrick", linewidth = 1) +
         geom_line(aes(x = out[, 1], y = ifelse(mig1 > 0, 1, 0)), 
                   linetype = 2) +
         geom_rect(
@@ -1385,7 +1383,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
       
       red_ts <- ggplot() +
         geom_line(aes(x = out[out$Rise, 1], y = hours1[out$Rise]), 
-                  col = "firebrick", size = 2, linewidth = 0.5, na.rm = TRUE) +
+                  col = "firebrick", linewidth = 0.5, na.rm = TRUE) +
         geom_line(aes(x = out[out$Rise, 1], y = hours2[out$Rise]), 
                   linetype = 2, linewidth = 0.5, na.rm = TRUE) +
         geom_line(aes(x = out[out[, 2] == 1, 1], y = hours3[out[, 2] == 1]), 
@@ -1401,11 +1399,11 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
       
       blue_ts <- ggplot() +
         geom_line(aes(x = out[!out$Rise, 1], y = hours1[!out$Rise]), 
-                  col = "cornflowerblue", size = 2, linewidth = 0.5, na.rm = TRUE) +
+                  col = "cornflowerblue", linewidth = 0.5, na.rm = TRUE) +
         geom_line(aes(x = out[!out$Rise, 1], y = hours2[!out$Rise]), 
-                  linetype = 2, size = 1, linewidth = 0.5, na.rm = TRUE) +
+                  linetype = 2, linewidth = 0.5, na.rm = TRUE) +
         geom_line(aes(x = out[!out[, 2] == 1, 1], y = hours3[!out[, 2] == 1]), 
-                  linetype = 2, size = 1, linewidth = 0.5, na.rm = TRUE) +
+                  linetype = 2, linewidth = 0.5, na.rm = TRUE) +
         geom_point(aes(out[!out[, 2] == 1 & !fixed.ind, 1], hours0[!out[, 2] == 1 & !fixed.ind]), color = "black", fill = "cornflowerblue", shape = 21, size = 0.5) +
         labs(y = "Sunset (blue)", x = "") +
         scale_x_datetime(breaks = seq(out[1, 1], out[nrow(out), 1], length.out = 10), date_labels = "%b %d") + 
@@ -1456,10 +1454,8 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
         labs(y = "Lattidue", x = "") +
         theme_bw()
       
-      #return( hist_rec / red_ts / blue_ts / lon_plot / lat_plot )
       print(wrap_plots( hist_rec / red_ts / blue_ts / lon_plot / lat_plot ))
-      
-      
+    
     } else {
       plot(out[, 1], ifelse(mig2 > 0, 1, 0), type = "l", yaxt = "n", 
            ylab = NA, ylim = c(0, 1.5), col = "firebrick", lwd = 2, 
@@ -1473,9 +1469,6 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
            density = 60)
       axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
            labels = FALSE)
-      
-      
-      
       
       plot(out[out$Rise, 1], hours1[out$Rise], type = "l", 
            lwd = 2, col = "firebrick", ylab = "Sunrise (red)", 
@@ -1529,22 +1522,22 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
   diff <- c(apply(cbind(out$datetime[-nrow(out)], 
                         out$datetime[-1]), 1, function(x) c(x[2] - x[1])/60/60), 0)
   
-  out <- data.frame(tFirst = as.POSIXct("1900-01-01 01:01", "GMT"), tSecond = as.POSIXct("1900-01-01 01:01", "GMT"),  type = 0, site = 0, fixed = 0, diff.max = 0)
+  out.gl <- data.frame(tFirst = as.POSIXct("1900-01-01 01:01", "GMT"), tSecond = as.POSIXct("1900-01-01 01:01", "GMT"),  type = 0, site = 0, fixed = 0, diff.max = 0)
   rw <- 1
   for (k in 1:(nrow(out) - 1)) {
     if (as.numeric(difftime(out$datetime[k], out$datetime[k + 1])) < 24 & out$datetime[k] != out$datetime[k + 1]) {
-      out[rw, 1] <- out$datetime[k]
-      out[rw, 2] <- out$datetime[k + 1]
-      out[rw, 3] <- ifelse(out$Rise[k], 1, 2)
-      out[rw, 4] <- out$site[k]
-      out[rw, 5] <- out$fixed[k]
-      out[rw, 6] <- max(diff[k:(k + 1)])
+      out.gl[rw, 1] <- out$datetime[k]
+      out.gl[rw, 2] <- out$datetime[k + 1]
+      out.gl[rw, 3] <- ifelse(out$Rise[k], 1, 2)
+      out.gl[rw, 4] <- out$site[k]
+      out.gl[rw, 5] <- out$fixed[k]
+      out.gl[rw, 6] <- max(diff[k:(k + 1)])
       rw <- rw + 1
     }
   }
-  out <- out[out$diff.max < 23,]
+  out.gl <- out.gl[out.gl$diff.max < 23,]
   
-  list(twl = out[,c(1,2)], site = out$site, summary = sm)
+  list(twl = out.gl[,c(1,2)], site = out.gl$site, summary = sm)
 }
 
 
