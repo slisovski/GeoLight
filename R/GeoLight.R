@@ -10,7 +10,7 @@
 #' using the \code{R} package \code{maps}.
 #' @section Getting Started: 
 #' We refrain from giving detailed background on the (several steps of) 
-#' analysis of light-based geolocator data here but strongly recommend the key-publications below. 
+#' analysis of light-based Geolocator data here but strongly recommend the key-publications below. 
 #' @section Updates:
 #' We advise all users to update their installation of \bold{\code{GeoLight}} regularly.
 #' Type \code{news(package="GeoLight")} to read news documentation about changes to the recent and all previous version of the package
@@ -113,7 +113,10 @@
 #' Lisovski, S., Hewson, C.M, Klaassen, R.H.G., Korner-Nievergelt, F., Kristensen, M.W & Hahn, S. (2012) Geolocation by light: Accuracy and precision affected by environmental factors. \emph{Methods in Ecology and Evolution}, doi: 10.1111/j.2041-210X.2012.00185.x
 #' 
 #' Wilson, R.P., Ducamp, J.J., Rees, G., Culik, B.M. & Niekamp, K. (1992) Estimation of location: global coverage using light intensity. \emph{Wildlife telemetry: remote monitoring and tracking of animals} (eds I.M. Priede & S.M. Swift), pp. 131-134. Ellis Horward, Chichester.
-NULL
+
+##' @name globalVariables
+##' @import utils
+globalVariables(".")
 
 ##' @title Checkup of arguments in GeoLight tables
 ##' @usage i.argCheck(y)
@@ -186,7 +189,7 @@ i.argCheck <- function(y) {
 ##'   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
 ##'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
 ##' crds <- coord(hoopoe2, degElevation=-6, tol = 0.2)
-##' ## tripMap(crds, xlim=c(-20,20), ylim=c(5,50), main="hoopoe2")
+##' tripMap(crds, xlim=c(-20,20), ylim=c(5,50), main="hoopoe2")
 ##' @export   
 coord  <- function(tFirst, tSecond, type, twl, degElevation = -6, tol = 0, method = "NOAA",  note = TRUE) {
   
@@ -411,11 +414,10 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
     at <- seq(0, max(twl_dev), 6) # x values for sun elevation degree 
     
     # here we get the warning: "argument ‘freq’ is not made use of", because we use freq and turn of plotting, as freq also adjusts something in the graphic representation. Therefore I silenced the warnings in the following chunk
-    height <- suppressWarnings({ rep((max(hist(twl_dev, 
-                                               freq = FALSE, 
-                                               breaks = round(max(twl_dev)),
-                                               plot = FALSE)$density)) + 0.02 
-                                     , times = 6) })# y for sun elevation degree
+    height <- rep((max(hist(twl_dev, 
+                            breaks = round(max(twl_dev)),
+                            plot = FALSE)$counts)) + 1.5,
+                  times = 6) # y for sun elevation degree
     
     sun.elv.angle.df <- as.data.frame(cbind(labels, at, height)) # combine all to df for ease of use
     
@@ -450,28 +452,32 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
                      label = labels))  +
       geom_text(data = sun.elv.angle.df,
                 aes(x = mean(at), 
-                    y = unique(height) + 0.007 , 
+                    y = unique(height) + 0.5 , 
                     label = "sun elevation angle (degrees)")) +
       annotate("text", 
                x = max(twl_dev)-10, #x location based on max value 
-               y = unique(height) - 0.005, # adjusted to be under sun elevation angle
+               y = unique(height) -0.2, # adjusted to be under sun elevation angle
                hjust = 0, # text is left aligned
                vjust = 1, # position regarding the other annotations
                label = paste("0. Sun elevation angle (zero):", round(90 - a1.1, 3))) + 
-      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.005, hjust = 0, vjust = 3,
+      annotate("text", 
+               x = max(twl_dev)-10, 
+               y = unique(height) - 0.25, 
+               hjust = 0, 
+               vjust = 3,
                label = paste("1. Sun elevation angle (median):", round(90 - a1.1, 3))) 
     
     
     if(method=="log-norm") hist_w_legend <- hist_wo_legend +
-      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.005, hjust = 0, vjust = 5,
+      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.3, hjust = 0, vjust = 5,
                label = paste("Log-mean:", round(fitml_ng$estimate[1], 3))) +
-      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.005, hjust = 0, vjust = 7,
+      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.35, hjust = 0, vjust = 7,
                label = paste("Log-sd:", round(fitml_ng$estimate[2], 3)))
     
     if(method=="gamma") hist_w_legend <- hist_wo_legend +
-      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.005, hjust = 0, vjust = 5,
+      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.3, hjust = 0, vjust = 5,
                label = paste("Shape:", round(fitml_ng$estimate[1], 3))) +
-      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.005, hjust = 0, vjust = 7,
+      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.35, hjust = 0, vjust = 7,
                label = paste("Scale:", round(fitml_ng$estimate[2], 3)))
     
     print(hist_w_legend)
@@ -2573,6 +2579,7 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' The color can be specified as either a vector of colors (e.g. c("blue", "red", ...)) or as a character string indicating a color ramp (at the moment only "random" and "rainbow" is available )
 #' @author Simeon Lisovski & Tamara Emmenegger
 #' @examples
+#' \donttest{
 #' data(hoopoe2)
 #' hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
 #' hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
@@ -2581,7 +2588,7 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' site <- changeLight(hoopoe2, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, 
 #' summary = FALSE)$site
 #'siteMap(crds[filter,], site[filter], linewidth=2, shape=20, size=0.5, main="hoopoe2")
-#'
+#'}
 #' @importFrom grDevices chull col2rgb rainbow rgb
 #' @importFrom rnaturalearth ne_countries
 #' @importFrom ggplot2 theme_bw coord_cartesian labs geom_sf coord_sf geom_point geom_segment geom_polygon guides guide_legend scale_color_hue scale_x_continuous scale_color_manual 
@@ -2999,18 +3006,18 @@ tripMap <- function(crds, equinox=TRUE, xlim = NULL, ylim = NULL, legend = TRUE,
         geom_text(data = independent_point, 
                   aes(geometry = .data$geometry, label = "+ Position"), 
                   stat = "sf_coordinates", 
-                  vjust = 1, 
+                  vjust = 0, 
                   hjust = 0) +
         geom_text(data = independent_point, 
                   aes(geometry = .data$geometry, label = "_____ Trip"), #used to be ——— but is not ASCII character 
                   stat = "sf_coordinates", 
-                  vjust = 3, 
+                  vjust = 1.2, 
                   hjust = 0) +
         geom_text(data = independent_point, 
                   aes(geometry = .data$geometry, label = "_____ Equinox"), #used to be ——— but is not ASCII character
                   col = "blue", 
                   stat = "sf_coordinates", 
-                  vjust = 5, 
+                  vjust = 2.4, 
                   hjust = 0) 
       
     } else {
@@ -3019,12 +3026,12 @@ tripMap <- function(crds, equinox=TRUE, xlim = NULL, ylim = NULL, legend = TRUE,
         geom_text(data = independent_point, 
                   aes(geometry = .data$geometry, label = "+ Position"), 
                   stat = "sf_coordinates", 
-                  vjust = 1, 
+                  vjust = 0, 
                   hjust = 0) +
         geom_text(data = independent_point, 
                   aes(geometry = .data$geometry, label = "____ Trip"), 
                   stat = "sf_coordinates", 
-                  vjust = 3, 
+                  vjust = 1.2, 
                   hjust = 0) 
       
     }

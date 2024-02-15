@@ -12,7 +12,7 @@
 ##' The solar time, the equation of time and the sine and cosine of
 ##' the solar declination are calculted for the times specified by
 ##' \code{tm} using the same methods as
-##' \url{www.esrl.noaa.gov/gmd/grad/solcalc/}.
+##' \url{http://www.esrl.noaa.gov/gmd/grad/solcalc/}.
 ##' @title Solar Time and Declination
 ##' @param tm a vector of POSIXct times.
 ##' @return A list containing the following vectors.
@@ -98,7 +98,7 @@ solar <- function(tm) {
 ##' \code{zenith} uses the solar time and declination calculated by
 ##' \code{solar} to compute the solar zenith angle for given times and
 ##' locations, using the same methods as
-##' \url{www.esrl.noaa.gov/gmd/grad/solcalc/}.  This function does not
+##' \url{http://www.esrl.noaa.gov/gmd/grad/solcalc/}.  This function does not
 ##' adjust for atmospheric refraction see \code{\link{refracted}}.
 ##' @title Solar Zenith Angle
 ##' @param sun list of solar time and declination computed by \code{solar}.

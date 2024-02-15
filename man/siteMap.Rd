@@ -47,6 +47,7 @@ Standard graphical paramters like \code{pch}, \code{cex}, \code{lwd}, \code{lty}
 The color can be specified as either a vector of colors (e.g. c("blue", "red", ...)) or as a character string indicating a color ramp (at the moment only "random" and "rainbow" is available )
 }
 \examples{
+\donttest{
 data(hoopoe2)
 hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
 hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
@@ -55,7 +56,7 @@ filter <- distanceFilter(hoopoe2, distance = 30)
 site <- changeLight(hoopoe2, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, 
 summary = FALSE)$site
 siteMap(crds[filter,], site[filter], linewidth=2, shape=20, size=0.5, main="hoopoe2")
-
+}
 }
 \author{
 Simeon Lisovski & Tamara Emmenegger
