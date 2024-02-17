@@ -15,10 +15,8 @@ mergeSites2(
   fixed = NULL,
   alpha = c(2.5, 1),
   method = "gamma",
-  map,
   mask = "land",
-  plot = TRUE,
-  ggplot = TRUE
+  plot = TRUE
 )
 }
 \arguments{
@@ -47,13 +45,9 @@ which consecutive sites should be merged (in km).}
 
 \item{method}{either, "gamma" or "log-normal". Depending on the error distribution used in \code{\link{getElevation}}.}
 
-\item{map}{A 'SpatialPolygonDataFrame' of the world. E.g., use 'wrld_simpl' from the maptools package.}
-
 \item{mask}{Either 'land' or 'ocean'.}
 
 \item{plot}{\code{logical}, if TRUE a plot comparing the initial and the final site selection.}
-
-\item{ggplot}{logical. if TRUE plots will be created using ggplot2}
 }
 \value{
 A \code{vector} with the merged site numbers

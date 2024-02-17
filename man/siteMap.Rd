@@ -30,7 +30,7 @@ migration/movement periods 0.}
 
 \item{xlim}{Longitude limits of map.}
 
-\item{ylim}{Lattitude limits of map.}
+\item{ylim}{Latitude limits of map.}
 
 \item{hull}{\code{logical}, if TRUE a convex hull will be plotted around the points of each site.}
 

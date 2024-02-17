@@ -15,7 +15,7 @@ broken blue line.}
 
 \item{xlim}{Longitude limits of map.}
 
-\item{ylim}{Lattitude limits of map.}
+\item{ylim}{Latitude limits of map.}
 
 \item{legend}{\code{logical}; if \code{TRUE}, a legend will be added to the plot.}
 
