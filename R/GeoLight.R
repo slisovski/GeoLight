@@ -341,8 +341,8 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' getElevation(calib2, known.coord = c(7.1,46.3))
 ##' @importFrom MASS fitdistr
 ##' @importFrom graphics hist
-##' @importFrom stats dlnorm median lm dgamma
-##' @importFrom ggplot2 geom_histogram labs theme_minimal geom_point geom_text geom_label annotate
+##' @importFrom stats dlnorm median lm dgamma density
+##' @importFrom ggplot2 geom_histogram labs element_text theme_minimal geom_point geom_text geom_label annotate after_stat
 ##' @export getElevation
 
 getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-norm", plot=TRUE) {
@@ -391,37 +391,49 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
   if(plot) {
     # base histograms
     base_hist <- ggplot() +
-      geom_histogram(aes(x = twl_dev),
+      geom_histogram(aes(x = twl_dev, y = after_stat(density)),
                      bins = round(max(twl_dev)) + 1 ,
-                     #bins =  28,
                      col = "black",
-                     fill="lightgrey" )
+                     fill="white" )
     
     # Only label changes to log-norm/gamme
     if(method=="log-norm") lab_hist <- base_hist +
         labs(title =  "Twilight Model (log-norm)",
              x = "twilight error (min)",
-             y = "Density")
+             y = "Density",
+             subtitle = paste("0. Sun elevation angle (zero):", round(90 - a1.1, 3), "|",
+                              "1. Sun elevation angle (median):", round(90 - a1.1, 3), "|", 
+                              "Log-mean:", round(fitml_ng$estimate[1], 3), "|", 
+                              "; Log-sd:", round(fitml_ng$estimate[2], 3)))
     
     
     if(method=="gamma") lab_hist <- base_hist + 
         labs(title =  "Twilight Model (gamma)",
              x = "twilight error (min)",
-             y = "Density")
+             y = "Density",
+             subtitle = paste("0. Sun elevation angle (zero):", round(90 - a1.1, 3), "|",
+                              "1. Sun elevation angle (median):", round(90 - a1.1, 3), "|",
+                              "Shape:", round(fitml_ng$estimate[1], 3), "|", 
+                              "Scale:", round(fitml_ng$estimate[2], 3)))
     
     # base plot + red lines, two points, legends 
     labels <- round(90-predict(mod, newdata = data.frame(min = seq(0, max(twl_dev), 6))),1) # labels for sun elevation degree 
     at <- seq(0, max(twl_dev), 6) # x values for sun elevation degree 
     
+    twl_dev <<- twl_dev
+    
     # here we get the warning: "argument ‘freq’ is not made use of", because we use freq and turn of plotting, as freq also adjusts something in the graphic representation. Therefore I silenced the warnings in the following chunk
-    height <- rep((max(hist(twl_dev, 
-                            breaks = round(max(twl_dev)),
-                            plot = FALSE)$counts)) + 1.5,
-                  times = 6) # y for sun elevation degree
+    height <- suppressWarnings({ rep((max(hist(twl_dev,
+                                               breaks = round(max(twl_dev)),
+                                               plot = FALSE)$density)) + 0.02 
+                                     , times = 6) })# y for sun elevation degree
     
     sun.elv.angle.df <- as.data.frame(cbind(labels, at, height)) # combine all to df for ease of use
     
-    hist_wo_legend <- lab_hist + theme_minimal() +
+    hist_wo_legend <- lab_hist + 
+      theme_minimal() +
+      theme(plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5)) + 
       geom_line(data = as.data.frame(cbind(lns, seq)),
                 aes(x=seq, y = lns),
                 col = "darkred",
@@ -452,39 +464,15 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
                      label = labels))  +
       geom_text(data = sun.elv.angle.df,
                 aes(x = mean(at), 
-                    y = unique(height) + 0.5 , 
-                    label = "sun elevation angle (degrees)")) +
-      annotate("text", 
-               x = max(twl_dev)-10, #x location based on max value 
-               y = unique(height) -0.2, # adjusted to be under sun elevation angle
-               hjust = 0, # text is left aligned
-               vjust = 1, # position regarding the other annotations
-               label = paste("0. Sun elevation angle (zero):", round(90 - a1.1, 3))) + 
-      annotate("text", 
-               x = max(twl_dev)-10, 
-               y = unique(height) - 0.25, 
-               hjust = 0, 
-               vjust = 3,
-               label = paste("1. Sun elevation angle (median):", round(90 - a1.1, 3))) 
+                    y = unique(height) + 0.007 , 
+                    label = "sun elevation angle (degrees)")) 
     
-    
-    if(method=="log-norm") hist_w_legend <- hist_wo_legend +
-      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.3, hjust = 0, vjust = 5,
-               label = paste("Log-mean:", round(fitml_ng$estimate[1], 3))) +
-      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.35, hjust = 0, vjust = 7,
-               label = paste("Log-sd:", round(fitml_ng$estimate[2], 3)))
-    
-    if(method=="gamma") hist_w_legend <- hist_wo_legend +
-      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.3, hjust = 0, vjust = 5,
-               label = paste("Shape:", round(fitml_ng$estimate[1], 3))) +
-      annotate("text", x = max(twl_dev)-10, y = unique(height) - 0.35, hjust = 0, vjust = 7,
-               label = paste("Scale:", round(fitml_ng$estimate[2], 3)))
-    
-    print(hist_w_legend)
+    print(hist_wo_legend)
   }
   
   c(a1 = as.numeric(median(z)), e0 = as.numeric(90-z0), 
     shape =  as.numeric(fitml_ng$estimate[1]), scale =  as.numeric(fitml_ng$estimate[2]))
+  
 }
 
 ##' Residency analysis using a changepoint model
@@ -553,7 +541,7 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
 changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA, set.prob = NA, days = 5, fixed = NULL, plot = TRUE, summary = TRUE) {
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), 
-                                                  FUN = function(x) any(class(x) != "name"))])
+                                                             FUN = function(x) any(class(x) != "name"))])
   
   if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
   
@@ -769,10 +757,10 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
                        date_labels = "%b %y") 
     
     if (is.numeric(rise.prob)) {
-      poc_red +
+      poc_red <- poc_red +
         geom_hline(yintercept = rise.prob, 
                    lty = 2, 
-                   lwd = 1.5)
+                   lwd = 0.5)
     }
     
     poc_blue <- ggplot()+
@@ -792,8 +780,8 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
                        date_labels = "%b %y") 
     
     if (is.numeric(set.prob)) 
-      poc_blue +
-      geom_hline(yintercept = set.prob, lty = 2, lwd = 1.5)
+      poc_blue <- poc_blue +
+      geom_hline(yintercept = set.prob, lty = 2, lwd = 0.5)
     
     print(wrap_plots(hist_rect / (rise_set) / (poc_red) / (poc_blue))) # use of patchwork syntax to show all plots below each other
   }
@@ -1168,7 +1156,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation, distThre
   if(!(method%in%c("gamma", "log-norm"))) stop("Method can only be `gamma` or `log-norm`.")
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), 
-                                                             FUN = function(x) any(class(x) != "name"))])
+                                                  FUN = function(x) any(class(x) != "name"))])
   
   mycl <- makeCluster(detectCores()-1)
   tmp  <- clusterSetRNGStream(mycl)
@@ -2927,8 +2915,8 @@ trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat
 #' crds <- coord(hoopoe2, degElevation = -6)
 #' tripMap(crds, xlim = c(-20,20), ylim = c(0,60), main="hoopoe2")
 #'
-#' @importFrom ggplot2 ggtitle xlab ylab
-#' @importFrom sf st_make_valid st_as_sf st_set_crs st_sf st_sfc st_linestring st_coordinates st_point st_combine
+#' @importFrom ggplot2 ggtitle xlab ylab geom_path
+#' @importFrom sf st_make_valid st_as_sf st_set_crs  st_sf st_sfc st_linestring st_coordinates st_point st_combine
 #' @importFrom dplyr summarize  %>% 
 #' @export tripMap
 tripMap <- function(crds, equinox=TRUE, xlim = NULL, ylim = NULL, legend = TRUE, ...) {
@@ -2970,7 +2958,6 @@ tripMap <- function(crds, equinox=TRUE, xlim = NULL, ylim = NULL, legend = TRUE,
     scale_x_continuous(expand = c(0,0)) +
     scale_y_continuous(expand = c(0,0)) 
   
-  
   # crds to sf
   points_sf <- dat %>%
     na.omit() %>% 
@@ -2992,10 +2979,10 @@ tripMap <- function(crds, equinox=TRUE, xlim = NULL, ylim = NULL, legend = TRUE,
     suppressMessages()
   
   linePlot <- pointPlot +
-    geom_sf(data = line_sf, mapping = aes(geometry = .data$geometry),
-            color = ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),
-            linewidth = ifelse(sum(names(args)%in%"linewidth")==1, args$linewidth, 0.5),
-            linetype = ifelse(sum(names(args)%in%"linetype")==1, args$linetype, 1)) 
+    geom_path(data = dat %>% na.omit(), mapping = aes(x = dat$lon, y = dat$lat),
+              color = ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),
+              linewidth = ifelse(sum(names(args)%in%"linewidth")==1, args$linewidth, 0.25),
+              linetype = ifelse(sum(names(args)%in%"linetype")==1, args$linetype, 1))
   
   if(equinox){
     
