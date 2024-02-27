@@ -2750,7 +2750,6 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), xlim
 ##' defined path.
 ##' @author Simeon Lisovski and Michael U. Kemp
 ##' @examples
-##' \donttest{
 ##' data(hoopoe2)
 ##'   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
 ##'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
@@ -2759,7 +2758,6 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), xlim
 ##' ## trip2kml("trip.kml", hoopoe2$tFirst[filter], hoopoe2$tSecond[filter], hoopoe2$type[filter],
 ##' ##		degElevation=-6, col.scheme="heat.colors", cex=0.7,
 ##' ##		line.col="goldenrod")
-##'}
 ##' @importFrom grDevices rgb
 ##' @export trip2kml
 trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat.colors", point.alpha=0.7, cex=1, line.col="goldenrod")
