@@ -185,11 +185,13 @@ i.argCheck <- function(y) {
 ##' the latitudes in degrees north the equator.
 ##' @author Simeon Lisovski, Simon Wotherspoon, Michael Sumner
 ##' @examples
+##' 
 ##' data(hoopoe2)
-##'   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
-##'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
-##' crds <- coord(hoopoe2, degElevation=-6, tol = 0.2)
-##' tripMap(crds, xlim=c(-20,20), ylim=c(5,50), main="hoopoe2")
+##' hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+##' hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
+##' crds <- coord(hoopoe2, degElevation = -6)
+##' try(tripMap(crds, xlim = c(-20,20), ylim = c(0,60), main="hoopoe2"))
+##' 
 ##' @export   
 coord  <- function(tFirst, tSecond, type, twl, degElevation = -6, tol = 0, method = "NOAA",  note = TRUE) {
   
@@ -541,7 +543,7 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
 changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA, set.prob = NA, days = 5, fixed = NULL, plot = TRUE, summary = TRUE) {
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), 
-                                                             FUN = function(x) any(class(x) != "name"))])
+                                                  FUN = function(x) any(class(x) != "name"))])
   
   if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
   
@@ -2590,7 +2592,6 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' The color can be specified as either a vector of colors (e.g. c("blue", "red", ...)) or as a character string indicating a color ramp (at the moment only "random" and "rainbow" is available )
 #' @author Simeon Lisovski & Tamara Emmenegger
 #' @examples
-#' \donttest{
 #' data(hoopoe2)
 #' hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
 #' hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
@@ -2598,8 +2599,7 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' filter <- distanceFilter(hoopoe2, distance = 30)
 #' site <- changeLight(hoopoe2, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, 
 #' summary = FALSE)$site
-#'siteMap(crds[filter,], site[filter], linewidth=2, shape=20, size=0.5, main="hoopoe2")
-#'}
+#' try(siteMap(crds[filter,], site[filter], linewidth=2, shape=20, size=0.5, main="hoopoe2"))
 #' @importFrom grDevices chull col2rgb rainbow rgb
 #' @importFrom rnaturalearth ne_countries
 #' @importFrom ggplot2 theme_bw coord_cartesian labs geom_sf coord_sf geom_point geom_segment geom_polygon guides guide_legend scale_color_hue scale_x_continuous scale_color_manual 
@@ -2908,13 +2908,12 @@ trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat
 #' @param ylim Latitude limits of map.
 #' @author Simeon Lisovski
 #' @examples
-#'
+#' 
 #' data(hoopoe2)
 #' hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
 #' hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
 #' crds <- coord(hoopoe2, degElevation = -6)
-#' tripMap(crds, xlim = c(-20,20), ylim = c(0,60), main="hoopoe2")
-#'
+#' try(tripMap(crds, xlim = c(-20,20), ylim = c(0,60), main="hoopoe2"))
 #' @importFrom ggplot2 ggtitle xlab ylab geom_path
 #' @importFrom sf st_make_valid st_as_sf st_set_crs  st_sf st_sfc st_linestring st_coordinates st_point st_combine
 #' @importFrom dplyr summarize  %>% 
