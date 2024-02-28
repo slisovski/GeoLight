@@ -4,13 +4,7 @@
 \alias{tripMap}
 \title{Draw the positions and the trip on a map}
 \usage{
-tripMap(
-  crds,
-  equinox = TRUE,
-  map.range = c("EuroAfrica", "AustralAsia", "America", "World"),
-  legend = TRUE,
-  ...
-)
+tripMap(crds, equinox = TRUE, xlim = NULL, ylim = NULL, legend = TRUE, ...)
 }
 \arguments{
 \item{crds}{a \code{SpatialPoints} or \code{matrix} object, containing x
@@ -19,8 +13,9 @@ and y coordinates (in that order).}
 \item{equinox}{logical; if \code{TRUE}, the equinox period(s) is shown as a
 broken blue line.}
 
-\item{map.range}{some possibilities to choose defined areas (default:
-"World").}
+\item{xlim}{Longitude limits of map.}
+
+\item{ylim}{Latitude limits of map.}
 
 \item{legend}{\code{logical}; if \code{TRUE}, a legend will be added to the plot.}
 
@@ -33,11 +28,10 @@ connected by a line
 \examples{
 
 data(hoopoe2)
- hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
- hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
+hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
 crds <- coord(hoopoe2, degElevation = -6)
-tripMap(crds, xlim = c(-20,20), ylim = c(0,60), main="hoopoe2")
-
+try(tripMap(crds, xlim = c(-20,20), ylim = c(0,60), main="hoopoe2"))
 }
 \author{
 Simeon Lisovski

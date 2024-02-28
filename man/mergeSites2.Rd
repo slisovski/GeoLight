@@ -15,7 +15,6 @@ mergeSites2(
   fixed = NULL,
   alpha = c(2.5, 1),
   method = "gamma",
-  map,
   mask = "land",
   plot = TRUE
 )
@@ -38,7 +37,7 @@ twilight"). Either a single value, a \code{vector} with the same length as
 \code{tFirst} or \code{nrow(x)}.}
 
 \item{distThreshold}{a \code{numerical} value defining the threshold of the distance under 
-which consequtive sites should be merged (in km).}
+which consecutive sites should be merged (in km).}
 
 \item{fixed}{a logical vector indicating locations that should not be merged.}
 
@@ -46,11 +45,9 @@ which consequtive sites should be merged (in km).}
 
 \item{method}{either, "gamma" or "log-normal". Depending on the error distribution used in \code{\link{getElevation}}.}
 
-\item{map}{A 'SpatialPolygonDataFrame' of the world. E.g., use 'wrld_simpl' from the maptools package.}
-
 \item{mask}{Either 'land' or 'ocean'.}
 
-\item{plot}{\code{logical}, if TRUE a plot comparing the inital and the final site selection.}
+\item{plot}{\code{logical}, if TRUE a plot comparing the initial and the final site selection.}
 }
 \value{
 A \code{vector} with the merged site numbers
@@ -58,20 +55,20 @@ A \code{vector} with the merged site numbers
 \description{
 The \code{\link{changeLight}} functions provides a vector grouping the twilight times
 into stationary (>0) and movement (0) periods. The mergeSites functions allows to merge
-these stationary periods in case some consequtive sites were separated by e.g. outlayers
+these stationary periods in case some consecutive sites were separated by e.g. outliers
 or strong shading events. In a nutshell, the function estimates a likelihood surface for each
 stationary period that is based on the siteEstimate principle (e.g. fitting sunrise and sunset times
-of locations to the recorded sunrise and sunsets and findning the coordintates that results in
+of locations to the recorded sunrise and sunsets and finding the coordinates that results in
 the best fit).
 The decision on whether two consecutive sites should be merged together is made by the provided
 `distThreshold` and the overlap of the 95% credible intervals of the location (e.g. the distance
 between two consecutive sites needs to be smaller than the `distThreshold` AND the median locations need
 to overlap with the credible intervals of the two location estimates to trigger merging of the sites).
 The function also requires a sun elevation angle. HOWEVER, the angle defining the zero in the
-log-normal distribution of the twilight error is needen and not the sun elevation for the median
+log-normal distribution of the twilight error is needed and not the sun elevation for the median
 twilight error which is needed for the location estimation using the function `coord`. The function `getElevation`
 provides both, the median and the zero sun elevation angle as well as the parameters for the log-normal
-distribution that also requirred in the `mergeSites2` function.
+distribution that also required in the `mergeSites2` function.
 }
 \author{
 Simeon Lisovski

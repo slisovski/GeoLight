@@ -23,7 +23,7 @@ Calculate solar time, the equation of time and solar declination
 The solar time, the equation of time and the sine and cosine of
 the solar declination are calculted for the times specified by
 \code{tm} using the same methods as
-\url{www.esrl.noaa.gov/gmd/grad/solcalc/}.
+\url{https://gml.noaa.gov/grad/solcalc/}.
 }
 \examples{
 ## Current solar time

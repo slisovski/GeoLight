@@ -53,7 +53,6 @@ This function creates a .kml file from light intensity measurements over
 time that can ve viewed as a trip in Google Earth.
 }
 \examples{
-\donttest{
 data(hoopoe2)
   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
@@ -62,7 +61,6 @@ filter <- distanceFilter(hoopoe2,distance=30)
 ## trip2kml("trip.kml", hoopoe2$tFirst[filter], hoopoe2$tSecond[filter], hoopoe2$type[filter],
 ##		degElevation=-6, col.scheme="heat.colors", cex=0.7,
 ##		line.col="goldenrod")
-}
 }
 \author{
 Simeon Lisovski and Michael U. Kemp

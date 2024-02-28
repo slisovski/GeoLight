@@ -1,9 +1,18 @@
-CHANGES IN GeoLight VERSION 2.00
+CHANGES IN GeoLight VERISON 2.1.0
 
-Please view package vignette "GeoLight2.0" for detailed description on changes within functions and about additional functionalities.
+OVERVIEW
+
+  o All dependencies to rgdal, rgeos and sp have been removed.
+  o We thank Migrate Technology Ltd. for supporting this update.
+
+CHANGES IN GeoLight VERSION 2.0.0
+
+OVERVIEW
+
+  o Please view package vignette "GeoLight2.0" for detailed description on changes within functions and about additional functionalities.
 
 
-CHANGES IN GeoLight VERSION 1.04
+CHANGES IN GeoLight VERSION 1.0.4
 
 OVERVIEW
 

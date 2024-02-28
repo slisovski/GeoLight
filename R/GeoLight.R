@@ -1,7 +1,8 @@
+#' The GeoLight Package
 #' @aliases GeoLight
-#' @title The GeoLight Package
-#' @description This is a summary of all features of \bold{\code{GeoLight}}, a \code{R}-package for 
-#' analyzing light based geolocator data
+#' @aliases GeoLight-package
+#' @description This is a summary of all features of \bold{\code{GeoLight}}, a \code{R}-Package For 
+#' Analyzing Light Based Geolocator Data
 #' @details \bold{\code{GeoLight}} is a package to derive geographical positions from daily light intensity pattern. 
 #' Positioning and calibration methods are based on the threshold-method (Ekstrom 2004, Lisovski \emph{et al.} 2012). 
 #' A changepoint model from the \code{R} package \code{changepoint} is implemented to distinguish between periods of 
@@ -9,7 +10,7 @@
 #' using the \code{R} package \code{maps}.
 #' @section Getting Started: 
 #' We refrain from giving detailed background on the (several steps of) 
-#' analysis of light-based geolocator data here but strongly recommend the key-publications below. 
+#' analysis of light-based Geolocator data here but strongly recommend the key-publications below. 
 #' @section Updates:
 #' We advise all users to update their installation of \bold{\code{GeoLight}} regularly.
 #' Type \code{news(package="GeoLight")} to read news documentation about changes to the recent and all previous version of the package
@@ -113,9 +114,15 @@
 #' 
 #' Wilson, R.P., Ducamp, J.J., Rees, G., Culik, B.M. & Niekamp, K. (1992) Estimation of location: global coverage using light intensity. \emph{Wildlife telemetry: remote monitoring and tracking of animals} (eds I.M. Priede & S.M. Swift), pp. 131-134. Ellis Horward, Chichester.
 
+##' @name globalVariables
+##' @import utils
+globalVariables(".")
+
 ##' @title Checkup of arguments in GeoLight tables
+##' @usage i.argCheck(y)
 ##' @param y GeoLigth data table.
 ##' @author Simeon Lisovski
+##' @noRd
 i.argCheck <- function(y) {
   if(any(sapply(y, function(x) class(x))=="data.frame")) {
     ind01 <- which(sapply(y, function(x) class(x))=="data.frame")
@@ -138,9 +145,8 @@ i.argCheck <- function(y) {
   out  
 }
 
-
 ##' Estimate location from consecutive twilights
-##'
+
 ##' This function estimates the location given the times at which 
 ##' the observer sees two successive twilights.
 ##' 
@@ -157,7 +163,6 @@ i.argCheck <- function(y) {
 ##' The format (date and time) of \emph{tFirst} and \emph{tSecond} has to be
 ##' "yyyy-mm-dd hh:mm" corresponding to Universal Time Zone UTC (see:
 ##' \code{\link{as.POSIXct}}, \link[=Sys.timezone]{time zones})
-##' 
 ##' 
 ##' @title Simple Threshold Geolocation Estimates
 ##' @param tFirst vector of sunrise/sunset times (e.g. 2008-12-01 08:30).
@@ -180,11 +185,13 @@ i.argCheck <- function(y) {
 ##' the latitudes in degrees north the equator.
 ##' @author Simeon Lisovski, Simon Wotherspoon, Michael Sumner
 ##' @examples
+##' 
 ##' data(hoopoe2)
-##'   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
-##'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
-##' crds <- coord(hoopoe2, degElevation=-6, tol = 0.2)
-##' ## tripMap(crds, xlim=c(-20,20), ylim=c(5,50), main="hoopoe2")
+##' hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+##' hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
+##' crds <- coord(hoopoe2, degElevation = -6)
+##' try(tripMap(crds, xlim = c(-20,20), ylim = c(0,60), main="hoopoe2"))
+##' 
 ##' @export   
 coord  <- function(tFirst, tSecond, type, twl, degElevation = -6, tol = 0, method = "NOAA",  note = TRUE) {
   
@@ -305,7 +312,6 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
   cbind(degLongitude, degLatitude)
 }
 
-
 ##' Function to calculate the sun elevation angle for light measurements at a
 ##' known location and the choosen light threshold.
 ##' 
@@ -336,18 +342,20 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##'   calib2$tSecond <- as.POSIXct(calib2$tSecond, tz = "GMT")
 ##' getElevation(calib2, known.coord = c(7.1,46.3))
 ##' @importFrom MASS fitdistr
-##' @importFrom graphics arrows par hist plot lines mtext
-##' @importFrom stats dlnorm median
+##' @importFrom graphics hist
+##' @importFrom stats dlnorm median lm dgamma density
+##' @importFrom ggplot2 geom_histogram labs element_text theme_minimal geom_point geom_text geom_label annotate after_stat
 ##' @export getElevation
-getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-norm", plot=TRUE) {
 
+getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-norm", plot=TRUE) {
+  
   if(!(method%in%c("gamma", "log-norm"))) stop("Method can only be `gamma` or `log-norm`.")
   
-  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
-  tab <- geolight.convert(tab[,1], tab[,2], tab[,3])  
+  tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   #gets GeoLgiht data
+  tab <- geolight.convert(tab[,1], tab[,2], tab[,3])  #converst data to other format where first row beginning time and second row rise or fall
   
-  sun  <- solar(tab[,1])
-  z    <- refracted(zenith(sun, known.coord[1], known.coord[2]))
+  sun  <- solar(tab[,1])  #Calculate solar time, the equation of time and solar declination
+  z    <- refracted(zenith(sun, known.coord[1], known.coord[2])) # Adjust the solar zenith angle for atmospheric refraction.
   # plot(z)
   
   inc = 0
@@ -367,46 +375,107 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
   
   if(method=="log-norm"){
     fitml_ng <- suppressWarnings(fitdistr(twl_dev, "log-normal"))
-    lns      <- stats::dlnorm(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
+    lns      <- dlnorm(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
   }
   if(method=="gamma"){
     fitml_ng <- suppressWarnings(fitdistr(twl_dev, "gamma"))
-    lns      <- stats::dgamma(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
+    lns      <- dgamma(seq, fitml_ng$estimate[1], fitml_ng$estimate[2])
   }
   
   
   diffz <- as.data.frame(cbind(min = apply(cbind(tab[,1], twilight(tab[,1], known.coord[1], known.coord[2], rise = tab[,2], zenith = z0)), 1, function(x) abs(x[1]-x[2]))/60, z = z))
-  mod  <- stats::lm(z~min, data = diffz)
-  mod2 <- stats::lm(min~z, data = diffz)
+  mod  <- lm(z~min, data = diffz)
+  mod2 <- lm(min~z, data = diffz)
   
   a1.0 <- seq[which.max(lns)]
   a1.1 <- 90-predict(mod, newdata = data.frame(min = a1.0))
   
   if(plot) {
-    opar <- par(mar = c(10, 4, 1, 1))
-    if(method=="log-norm") hist(twl_dev, freq = F, breaks = 26, main = "Twilight Model (log-norm)", xlab = "twilight error (min)")
-    if(method=="gamma") hist(twl_dev, freq = F, breaks = 26, main = "Twilight Model (gamma)", xlab = "twilight error (min)")
-    lines(seq, lns, col = "firebrick", lwd = 3, lty = 2)
+    # base histograms
+    base_hist <- ggplot() +
+      geom_histogram(aes(x = twl_dev, y = after_stat(density)),
+                     bins = round(max(twl_dev)) + 1 ,
+                     col = "black",
+                     fill="white" )
     
-    points(predict(mod2, newdata=data.frame(z = z0)), 0, pch = 21, cex = 5, bg = "white", lwd = 2)
-    text(predict(mod2, newdata=data.frame(z = z0)), 0, "0")
+    # Only label changes to log-norm/gamme
+    if(method=="log-norm") lab_hist <- base_hist +
+        labs(title =  "Twilight Model (log-norm)",
+             x = "twilight error (min)",
+             y = "Density",
+             subtitle = paste("0. Sun elevation angle (zero):", round(90 - a1.1, 3), "|",
+                              "1. Sun elevation angle (median):", round(90 - a1.1, 3), "|", 
+                              "Log-mean:", round(fitml_ng$estimate[1], 3), "|", 
+                              "; Log-sd:", round(fitml_ng$estimate[2], 3)))
     
-    points(a1.0, 0, pch = 21, cex = 5, bg = "white", lwd = 2)
-    text(a1.0, 0, "1")
     
-    axis(1, at = seq(0, max(twl_dev), 6), labels = round(90-predict(mod, newdata = data.frame(min = seq(0, max(twl_dev), 6))),1), line = 5)
-    mtext("sun elevation angle (degrees)", 1, line = 8)
+    if(method=="gamma") lab_hist <- base_hist + 
+        labs(title =  "Twilight Model (gamma)",
+             x = "twilight error (min)",
+             y = "Density",
+             subtitle = paste("0. Sun elevation angle (zero):", round(90 - a1.1, 3), "|",
+                              "1. Sun elevation angle (median):", round(90 - a1.1, 3), "|",
+                              "Shape:", round(fitml_ng$estimate[1], 3), "|", 
+                              "Scale:", round(fitml_ng$estimate[2], 3)))
     
-    if(method=="log-norm") legend("topright", paste(c("0. Sun elevation angle (zero)", "1. Sun elevation angle (median)", "log-mean", "log-sd"), round(c(90-z0, a1.1, fitml_ng$estimate[1], fitml_ng$estimate[2]),3)), bty = "n")
-    if(method=="gamma") legend("topright", paste(c("0. Sun elevation angle (zero)", "1. Sun elevation angle (median)", "shape", "scale"), round(c(90-z0, a1.1, fitml_ng$estimate[1], fitml_ng$estimate[2]),3)), bty = "n")
+    # base plot + red lines, two points, legends 
+    labels <- round(90-predict(mod, newdata = data.frame(min = seq(0, max(twl_dev), 6))),1) # labels for sun elevation degree 
+    at <- seq(0, max(twl_dev), 6) # x values for sun elevation degree 
     
-    par(opar)
+    twl_dev <<- twl_dev
+    
+    # here we get the warning: "argument ‘freq’ is not made use of", because we use freq and turn of plotting, as freq also adjusts something in the graphic representation. Therefore I silenced the warnings in the following chunk
+    height <- suppressWarnings({ rep((max(hist(twl_dev,
+                                               breaks = round(max(twl_dev)),
+                                               plot = FALSE)$density)) + 0.02 
+                                     , times = 6) })# y for sun elevation degree
+    
+    sun.elv.angle.df <- as.data.frame(cbind(labels, at, height)) # combine all to df for ease of use
+    
+    hist_wo_legend <- lab_hist + 
+      theme_minimal() +
+      theme(plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5)) + 
+      geom_line(data = as.data.frame(cbind(lns, seq)),
+                aes(x=seq, y = lns),
+                col = "darkred",
+                size = 1,
+                linetype = "dashed") +
+      geom_point(aes(x = predict(mod2, newdata=data.frame(z = z0)),
+                     y = 0,),
+                 cex = 10,
+                 bg="white",
+                 pch = 21) +
+      geom_text(aes(x = predict(mod2, newdata=data.frame(z = z0)),
+                    y = 0),
+                label = "0") +
+      geom_point(aes(x = a1.0,
+                     y = 0),
+                 cex = 10,
+                 bg="white",
+                 pch = 21,) +
+      geom_text(aes(x = a1.0,
+                    y = 0),
+                label = "1") +
+      geom_line(data = sun.elv.angle.df, 
+                aes(x = at, 
+                    y = height)) + 
+      geom_label(data = sun.elv.angle.df,
+                 aes(x = at, 
+                     y = height, 
+                     label = labels))  +
+      geom_text(data = sun.elv.angle.df,
+                aes(x = mean(at), 
+                    y = unique(height) + 0.007 , 
+                    label = "sun elevation angle (degrees)")) 
+    
+    print(hist_wo_legend)
   }
   
   c(a1 = as.numeric(median(z)), e0 = as.numeric(90-z0), 
     shape =  as.numeric(fitml_ng$estimate[1]), scale =  as.numeric(fitml_ng$estimate[2]))
+  
 }
-
 
 ##' Residency analysis using a changepoint model
 ##'
@@ -468,13 +537,13 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
 ##'
 ##' @importFrom changepoint cpt.mean cpts.full pen.value.full
 ##' @importFrom stats na.omit quantile aggregate
-##' @importFrom graphics abline axis layout mtext par plot rect
+##' @importFrom ggplot2 ggplot aes geom_line scale_y_continuous geom_rect theme_bw labs theme element_rect element_blank scale_x_datetime sec_axis geom_bar geom_hline
+##' @importFrom patchwork wrap_plots
 ##' @export changeLight
-changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA, 
-                         set.prob = NA, days = 5, fixed = NULL, plot = TRUE, summary = TRUE) {
+changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob = NA, set.prob = NA, days = 5, fixed = NULL, plot = TRUE, summary = TRUE) {
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), 
-                                                             FUN = function(x) any(class(x) != "name"))])
+                                                  FUN = function(x) any(class(x) != "name"))])
   
   if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
   
@@ -499,30 +568,28 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
   ss <- tw[tw[, 2]==2, 1]
   rise <- hours[tw[, 2] == 1]
   set  <- hours[tw[, 2] == 2]
-  CPs1 <- suppressWarnings(changepoint::cpt.mean(rise, method = "BinSeg", 
-                                                  Q = length(rise)/2, penalty = "Manual", pen.value = 0.001, 
-                                                  test.stat = "CUSUM", param.estimates = FALSE))
-  CPs2 <- suppressWarnings(changepoint::cpt.mean(set, method = "BinSeg", 
-                                                  Q = length(set)/2, penalty = "Manual", pen.value = 0.001, 
-                                                  test.stat = "CUSUM", param.estimates = FALSE))
+  CPs1 <- suppressWarnings(cpt.mean(rise, method = "BinSeg", 
+                                    Q = length(rise)/2, penalty = "Manual", pen.value = 0.001, 
+                                    test.stat = "CUSUM", param.estimates = FALSE))
+  CPs2 <- suppressWarnings(cpt.mean(set, method = "BinSeg", 
+                                    Q = length(set)/2, penalty = "Manual", pen.value = 0.001, 
+                                    test.stat = "CUSUM", param.estimates = FALSE))
   N1 <- seq(1, length(rise))
   N2 <- seq(1, length(set))
-  tab1 <- merge(data.frame(N = N1, prob = NA), data.frame(N = changepoint::cpts.full(CPs1)[nrow(changepoint::cpts.full(CPs1)),], 
-                                                          prob = changepoint::pen.value.full(CPs1)/2), by.x = "N", by.y = "N", all.x = T)[, -2]
+  tab1 <- merge(data.frame(N = N1, prob = NA), data.frame(N = cpts.full(CPs1)[nrow(cpts.full(CPs1)),], 
+                                                          prob = pen.value.full(CPs1)/2), by.x = "N", by.y = "N", all.x = T)[, -2]
   tab1[is.na(tab1[, 2]), 2] <- 0
   tab1[tw$fixed[tw$type==1],2] <- NA
   
-  tab2 <- merge(data.frame(N = N2, prob = NA), data.frame(N = changepoint::cpts.full(CPs2)[nrow(changepoint::cpts.full(CPs2)),], 
-                                                          prob = changepoint::pen.value.full(CPs2)/2), by.x = "N", by.y = "N",all.x = T)[, -2]
+  tab2 <- merge(data.frame(N = N2, prob = NA), data.frame(N = cpts.full(CPs2)[nrow(cpts.full(CPs2)),], 
+                                                          prob = pen.value.full(CPs2)/2), by.x = "N", by.y = "N",all.x = T)[, -2]
   tab2[is.na(tab2[, 2]), 2] <- 0
   tab2[tw$fixed[tw$type==2],2] <- NA
   
   
   if (is.na(rise.prob) & is.na(set.prob)) {
-    rise.prob <- as.numeric(round(as.numeric(quantile(tab1[tab1[, 
-                                                                2] != 0, 2], probs = quantile, na.rm = TRUE)), digits = 5))
-    set.prob <- as.numeric(round(as.numeric(quantile(tab2[tab2[, 
-                                                               2] != 0, 2], probs = quantile, na.rm = TRUE)), digits = 5))
+    rise.prob <- as.numeric(round(as.numeric(quantile(tab1[tab1[,2] != 0, 2], probs = quantile, na.rm = TRUE)), digits = 5))
+    set.prob <- as.numeric(round(as.numeric(quantile(tab2[tab2[,2] != 0, 2], probs = quantile, na.rm = TRUE)), digits = 5))
   }
   
   riseProb <- data.frame(time = tw[tw[, 2] == 1, 1], prob = tab1[,2])
@@ -559,7 +626,7 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
         }
       }
   }
-  ind01 <- stats::aggregate(as.numeric(tmp02[!is.na(tmp02[,8]) & !tmp02$fixed,1]), by = list(tmp02[!is.na(tmp02[,8]) & !tmp02$fixed, 8]), 
+  ind01 <- aggregate(as.numeric(tmp02[!is.na(tmp02[,8]) & !tmp02$fixed,1]), by = list(tmp02[!is.na(tmp02[,8]) & !tmp02$fixed, 8]), 
                      FUN =  function(x) (x[length(x)] - x[1])/60/60/24 > days)
   tmp02[, 8] <- ifelse(tmp02[, 8]%in%c(ind01[ind01[,2],1], unique(tmp02[tmp02$fixed, 8])), tmp02[, 8], NA)
   
@@ -581,61 +648,152 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
               set.prob = set.prob, site = ifelse(is.na(tmp02[,8]), 0 , tmp02[,8]), migTable = ds)
   
   if (plot) {
-    def.par <- par(no.readonly = TRUE)
-    nf <- layout(matrix(c(4, 1, 2, 3), nrow = 4, byrow = T), 
-                 heights = c(0.5, 1, 0.5, 0.5))
-    par(mar = c(2, 4.5, 2, 5), cex.lab = 1.5, cex.axis = 1.5, 
-        bty = "o")
-    rise[tw$fixed[tw$type==1]] <- NA
-    plot(sr, rise, 
-         type = "o", cex = 0.2, col = "firebrick", 
-         ylab = "Sunrise (red)", xlim = range(sr), xaxt = "n")
-    par(new = T)
-    set[tw$fixed[tw$type==2]] <- NA
-    plot(ss, set, type = "o", cex = 0.2, col = "cornflowerblue", 
-         xaxt = "n", yaxt = "n", xlab = "", ylab = "", xlim = range(ss))
-    axis(4)
-    mtext("Sunset (blue)", 4, line = 2.7, cex = 1)
-    axis(1, at = seq(min(ss), max(ss), by = (10 * 24 * 60 * 
-                                               60)), labels = F)
-    axis(1, at = seq(min(ss), max(ss), by = (30 * 24 * 60 * 
-                                               60)), lwd.ticks = 2, labels = trunc(seq(min(ss), 
-                                                                                       max(ss), by = (30 * 24 * 60 * 60)), "days"), cex.axis = 1)
-    par(mar = c(1.5, 4.5, 0.8, 5), bty = "n")
-    plot(sr, tab1[, 2], type = "h", lwd = 4, col = "firebrick", 
-         ylab = "", xaxt = "n", xlim = range(sr), ylim = c(0, 
-                                                           max(na.omit(c(tab1[, 2], tab2[, 2])))))
-    if (is.numeric(rise.prob)) 
-      abline(h = rise.prob, lty = 2, lwd = 1.5)
-    opar <- par(mar = c(1.5, 4.5, 0.8, 5), bty = "n")
-    plot(ss, tab2[, 2], type = "h", lwd = 4, col = "cornflowerblue", 
-         ylab = "", xaxt = "n", xlim = range(ss), ylim = c(0, 
-                                                           max(na.omit(c(tab1[, 2], tab2[, 2])))))
-    if (is.numeric(set.prob)) 
-      abline(h = set.prob, lty = 2, lwd = 1.5)
-    mtext("Probability of change", side = 2, at = max(na.omit(c(tab1[, 
-                                                                     2], tab2[, 2]))), line = 3)
-    par(mar = c(1, 4.5, 1, 5), bty = "o")
+    # needed for poc_plots and sunset/sunrise, also for all xlab labels and breaks
+    tw_rise <- data.frame(sr, rise)
+    tw_set <- data.frame(ss, set)
+    
+    # Old part of code necessary for histogram + rectangles 
     mig <- out$site
     mig[mig > 0] <- 1
-    plot(tab[, 1] + (tab[, 2] - tab[, 1])/2, ifelse(out$site > 
-                                                      0, 1, 0), type = "l", yaxt = "n", ylab = NA, ylim = c(0,1.5)) 
     
-    min.r <- stats::aggregate(as.numeric(tab$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) min(x))
-    max.r <- stats::aggregate(as.numeric(tab$tFirst[out$site>0]), by = list(out$site[out$site>0]), FUN = function(x) max(x))
+    min.r <- aggregate(as.numeric(tab$tFirst[out$site>0]),
+                       by = list(out$site[out$site>0]), 
+                       FUN = function(x) min(x))
     
-    rect(min.r[,2], 1.1, max.r[,2], 1.4, col = "grey90", lwd = 0)
+    max.r <- aggregate(as.numeric(tab$tFirst[out$site>0]),
+                       by = list(out$site[out$site>0]),
+                       FUN = function(x) max(x))
     
-    rect(min.r[,2], 1.1, max.r[,2], 1.4, col = ifelse(unique(out$site[out$site>0])%in%unique(tmp02[tmp02$fixed, 8]), "red", "transparent"),
-         density = 60)
+    # New part of code necessary for histogram + rectangles
+    min.r[, 2] <- as.POSIXct(min.r[, 2], 
+                             origin = "1970-01-01",
+                             tz = "UTC")
     
-    par(def.par)
+    max.r[, 2] <- as.POSIXct(max.r[, 2], 
+                             origin = "1970-01-01",
+                             tz = "UTC")
+    
+    # Histogroam without rectangles
+    histogram <-  ggplot() +
+      geom_line(aes(x = tab[, 1] + (tab[, 2] - tab[, 1])/2, 
+                    y = ifelse(out$site > 0, 1, 0))) +
+      scale_y_continuous(limits = c(0, 1.5)) 
+    
+    # Add rectangles to histogram
+    hist_rect <- histogram + 
+      geom_rect(aes(xmin = min.r[, 2],
+                    xmax = max.r[, 2], 
+                    ymin = 1.1, 
+                    ymax = 1.4),
+                fill = "grey30",
+                color = "transparent",
+                size = 0) +
+      geom_rect(
+        aes(xmin = min.r[, 2],
+            xmax = max.r[, 2],
+            ymin = 1.1, 
+            ymax = 1.4),
+        fill = ifelse(unique(out$site[out$site > 0]) %in% unique(tmp02[tmp02$fixed, 8]), "red", "transparent"),
+        color = "transparent",
+        size = 0,
+        alpha = 0.5
+      ) +
+      theme_bw() +
+      labs(x = "", 
+           y = "") +
+      theme(panel.background = element_rect(fill = "white"),
+            panel.grid = element_blank(),
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank(),
+            axis.text.x = element_blank()) +
+      scale_x_datetime(breaks = seq(min(sr), 
+                                    max(sr), 
+                                    length.out = 10), 
+                       date_labels = "%b %y")
+    
+    # sunrise sunset plot 
+    
+    axis_increase <- 7 #increase two have sunrise and sunset on equal height in plot
+    
+    rise_set <- ggplot() +
+      geom_line(data = tw_rise, 
+                aes(x = sr, 
+                    y = rise), 
+                size = 2,
+                color = "firebrick", 
+                lwd = 0.5) +
+      geom_line(data = tw_set, 
+                aes(x = ss,
+                    y = set + axis_increase), 
+                color = "cornflowerblue", 
+                size = 2, 
+                lwd = 0.5) +
+      scale_y_continuous(name = "Sunrise (red)",
+                         sec.axis = sec_axis(~.-axis_increase, 
+                                             name="Sunset (blue)")) +
+      scale_x_datetime(name = "",
+                       breaks = seq(min(sr), 
+                                    max(sr), 
+                                    length.out = 10), 
+                       date_labels = "%b %y") +
+      theme_bw() +
+      theme(panel.background = element_rect(fill = "white"),
+            panel.grid = element_blank(),
+            axis.text.x = element_blank())
+    
+    poc_red <- ggplot() +
+      geom_bar(aes(x = sr,
+                   y = tab1[, 2]), 
+               stat = "identity", 
+               color = "firebrick") +
+      labs(x = "",
+           subtitle = "Sunrise", 
+           y = "Probabilty of change") +
+      theme_bw() +
+      theme (panel.background = element_rect(fill = "white"),
+             axis.text.x = element_blank(),
+             panel.grid = element_blank()) +
+      scale_x_datetime(breaks = seq(min(sr), 
+                                    max(sr), 
+                                    length.out = 10), 
+                       date_labels = "%b %y") 
+    
+    if (is.numeric(rise.prob)) {
+      poc_red <- poc_red +
+        geom_hline(yintercept = rise.prob, 
+                   lty = 2, 
+                   lwd = 0.5)
+    }
+    
+    poc_blue <- ggplot()+
+      geom_bar(aes(x = ss,
+                   y = tab2[, 2]),
+               stat = "identity",
+               color = "cornflowerblue") +
+      labs(x = "Time",
+           subtitle = "Sunset",
+           y = "Probabilty of change") + 
+      theme_bw() +
+      theme (panel.background = element_rect(fill = "white"),
+             panel.grid = element_blank()) +
+      scale_x_datetime(breaks = seq(min(sr), 
+                                    max(sr), 
+                                    length.out = 10), 
+                       date_labels = "%b %y") 
+    
+    if (is.numeric(set.prob)) 
+      poc_blue <- poc_blue +
+      geom_hline(yintercept = set.prob, lty = 2, lwd = 0.5)
+    
+    print(wrap_plots(hist_rect / (rise_set) / (poc_red) / (poc_blue))) # use of patchwork syntax to show all plots below each other
   }
+  
   if (summary) {
     i.sum.Cl(out)
   }
   return(out)
 }
+
 #' siteEstimate
 #'
 #' ...
@@ -655,7 +813,7 @@ changeLight <- function (tFirst, tSecond, type, twl, quantile = 0.9, rise.prob =
 #' @author Simeon Lisovski
 #'
 #' @export siteEstimate
-#' @importFrom parallel makeCluster clusterSetRNGStream clusterExport clusterEvalQ parRapply stopCluster
+#' @importFrom parallel makeCluster clusterSetRNGStream clusterExport clusterEvalQ parRapply stopCluster detectCores
 siteEstimate <- function(tFirst, tSecond, type, twl, 
                          degElevation, 
                          method = "gamma", parms = c(3.3, 0.8), 
@@ -677,10 +835,10 @@ siteEstimate <- function(tFirst, tSecond, type, twl,
     diff.sr <- as.numeric(difftime(Twilight[Rise], t.tw[Rise], units = "mins"))
     diff.ss <- as.numeric(difftime(t.tw[!Rise], Twilight[!Rise], units = "mins"))
     if(method=="log-norm") {
-      return(-sum(stats::dlnorm(c(diff.sr, diff.ss), parms[1], parms[2], log = T), na.rm = T))
+      return(-sum(dlnorm(c(diff.sr, diff.ss), parms[1], parms[2], log = T), na.rm = T))
     }
     if(method=="gamma") {
-      return(-sum(stats::dgamma(c(diff.sr, diff.ss), parms[1], parms[2], log = T), na.rm = T))
+      return(-sum(dgamma(c(diff.sr, diff.ss), parms[1], parms[2], log = T), na.rm = T))
     }
   }
   
@@ -705,14 +863,14 @@ siteEstimate <- function(tFirst, tSecond, type, twl,
     twl.sp <- list(tw)
   }
   
-  mycl <- parallel::makeCluster(parallel::detectCores()-1)
-  tmp  <- parallel::clusterSetRNGStream(mycl)
-  tmp  <- parallel::clusterExport(mycl, c("loglik"), envir=environment())
-  tmp  <- parallel::clusterEvalQ(mycl, library("GeoLight")) 
+  mycl <- makeCluster(detectCores()-1)
+  tmp  <- clusterSetRNGStream(mycl)
+  tmp  <- clusterExport(mycl, c("loglik"), envir=environment())
+  tmp  <- clusterEvalQ(mycl, library("GeoLight")) 
   
   for(i in 1:length(degElevation)) {
-    nll0  <- lapply(twl.sp, function(x) parallel::parRapply(mycl, crdsm, FUN = loglik, Twilight = x$Twilight, Rise = x$Rise, 
-                                                            degElevation = degElevation[i], method = method, parms = parms))
+    nll0  <- lapply(twl.sp, function(x) parRapply(mycl, crdsm, FUN = loglik, Twilight = x$Twilight, Rise = x$Rise, 
+                                                  degElevation = degElevation[i], method = method, parms = parms))
     nll   <- apply(do.call("cbind", nll0), 1, function(x) ifelse(all(is.infinite(abs(x))), Inf, sum(x)))
     
     out_A[,,i] <- matrix(suppressWarnings((max(nll[is.finite(nll)])-nll)/sum(nll[is.finite(nll)], na.rm = T)), 
@@ -723,7 +881,7 @@ siteEstimate <- function(tFirst, tSecond, type, twl,
     }
   }
   
-  parallel::stopCluster(mycl)
+  stopCluster(mycl)
   
   list(SunElevation = degElevation,
        Estimate = out_A,
@@ -792,12 +950,12 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
     loglik <- function(crds) {
       t.tw <- twilight(x$tFirst, lon = crds[1], lat = crds[2], 
                        rise = ifelse(x$type == 1, TRUE, FALSE), zenith = 90 - 
-                       degElevation, iters = 6)
+                         degElevation, iters = 6)
       diff <- as.numeric(difftime(x$tFirst, t.tw, units = "mins"))
       -sum(dnorm(diff, alpha[1], alpha[2], log = T), na.rm = T)
     }
     fit0 <- optim(cbind(median(x$lon, na.rm = T), median(x$lat, na.rm = T)), loglik, lower = cbind(lonlim[1], 
-                                                                                                    latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
+                                                                                                   latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
                   method = "L-BFGS-B", hessian = T)
     fit  <- optim(cbind(fit0$par[1], fit0$par[2]), loglik, lower = cbind(lonlim[1], 
                                                                          latlim[1]), upper = cbind(lonlim[2], latlim[2]), 
@@ -818,7 +976,7 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
   repeat {
     for (i in site[site != 0 & !duplicated(site) & !fixed.ind & !site%in%(unique(site[fixed.ind])-1)]) {
       if(i==max(out$site)) break
-      dist0 <- fields::rdist.earth(out[which(out[,1]==i):(which(out[,1]==i) + 1), 2:3])[2, 1]
+      dist0 <- rdist.earth(out[which(out[,1]==i):(which(out[,1]==i) + 1), 2:3])[2, 1]
       if (dist0 <= distThreshold) 
         break
     }
@@ -945,20 +1103,20 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 #'
 #' The \code{\link{changeLight}} functions provides a vector grouping the twilight times
 #' into stationary (>0) and movement (0) periods. The mergeSites functions allows to merge
-#' these stationary periods in case some consequtive sites were separated by e.g. outlayers
+#' these stationary periods in case some consecutive sites were separated by e.g. outliers
 #' or strong shading events. In a nutshell, the function estimates a likelihood surface for each
 #' stationary period that is based on the siteEstimate principle (e.g. fitting sunrise and sunset times
-#' of locations to the recorded sunrise and sunsets and findning the coordintates that results in
+#' of locations to the recorded sunrise and sunsets and finding the coordinates that results in
 #' the best fit).
 #' The decision on whether two consecutive sites should be merged together is made by the provided
 #' `distThreshold` and the overlap of the 95% credible intervals of the location (e.g. the distance
 #' between two consecutive sites needs to be smaller than the `distThreshold` AND the median locations need
 #' to overlap with the credible intervals of the two location estimates to trigger merging of the sites).
 #' The function also requires a sun elevation angle. HOWEVER, the angle defining the zero in the
-#' log-normal distribution of the twilight error is needen and not the sun elevation for the median
+#' log-normal distribution of the twilight error is needed and not the sun elevation for the median
 #' twilight error which is needed for the location estimation using the function `coord`. The function `getElevation`
 #' provides both, the median and the zero sun elevation angle as well as the parameters for the log-normal
-#' distribution that also requirred in the `mergeSites2` function.
+#' distribution that also required in the `mergeSites2` function.
 #'
 #' @param tFirst vector of sunrise/sunset times (e.g. 2008-12-01 08:30).
 #' @param tSecond vector of of sunrise/sunset times (e.g. 2008-12-01 17:30).
@@ -971,42 +1129,48 @@ mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThres
 ##' twilight"). Either a single value, a \code{vector} with the same length as
 ##' \code{tFirst} or \code{nrow(x)}.
 #' @param distThreshold a \code{numerical} value defining the threshold of the distance under 
-#' which consequtive sites should be merged (in km).
+#' which consecutive sites should be merged (in km).
 #' 
 #' @param fixed a logical vector indicating locations that should not be merged.
 #' @param alpha log-mean and log-sd of the twilight error (see: \code{\link{getElevation}}).
 #' @param method either, "gamma" or "log-normal". Depending on the error distribution used in \code{\link{getElevation}}.
-#' @param map A 'SpatialPolygonDataFrame' of the world. E.g., use 'wrld_simpl' from the maptools package.
 #' @param mask Either 'land' or 'ocean'.
-#' @param plot \code{logical}, if TRUE a plot comparing the inital and the final site selection.
+#' @param plot \code{logical}, if TRUE a plot comparing the initial and the final site selection.
 #' @return A \code{vector} with the merged site numbers
 #' @author Simeon Lisovski
 #'
 #' @export mergeSites2
 #' @importFrom fields rdist.earth
-#' @importFrom raster raster rasterize coordinates
-#' @importFrom graphics abline axis lines mtext par plot points rect 
-#' @importFrom stats optim dnorm
+#' @importFrom terra rast rasterize crds xFromCell yFromCell ncell
+#' @importFrom stats setNames
 #' @importFrom utils data 
-#' @importFrom parallel makeCluster clusterSetRNGStream parRapply stopCluster
-mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
-                        distThreshold = 250, fixed = NULL, alpha = c(2.5, 1), method = "gamma", map, mask = "land", plot = TRUE) {
+#' @importFrom parallel makeCluster clusterSetRNGStream parRapply stopCluster detectCores
+#' @importFrom ggplot2 scale_x_datetime theme_bw theme element_blank labs geom_point geom_vline
+#' @importFrom patchwork wrap_plots
+mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation, distThreshold = 250, fixed = NULL, alpha = c(2.5, 1), method = "gamma", mask = "land", plot = TRUE) {
+  
+  world <- ne_countries(
+    scale = "small", 
+    returnclass = "sf") 
+  
+  world_vector <- terra::vect(world)
   
   if(!(method%in%c("gamma", "log-norm"))) stop("Method can only be `gamma` or `log-norm`.")
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), 
                                                   FUN = function(x) any(class(x) != "name"))])
   
-  
-  mycl <- parallel::makeCluster(parallel::detectCores()-1)
-  tmp  <- parallel::clusterSetRNGStream(mycl)
+  mycl <- makeCluster(detectCores()-1)
+  tmp  <- clusterSetRNGStream(mycl)
   
   if(is.null(fixed)) fixed <- matrix(FALSE, ncol = 2, nrow = nrow(tab))
   fixed.ind <- apply(fixed, 1, function(x) any(x))
   
   site0 <- site
   tw <- data.frame(datetime = .POSIXct(c(tab$tFirst, tab$tSecond), "GMT"), 
-                   type     = c(tab$type, ifelse(tab$type == 1, 2, 1)), site = site, fixed = fixed.ind)
+                   type = c(tab$type, ifelse(tab$type == 1, 2, 1)), 
+                   site = site, 
+                   fixed = fixed.ind)
   tw <- tw[!duplicated(tw$datetime), ]
   tw <- tw[order(tw[, 1]), ]
   tw <- tw[1:nrow(tab),]
@@ -1024,62 +1188,109 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
   latlim <- range(crds0[, 2], na.rm = T)
   lat.seq <- seq(latlim[1] - 1, latlim[2] + 1, by = 1)
   
-  tmp  <- parallel::clusterEvalQ(mycl, {
-    library(GeoLight)
-    library(SGAT)
-    library(TwGeos) 
+  tmp  <- clusterEvalQ(mycl, {
+    library(GeoLight) 
   })
   
   mod <- function(x) {
     
     lons <- seq(-180, 180, by = 2.5)
     lats <- seq(-75, 75, by = 2.5)
-    
     crdsT <- expand.grid(lons, lats)
     
-    ll    <- parallel::parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE),
-                                 degElevation = degElevation, parms = alpha, method = method)
+    ll    <- parRapply(mycl, 
+                       crdsT, 
+                       FUN = gl.loglik, 
+                       Twilight = x$datetime, 
+                       Rise = ifelse(x$type==1, TRUE, FALSE), 
+                       degElevation = degElevation, 
+                       parms = alpha, 
+                       method = method)
+    
     ll    <- ll/max(ll, na.rm = T)
     
+    r0     <- rast(xmin =-180, 
+                   xmax = 180, 
+                   ymin = -75,
+                   ymax = 75, 
+                   nrows = length(lats), 
+                   ncols = length(lons))
     
-    r0     <- raster(xmn =-180, xmx = 180, ymn = -75, ymx = 75, nrow = length(lats), ncol = length(lons))
-    r      <- rasterize(crdsT[!is.na(ll),], r0, field = ll[!is.na(ll)])
+    r      <- rasterize(as.matrix(crdsT[!is.na(ll),]), 
+                        r0, 
+                        ll[!is.na(ll)])
+    
     # plot(r, breaks = seq(0.4, 1, length = 100), col = rev(terrain.colors(99)))
     # points(xTab[[1]]$lon, xTab[[1]]$lat)
     # points(lon.calib, lat.calib, pch = 21, cex = 2, bg = "white")
     
-    crdsT  <- coordinates(r)[r[]>0.4,]
-    r0     <- raster(xmn = min(crdsT[,1])-3, xmx = max(crdsT[,1])+3, ymn = min(crdsT[,2])-3, ymx = max(crdsT[,2])+3, res = 0.5)
-    if(!is.null(mask)) {
-      maskR  <- rasterize(map, r0)
-      if(mask=="land")  crdsT  <- coordinates(r0)[!is.na(maskR[]),]
-      if(mask=="ocean") crdsT  <- coordinates(r0)[is.na(maskR[]),]
-    } else {
-      crdsT  <- coordinates(r0)
-    }
-    ll.sr  <- parallel::parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE),
-                                  degElevation = degElevation, parms = alpha, method = method, twilight = "sr")
-    ll.ss    <- parallel::parRapply(mycl, crdsT, FUN = gl.loglik, Twilight = x$datetime, Rise = ifelse(x$type==1, TRUE, FALSE),
-                                    degElevation = degElevation, parms = alpha, method = method, twilight = "ss")
+    crdsT <- crds(r)[r[]>0.4,]           
+    r0     <- rast(xmin = min(crdsT[,1])-3,
+                   xmax = max(crdsT[,1])+3, 
+                   ymin = min(crdsT[,2])-3, 
+                   ymax = max(crdsT[,2])+3, 
+                   res = 0.5)
     
-    ll <- apply(cbind(ll.sr/max(ll.sr, na.rm = T), ll.ss/max(ll.sr, na.rm = T)), 1, function(x) ifelse(any(x<=0.0000001), NA, sum(x)))
+    if(!is.null(mask)) {
+      maskR <- rasterize(world_vector, r0)
+      if(mask=="land")  crdsT <- crds(r0)[!is.na(maskR[]),]
+      if(mask=="ocean") crdsT <- crds(r0)[is.na(maskR[]),]
+    } else {
+      crdsT <- crds(r0)
+    }
+    
+    ll.sr <- parRapply(mycl, 
+                       crdsT, 
+                       FUN = gl.loglik,
+                       Twilight = x$datetime,
+                       Rise = ifelse(x$type==1, TRUE, FALSE), 
+                       degElevation = degElevation, 
+                       parms = alpha,
+                       method = method, 
+                       twilight = "sr")
+    
+    ll.ss <- parRapply(mycl, 
+                       crdsT,
+                       FUN = gl.loglik, 
+                       Twilight = x$datetime,
+                       Rise = ifelse(x$type==1, TRUE, FALSE), 
+                       degElevation = degElevation, 
+                       parms = alpha, 
+                       method = method, 
+                       twilight = "ss")
+    
+    ll <- apply(cbind(ll.sr/max(ll.sr, na.rm = T), ll.ss/max(ll.sr, na.rm = T)), 
+                1, function(x) ifelse(any(x<=0.0000001), NA, sum(x)))
+    
     centre <- crdsT[which.max(ll),]
     
+    r <- rasterize(as.matrix(crdsT[!is.na(ll),]),
+                   r0, 
+                   ll[!is.na(ll)])
     
-    r   <- rasterize(crdsT[!is.na(ll),], r0, field = ll[!is.na(ll)])
     r[] <- r[]/max(r[], na.rm = T)
-    
     # plot(r)
     # contour(r, add = T, levels = c(1, 0.495))
     
-    crdsRange1 <- coordinates(r)[!is.na(r[]) & r[]>0.495,]
-    crdsRange2 <- coordinates(r)[!is.na(r[]) & r[]>0.7  ,]
+    crdsRange1.x <- xFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.495]
+    crdsRange1.y <- yFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.495]
+    crdsRange1 <- cbind(crdsRange1.x, crdsRange1.y)
     
+    crdsRange2.x <- xFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.7]
+    crdsRange2.y <- yFromCell(r, 1:ncell(r))[!is.na(r[]) & r[]>0.7]
+    crdsRange2 <- cbind(crdsRange2.x, crdsRange2.y)
     
-    matrix(c(centre[1], centre[2], min(crdsRange1[,1]), min(crdsRange2[,1]), max(crdsRange2[,1]), max(crdsRange1[,1]), 
-             min(crdsRange1[,2]), min(crdsRange2[,2]), max(crdsRange2[,2]), max(crdsRange1[,2])), ncol = 10)
-
-    
+    matrix(c(centre[1],
+             centre[2],
+             min(crdsRange1[,1]),
+             min(crdsRange2[,1]), 
+             max(crdsRange2[,1]), 
+             max(crdsRange1[,1]),
+             min(crdsRange1[,2]), 
+             min(crdsRange2[,2]), 
+             max(crdsRange2[,2]), 
+             max(crdsRange1[,2])),
+           ncol = 10)
   }
   
   tw$merge = FALSE
@@ -1106,7 +1317,7 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
         
         if(all(!xTab[[i]]$fixed)) {
           
-          dist <- fields::rdist.earth(out[,1:2])[2,1]
+          dist <- rdist.earth(out[,1:2])[2,1]
           
           if(dist<distThreshold & 
              (out[2,3] < out[1,1] & out[2,6] > out[1,1]) & (out[2,1] > out[1,3] & out[2,1] < out[1,6]) &
@@ -1127,7 +1338,6 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
             tw$merge[tw$site==i] <- TRUE
             cat(".... no action")
           }   
-          
         }
       }
     }
@@ -1137,28 +1347,39 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
     }
   }
   
-  parallel::stopCluster(mycl)
+  stopCluster(mycl)
   
-  sm  <- cbind(1:sum(!is.na(sm[,1])), sm[!is.na(sm[,1]),])
+  
+  sm  <- cbind(1:sum(!is.na(sm[,1])), 
+               sm[!is.na(sm[,1]),])
   
   out <- do.call("rbind", xTab)[,c(1,5,3,4)]
   out <- out[order(out$datetime),]       
-  
   
   if (plot) {
     site   <- out$site
     hours0 <- as.numeric(format(out[, 1], "%H")) + as.numeric(format(out[, 1], "%M"))/60
     crd0   <- sm[match(out$site, sm[,1]), 2:3]
     # crd0[is.na(crd0[,1]),] <- crds0[is.na(crd0[,1]),]
-    hours1 <- twilight(out$datetime, rise = out$Rise, zenith = 90 - degElevation, 
-                       lon = crd0[,1], lat = crd0[,2])
+    hours1 <- twilight(out$datetime, 
+                       rise = out$Rise, 
+                       zenith = 90 - degElevation, 
+                       lon = crd0[,1], 
+                       lat = crd0[,2])
     hours1 <- as.numeric(format(hours1, "%H")) + as.numeric(format(hours1, "%M"))/60
-    hours2 <- twilight(out$datetime, rise = out$Rise, zenith = 90 - degElevation, 
-                       lon = crd0[,1], lat = crd0[,2])
     
+    hours2 <- twilight(out$datetime, 
+                       rise = out$Rise, 
+                       zenith = 90 - degElevation, 
+                       lon = crd0[,1], 
+                       lat = crd0[,2])
     hours2 <- as.numeric(format(hours2, "%H")) + as.numeric(format(hours2,"%M"))/60
-    hours3 <- twilight(out$datetime, rise = out$Rise, zenith = 90 - degElevation, 
-                       lon = crd0[,1], lat = crd0[,2])
+    
+    hours3 <- twilight(out$datetime, 
+                       rise = out$Rise, 
+                       zenith = 90 - degElevation, 
+                       lon = crd0[,1], 
+                       lat = crd0[,2])
     hours3 <- as.numeric(format(hours3, "%H")) + as.numeric(format(hours3,"%M"))/60
     
     
@@ -1177,92 +1398,168 @@ mergeSites2 <- function(tFirst, tSecond, type, twl, site, degElevation,
       hours3[out$Rise == t] <- (hours3[out$Rise == t] + (which.min(round(cor,2))) - 1)%%24
     }
     
-    opar <- par(mfrow = c(5, 1), oma = c(5, 0, 0, 0), mar = c(1.5,5, 1, 1))
+    
     mig1 <- site.old
     mig1[mig1 > 0] <- 1
     mig2 <- out$site
     mig2[mig2 > 0] <- 1
-    plot(out[, 1], ifelse(mig2 > 0, 1, 0), type = "l", yaxt = "n", 
-         ylab = NA, ylim = c(0, 1.5), col = "firebrick", lwd = 2, 
-         xaxt = "n")
-    lines(out[, 1], ifelse(mig1 > 0, 1, 0), type = "l", lty = 2)
-    rect(out[site > 0 & !duplicated(site), 1], 1.1, 
-         out[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, col = "grey90", lwd = 0)
-    rect(out[site > 0 & !duplicated(site), 1], 1.1, 
-         out[site > 0 & !duplicated(site, fromLast = T), 1], 1.4, 
-         col = ifelse(apply(fixed[site>0,], 1, function(x) any(x))[!duplicated(site[site>0])], "red", "transparent"), 
-         density = 60)
-    axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
-         labels = FALSE)
     
-    plot(out[out$Rise, 1], hours1[out$Rise], type = "l", 
-         lwd = 2, col = "firebrick", ylab = "Sunrise (red)", 
-         xlim = range(out[, 1]), ylim = range(hours0[out[, 2] == 1]), xaxt = "n")
-    lines(out[out$Rise, 1], hours2[out$Rise], type = "l", 
-          lwd = 1, lty = 2)
-    lines(out[out[, 2] == 1, 1], hours3[out[, 2] == 1], type = "l", 
-          lwd = 1, lty = 2)
-    points(out[out[, 2] == 1 & !fixed.ind, 1], hours0[out[, 2] == 1 & !fixed.ind], cex = 0.5, 
-           pch = 21, col = "black", bg = "firebrick", lwd = 0.5)
-    axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
-         labels = FALSE)
-    plot(out[!out$Rise, 1], hours1[!out$Rise], type = "l", 
-         lwd = 2, col = "cornflowerblue", ylab = "Sunset (blue)", 
-         xlim = range(out[, 1]), ylim = range(hours0[!out$Rise]), xaxt = "n")
-    lines(out[!out$Rise, 1], hours2[!out$Rise], type = "l", 
-          lwd = 1, lty = 2)
-    lines(out[!out$Rise, 1], hours3[!out$Rise], type = "l", 
-          lwd = 1, lty = 2)
-    points(out[!out$Rise & !fixed.ind, 1], hours0[!out$Rise & !fixed.ind], cex = 0.5, 
-           pch = 21, col = "black", bg = "cornflowerblue", lwd = 0.5)
-    axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
-         labels = FALSE)
+    # start plots
+    hist_rec <- ggplot() +
+      geom_line(aes(x = out[, 1], 
+                    y = ifelse(mig2 > 0, 1, 0)), 
+                col = "firebrick", 
+                linewidth = 1) +
+      geom_line(aes(x = out[, 1], 
+                    y = ifelse(mig1 > 0, 1, 0)), 
+                linetype = 2) +
+      geom_rect(
+        aes(xmin = out[site > 0 & !duplicated(site), 1], 
+            xmax = out[site > 0 & !duplicated(site, fromLast = T), 1], 
+            ymin = 1.1, 
+            ymax = 1.4),
+        fill = "grey30",
+        color = "transparent"
+      ) +
+      geom_rect(
+        aes(xmin = out[site > 0 & !duplicated(site), 1], 
+            xmax = out[site > 0 & !duplicated(site, fromLast = T), 1], 
+            ymin = 1.1, 
+            ymax = 1.4),
+        color = ifelse(apply(fixed[site>0, ], 1, function(x) any(x))[!duplicated(site[site>0])], "red", "transparent"), 
+        alpha = 0.6) +
+      scale_x_datetime(breaks = seq(out[1, 1], out[nrow(out), 1], length.out = 10), 
+                       date_labels = "%b %d") +
+      theme_bw() +
+      theme(
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()
+      ) 
     
-    plot(out[, 1], ifelse(fixed.ind, NA, crds0[, 1]), type = "o", pch = 16, cex = 0.5, 
-         xaxt = "n", ylab = "Longitude", cex.lab = 1.7, xlab = "")
-    abline(v = c(out[site.old > 0 & !duplicated(site.old), 1], 
-                 out[site.old > 0 & !duplicated(site.old, fromLast = T), 1]), lty = 2)
-    abline(v = c(out[out$site  > 0 & !duplicated(out$site), 1], 
-                 out[out$site  > 0 & !duplicated(out$site, fromLast = T), 1]), lwd = 1.5, col = "firebrick")
-    axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
-         labels = FALSE)
-    plot(out[, 1], ifelse(fixed.ind, NA, crds0[, 2]), type = "o", pch = 16, cex = 0.5, 
-         xaxt = "n", ylab = "Latitude", cex.lab = 1.7, xlab = "")
-    abline(v = c(out[site.old > 0 & !duplicated(site.old), 1], 
-                 out[site.old > 0 & !duplicated(site.old, fromLast = T), 1]), lty = 2)
-    abline(v = c(out[out$site > 0 & !duplicated(out$site), 1], 
-                 out[out$site > 0 & !duplicated(out$site, fromLast = T), 1]), lwd = 1.5, 
-           col = "firebrick")
-    axis(1, at = seq(out[1, 1], out[nrow(out), 1], length = 10), 
-         labels = format(seq(out[1, 1], out[nrow(out), 1], length = 10), "%d-%b"))
-    mtext("Date", 1, outer = T, line = 1.6, cex = 1.2)
-    par(opar)
+    red_ts <- ggplot() +
+      geom_line(aes(x = out[out$Rise, 1], 
+                    y = hours1[out$Rise]), 
+                col = "firebrick", 
+                linewidth = 0.5, na.rm = TRUE) +
+      geom_line(aes(x = out[out$Rise, 1], 
+                    y = hours2[out$Rise]), 
+                linetype = 2, 
+                linewidth = 0.5, 
+                na.rm = TRUE) +
+      geom_line(aes(x = out[out[, 2] == 1, 1], 
+                    y = hours3[out[, 2] == 1]), 
+                linetype = 2, 
+                linewidth = 0.5, 
+                na.rm = TRUE) +
+      labs(y = "Sunrise (red)") +
+      geom_point(aes(out[out[, 2] == 1 & !fixed.ind, 1], 
+                     hours0[out[, 2] == 1 & !fixed.ind]), 
+                 color = "black", 
+                 fill = "firebrick", 
+                 shape = 21, size = 0.5) +
+      scale_x_datetime(breaks = seq(out[1, 1], out[nrow(out), 1], length.out = 10), date_labels = "%b %d") +
+      theme_bw() +
+      theme(
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank()
+      ) 
+    
+    blue_ts <- ggplot() +
+      geom_line(aes(x = out[!out$Rise, 1], 
+                    y = hours1[!out$Rise]), 
+                col = "cornflowerblue", 
+                linewidth = 0.5, 
+                na.rm = TRUE) +
+      geom_line(aes(x = out[!out$Rise, 1], 
+                    y = hours2[!out$Rise]), 
+                linetype = 2, 
+                linewidth = 0.5, 
+                na.rm = TRUE) +
+      geom_line(aes(x = out[!out[, 2] == 1, 1], 
+                    y = hours3[!out[, 2] == 1]), 
+                linetype = 2, 
+                linewidth = 0.5, 
+                na.rm = TRUE) +
+      geom_point(aes(out[!out[, 2] == 1 & !fixed.ind, 1], hours0[!out[, 2] == 1 & !fixed.ind]), 
+                 color = "black", 
+                 fill = "cornflowerblue", 
+                 shape = 21, 
+                 size = 0.5) +
+      labs(y = "Sunset (blue)", 
+           x = "") +
+      scale_x_datetime(breaks = seq(out[1, 1], out[nrow(out), 1], length.out = 10), 
+                       date_labels = "%b %d") + 
+      theme_bw() +
+      theme(
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank()
+      ) 
+    
+    
+    lon_plot <- ggplot() +
+      geom_point(aes(out[, 1,], 
+                     ifelse(fixed.ind, NA, crds0[, 1])), 
+                 size = 0.5, 
+                 na.rm = TRUE) +
+      geom_line(aes(out[, 1,], 
+                    ifelse(fixed.ind, NA, crds0[, 1])),
+                linewidth = 0.5) + 
+      geom_vline(
+        xintercept = c(
+          out[site.old > 0 & !duplicated(site.old), 1],
+          out[site.old > 0 & !duplicated(site.old, fromLast = TRUE), 1]
+        ),
+        linetype = "dashed"
+      ) +
+      geom_vline(xintercept = c(
+        out[out$site  > 0 & !duplicated(out$site), 1],
+        out[out$site  > 0 & !duplicated(out$site, fromLast = T), 1]),
+        col = "firebrick") +
+      scale_x_datetime(breaks = seq(out[1, 1], out[nrow(out), 1], length.out = 10), date_labels = "%b %d") + 
+      labs(y = "Longitude", x = "") +
+      theme_bw() +
+      theme(
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank()
+      ) 
+    
+    lat_plot <- ggplot() +
+      geom_point(aes(out[, 1,], 
+                     ifelse(fixed.ind, NA, crds0[, 2])),
+                 size = 0.5, 
+                 na.rm = TRUE) +
+      geom_line(aes(out[, 1,], ifelse(fixed.ind, NA, crds0[, 2])),
+                linewidth = 0.5) + 
+      geom_vline(
+        xintercept = c(out[site.old > 0 & !duplicated(site.old), 1],
+                       out[site.old > 0 & !duplicated(site.old, fromLast = TRUE), 1]),
+        linetype = "dashed"
+      ) +
+      geom_vline(xintercept = c(
+        out[out$site  > 0 & !duplicated(out$site), 1],
+        out[out$site  > 0 & !duplicated(out$site, fromLast = T), 1]),
+        col = "firebrick") +
+      scale_x_datetime(breaks = seq(out[1, 1], out[nrow(out), 1], length.out = 10), date_labels = "%b %d") + 
+      labs(y = "Latidue", x = "") +
+      theme_bw()
+    
+    print(wrap_plots( hist_rec / red_ts / blue_ts / lon_plot / lat_plot ))
   }
-  sm        <- as.data.frame(sm)
-  names(sm) <- c("site", "Lon", "Lat", "Lon.2.5%", "Lon.40%", "Lon.80%", "Lon.97.25%",  
-                                       "Lat.2.5%", "Lat.40%", "Lat.80%", "Lat.97.25%")
   
-  diff <- c(apply(cbind(out$datetime[-nrow(out)], 
-                        out$datetime[-1]), 1, function(x) c(x[2] - x[1])/60/60), 0)
+  sm <- lapply(data.frame(crds0, site = out$site)[out$site>0,] %>% 
+                 group_split(site),
+               function(x) unlist(c(unique(x[3]), c(apply(x[,1:2], 2, function(y) quantile(y, probs = c(0.5, 0.025, 0.4, 0.8, 0.975),  na.rm = T)))[c(1,6,2:5, 7:10)]))) %>% 
+    Reduce("rbind", .) %>% 
+    as_tibble() %>% 
+    setNames(c("site", "Lon", "Lat", "Lon.2.5%", "Lon.40%", "Lon.80%", "Lon.97.25%", "Lat.2.5%", "Lat.40%", "Lat.80%", "Lat.97.25%"))
   
-  out.gl <- data.frame(tFirst = as.POSIXct("1900-01-01 01:01", "GMT"), tSecond = as.POSIXct("1900-01-01 01:01", "GMT"),  type = 0, site = 0, fixed = 0, diff.max = 0)
-  rw <- 1
-  for (k in 1:(nrow(out) - 1)) {
-    if (as.numeric(difftime(out$datetime[k], out$datetime[k + 1])) < 24 & out$datetime[k] != out$datetime[k + 1]) {
-      out.gl[rw, 1] <- out$datetime[k]
-      out.gl[rw, 2] <- out$datetime[k + 1]
-      out.gl[rw, 3] <- ifelse(out$Rise[k], 1, 2)
-      out.gl[rw, 4] <- out$site[k]
-      out.gl[rw, 5] <- out$fixed[k]
-      out.gl[rw, 6] <- max(diff[k:(k + 1)])
-      rw <- rw + 1
-    }
-  }
-  out.gl <- out.gl[out.gl$diff.max < 23,]
-  
-  list(twl = out.gl[,c(1,2)], site = out.gl$site, summary = sm)
+  list(twl     = cbind(twl, fixed = fixed[,1]), 
+       site    = out$site, 
+       summary = sm)
 }
-
 
 ##' Filter for unrealistic positions within a track based on distance
 ##'
@@ -1535,63 +1832,63 @@ HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, d
   }
   
   if(plot) {
-
-      opar <- par(mfrow = c(sites, 2), oma = c(3, 5, 6, 2), mar = c(2, 2, 2, 2))
-      for(j in 1:sites){
-        
-        if(is.na(HECalib[j])){
-          
-          plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty = "n")
-          text(0,0,"NA",cex=2)
-          plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty="n")
-          
-        } else {
-          
-          angles <- c(seq(HECalib[j]-2,HECalib[j]+2,0.2))
-          
-          latM <- matrix(ncol=length(angles),nrow=length(tFirst[site==j]))
-          
-          for(i in 1:ncol(latM)){
-            latM[,i] <- coord(tab[site==j,], degElevation = c(angles[i]),note=F)[,2]
-          }
-          
-          latT <- latM
-          var1 <- rep(NA,ncol(latT))
-          n1   <- rep(NA,ncol(latT))
-          min  <- rep(NA,ncol(latT))
-          max  <- rep(NA,ncol(latT))
-          for(t in 1:length(var1)){
-            var1[t] <- var(na.omit(latT[,t]))
-            n1[t]   <- length(na.omit(latT[,t]))
-            min[t]  <- if(length(na.omit(latT[,t]))<=1) NA else min(na.omit(latT[,t]))
-            max[t]  <- if(length(na.omit(latT[,t]))<=1) NA else max(na.omit(latT[,t]))
-          }
-          
-          
-          colors <- grey.colors(length(angles))
-          plot(tFirst[site==j],latT[,1],ylim=c(min(na.omit(min)),max(na.omit(max))),type="o",cex=0.7,pch=20,col=colors[1],ylab="",xlab="")
-          for(p in 2:ncol(latT)){
-            lines(tFirst[site==j],latM[,p],type="o",cex=0.7,pch=20,col=colors[p])
-          }
-          lines(tFirst[site==j],coord(tab[site==j,], degElevation = HECalib[j], note=F)[,2],col="tomato2",type="o",lwd=2,cex=1,pch=19)
-          if(j==sites) mtext("Latitude",side=2,line=3)
-          if(j==sites) mtext("Date",side=1,line=2.8)
-          
-          plot(angles,var1,type="o",cex=1,pch=20,ylab="")
-          lines(angles,var1,type="p",cex=0.5,pch=7)
-          abline(v=HECalib[j],lty=2,col="red",lwd=1.5)
-          par(new=T)
-          plot(angles,n1,type="o",xaxt="n",yaxt="n",col="blue",pch=20,ylab="")
-          points(angles,n1,type="p",cex=0.5,pch=8,col="blue")
-          axis(4)
-          if(j==sites) mtext("Sun elevation angles",side=1,line=2.8)
-          legend("topright",c(paste(HECalib[j]," degrees",sep=""),"sample size","variance"),pch=c(-1,20,20),lty=c(2,2,2),lwd=c(1.5,0,0),col=c("red","blue","black"),bg="White")
-        }
-      }
+    
+    opar <- par(mfrow = c(sites, 2), oma = c(3, 5, 6, 2), mar = c(2, 2, 2, 2))
+    for(j in 1:sites){
       
-      mtext("Hill-Ekstrom Calibration",cex=1.5,line=0.8,outer=T)
-      par(opar)
-
+      if(is.na(HECalib[j])){
+        
+        plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty = "n")
+        text(0,0,"NA",cex=2)
+        plot(0,0,cex=0,pch=20,col="white",ylab="",xlab="",xaxt="n",yaxt="n", bty="n")
+        
+      } else {
+        
+        angles <- c(seq(HECalib[j]-2,HECalib[j]+2,0.2))
+        
+        latM <- matrix(ncol=length(angles),nrow=length(tFirst[site==j]))
+        
+        for(i in 1:ncol(latM)){
+          latM[,i] <- coord(tab[site==j,], degElevation = c(angles[i]),note=F)[,2]
+        }
+        
+        latT <- latM
+        var1 <- rep(NA,ncol(latT))
+        n1   <- rep(NA,ncol(latT))
+        min  <- rep(NA,ncol(latT))
+        max  <- rep(NA,ncol(latT))
+        for(t in 1:length(var1)){
+          var1[t] <- var(na.omit(latT[,t]))
+          n1[t]   <- length(na.omit(latT[,t]))
+          min[t]  <- if(length(na.omit(latT[,t]))<=1) NA else min(na.omit(latT[,t]))
+          max[t]  <- if(length(na.omit(latT[,t]))<=1) NA else max(na.omit(latT[,t]))
+        }
+        
+        
+        colors <- grey.colors(length(angles))
+        plot(tFirst[site==j],latT[,1],ylim=c(min(na.omit(min)),max(na.omit(max))),type="o",cex=0.7,pch=20,col=colors[1],ylab="",xlab="")
+        for(p in 2:ncol(latT)){
+          lines(tFirst[site==j],latM[,p],type="o",cex=0.7,pch=20,col=colors[p])
+        }
+        lines(tFirst[site==j],coord(tab[site==j,], degElevation = HECalib[j], note=F)[,2],col="tomato2",type="o",lwd=2,cex=1,pch=19)
+        if(j==sites) mtext("Latitude",side=2,line=3)
+        if(j==sites) mtext("Date",side=1,line=2.8)
+        
+        plot(angles,var1,type="o",cex=1,pch=20,ylab="")
+        lines(angles,var1,type="p",cex=0.5,pch=7)
+        abline(v=HECalib[j],lty=2,col="red",lwd=1.5)
+        par(new=T)
+        plot(angles,n1,type="o",xaxt="n",yaxt="n",col="blue",pch=20,ylab="")
+        points(angles,n1,type="p",cex=0.5,pch=8,col="blue")
+        axis(4)
+        if(j==sites) mtext("Sun elevation angles",side=1,line=2.8)
+        legend("topright",c(paste(HECalib[j]," degrees",sep=""),"sample size","variance"),pch=c(-1,20,20),lty=c(2,2,2),lwd=c(1.5,0,0),col=c("red","blue","black"),bg="White")
+      }
+    }
+    
+    mtext("Hill-Ekstrom Calibration",cex=1.5,line=0.8,outer=T)
+    par(opar)
+    
   }
   
   
@@ -1909,24 +2206,24 @@ gl.loglik <- function(crds, Twilight, Rise, degElevation, parms, method, twiligh
   diff.ss <- as.numeric(difftime(t.tw[!Rise], Twilight[!Rise], units = "mins"))
   
   if(method=="log-norm") {
-  if(is.null(twilight)) {
-    ll <- sum(stats::dlnorm(c(diff.sr, diff.ss), parms[1], parms[2], log = F), na.rm = T)
-  } else {
-    if(twilight=="sr"){
-      ll <- sum(stats::dlnorm(diff.sr, parms[1], parms[2], log = F), na.rm = T)
-    }
-    if(twilight=="ss") {
-      ll <- sum(stats::dlnorm(diff.ss, parms[1], parms[2], log = F), na.rm = T)
-    }}
-  } else {
     if(is.null(twilight)) {
-      ll <- sum(stats::dgamma(c(diff.sr, diff.ss), parms[1], parms[2], log = F), na.rm = T)
+      ll <- sum(dlnorm(c(diff.sr, diff.ss), parms[1], parms[2], log = F), na.rm = T)
     } else {
       if(twilight=="sr"){
-        ll <- sum(stats::dgamma(diff.sr, parms[1], parms[2], log = F), na.rm = T)
+        ll <- sum(dlnorm(diff.sr, parms[1], parms[2], log = F), na.rm = T)
       }
       if(twilight=="ss") {
-        ll <- sum(stats::dgamma(diff.ss, parms[1], parms[2], log = F), na.rm = T)
+        ll <- sum(dlnorm(diff.ss, parms[1], parms[2], log = F), na.rm = T)
+      }}
+  } else {
+    if(is.null(twilight)) {
+      ll <- sum(dgamma(c(diff.sr, diff.ss), parms[1], parms[2], log = F), na.rm = T)
+    } else {
+      if(twilight=="sr"){
+        ll <- sum(dgamma(diff.sr, parms[1], parms[2], log = F), na.rm = T)
+      }
+      if(twilight=="ss") {
+        ll <- sum(dgamma(diff.ss, parms[1], parms[2], log = F), na.rm = T)
       }}
   }
   
@@ -2020,9 +2317,11 @@ lightFilter <- function(light, baseline=NULL, iter=2){
 ##' be produced.
 ##' @return Logical \code{vector} matching positions that pass the filter.
 ##' @author Simeon Lisovski & Eldar Rakhimberdiev
-##' @importFrom graphics axis mtext legend lines par plot points
 ##' @importFrom stats loess predict residuals
+##' @importFrom ggplot2 ggplot geom_point labs theme_bw theme element_blank
+##' @importFrom patchwork wrap_plots
 ##' @export loessFilter
+
 loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE){
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
@@ -2069,24 +2368,46 @@ loessFilter <- function(tFirst, tSecond, type, twl, k = 3, plot = TRUE){
   }
   
   if(plot){
-    opar <- par(mfrow=c(2,1),mar=c(3,3,0.5,3),oma=c(2,2,0,0))
-    plot(dawn$datetime[dawn$type==1],dawn$hours[dawn$type==1],pch="+",cex=0.6,xlab="",ylab="",yaxt="n")
-    lines(dawn$datetime[!dawn$filter], predict(loess(dawn$hours[!dawn$filter]~as.numeric(dawn$datetime[!dawn$filter]),span=0.1)) , type="l")
-    points(dawn$datetime[dawn$filter],dawn$hours[dawn$filter],col="red",pch="+",cex=1)
-    axis(2,labels=F)
-    mtext("Sunrise",4,line=1.2)
     
-    plot(dusk$datetime[dusk$type==2],dusk$hours[dusk$type==2],pch="+",cex=0.6,xlab="",ylab="",yaxt="n")
-    lines(dusk$datetime[!dusk$filter], predict(loess(dusk$hours[!dusk$filter]~as.numeric(dusk$datetime[!dusk$filter]),span=0.1)), type="l")
-    points(dusk$datetime[dusk$filter],dusk$hours[dusk$filter],col="red",pch="+",cex=1)
-    axis(2,labels=F)
-    legend("bottomleft",c("OK","Filtered"),pch=c("+","+"),col=c("black","red"),
-           bty="n",cex=0.8)
-    mtext("Sunset",4,line=1.2)
-    mtext("Time",1,outer=T)
-    mtext("Sunrise/Sunset hours (rescaled)",2,outer=T)
-    par(opar)
-  }
+    sunrise_plot <- ggplot() +
+      geom_point(aes(dawn$datetime[dawn$type==1],
+                     dawn$hours[dawn$type==1]), 
+                 shape = 3) + 
+      geom_line(aes(dawn$datetime[!dawn$filter],
+                    predict(loess(dawn$hours[!dawn$filter]~as.numeric(dawn$datetime[!dawn$filter]),
+                                  span=0.1)))) + 
+      geom_point(aes(dawn$datetime[dawn$filter],
+                     dawn$hours[dawn$filter]), 
+                 col = "red", 
+                 shape = 3 ) + 
+      labs(title = "Sunset/sunrise hours (rescaled)",
+           y = "Sunrise",
+           x = "") +
+      theme_bw() +
+      theme(axis.ticks.y = element_blank(),
+            axis.text.y = element_blank() ,
+            axis.text.x = element_blank()) 
+    
+    sunset_plot <- ggplot() +
+      geom_point(aes(dusk$datetime[dusk$type==2], 
+                     dusk$hours[dusk$type==2]), 
+                 shape = 3) + 
+      geom_line(aes(dusk$datetime[!dusk$filter],
+                    predict(loess(dusk$hours[!dusk$filter]~as.numeric(dusk$datetime[!dusk$filter]),
+                                  span=0.1)))) + 
+      geom_point(aes(dusk$datetime[dusk$filter],
+                     dusk$hours[dusk$filter]), 
+                 col = "red", 
+                 shape = 3) + 
+      labs(x = "Time",
+           y = "Sunset") +
+      theme_bw() +
+      theme(axis.ticks.y = element_blank(),
+            axis.text.y = element_blank())
+    
+    print(wrap_plots(sunrise_plot / sunset_plot))
+    
+  } 
   all <- rbind(subset(dusk,filter),subset(dawn,filter))
   
   filter <- rep(FALSE,length(tab$tFirst))
@@ -2262,136 +2583,144 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' migration/movement periods 0.
 #' @param type either \emph{points}, or \emph{cross} to show all points for each site or only show the mean position of the site with standard deviation.
 #' @param quantiles the quantile of the error bars (\emph{cross}) around the median.
+#' @param xlim Longitude limits of map.
+#' @param ylim Latitude limits of map.
 #' @param hull \code{logical}, if TRUE a convex hull will be plotted around the points of each site.
-#' @param map.range some possibilities to choose defined areas ("World
-#' (default)", "EuroAfrica","America","AustralAsia").
+#' @param palette Color palette for sites.
 #' @param ... Arguments to be passed to methods, such as graphical parameters (see par).
 #' @details Standard graphical paramters like \code{pch}, \code{cex}, \code{lwd}, \code{lty} and \code{col} are implemented. 
 #' The color can be specified as either a vector of colors (e.g. c("blue", "red", ...)) or as a character string indicating a color ramp (at the moment only "random" and "rainbow" is available )
 #' @author Simeon Lisovski & Tamara Emmenegger
 #' @examples
 #' data(hoopoe2)
-#'  hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
-#'  hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
+#' hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+#' hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
 #' crds <- coord(hoopoe2, degElevation = -6)
 #' filter <- distanceFilter(hoopoe2, distance = 30)
 #' site <- changeLight(hoopoe2, rise.prob = 0.1, set.prob = 0.1, plot = FALSE, 
-#'  summary = FALSE)$site
-#' siteMap(crds[filter,], site[filter], xlim=c(-20,20), ylim=c(0,60), 
-#'  lwd=2, pch=20, cex=0.5, main="hoopoe2")
-#'
-#' @importFrom maps map map.axes
+#' summary = FALSE)$site
+#' try(siteMap(crds[filter,], site[filter], linewidth=2, shape=20, size=0.5, main="hoopoe2"))
 #' @importFrom grDevices chull col2rgb rainbow rgb
-#' @importFrom graphics legend mtext par plot points segments
+#' @importFrom rnaturalearth ne_countries
+#' @importFrom ggplot2 theme_bw coord_cartesian labs geom_sf coord_sf geom_point geom_segment geom_polygon guides guide_legend scale_color_hue scale_x_continuous scale_color_manual 
+#' @importFrom dplyr %>% mutate as_tibble filter pull group_split .data
+#' @importFrom sf sf_use_s2 st_intersection st_bbox st_as_sfc st_transform st_cast st_convex_hull st_union
 #' @export siteMap
-siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull = T, 
-                    map.range = c("EuroAfrica", "AustralAsia", "America", "World"), ...) {  
+siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), xlim = NULL, ylim = NULL, hull = TRUE, palette = 'rainbow', ...) {  
+  
   args <- list(...)
   
-  if(all(map.range==c("EuroAfrica", "AustralAsia", "America", "World")) & sum(names(args)%in%c("xlim", "ylim"))!=2) {
-    range <- c(-180, 180, -80, 90)
-  } 
-  if(all(map.range=="EuroAfrica")) range <- c(-24, 55, -55, 70)
-  if(all(map.range=="AustralAsia")) range <- c(60, 190, -55, 78)
-  if(all(map.range=="America")) range <- c(-170, -20, -65, 78)
-  if(all(map.range=="World")) range <- c(-180, 180, -75, 90)
+  if(nrow(crds)!=length(site)) stop("The number of coordinates does not match length of site vector.")
   
-  if(sum(names(args)%in%c("xlim", "ylim"))==2) range <- c(args$xlim, args$ylim)
+  world <- ne_countries(scale = "medium", returnclass = "sf")
   
-  # colors for sites
-  areColors <- function(x) {
-    sapply(x, function(X) {
-      tryCatch(is.matrix(col2rgb(X)), 
-               error = function(e) FALSE)
-    })
-  }
+  dat   <- crds %>% as_tibble() %>% mutate(site=site) %>%
+    filter(!is.nan(.data$lat) & site>0)
   
-  
-  if(any(names(args)%in%"col")) {
-    col <- args$col
-    if(any(args$col=="rainbow")) {
-      col <- allcolors[round(seq(1,50,length.out=length(unique(site))))]
-    }
-    if(any(args$col=="random")) {
-      col <- sample(allcolors[round(seq(1,50,length.out=length(unique(site))))],length(unique(site)),replace = FALSE)
-    }
-    if(!any(args$col%in%c("random", "rainbow"))) {
-      if(!any(areColors(args$col))) stop("invalid colors", call. = FALSE)
-      if(length(args$col)!=length(unique(site[site>0]))) {
-        col = rep(args$col, length(unique(site[site>0])))[1:length(unique(site[site>0]))]
-        warning("Length of color vector is not equal to number of sites!", call. = FALSE)
-      }
-    }
+  if(is.null(xlim) | is.null(ylim)) {
+    word_sub <- world %>% 
+      st_make_valid() %>% 
+      st_intersection(st_bbox(dat %>% 
+                                st_as_sf(coords = c('lon', 'lat'), crs = 4326)) %>%
+                        st_as_sfc())  %>% 
+      suppressWarnings() %>% 
+      suppressMessages()
   } else {
-    allcolors <- rainbow(60,v=0.85)[1:50]
-    col <- sample(allcolors[round(seq(1,50,length.out=length(unique(site))))],length(unique(site)),replace = FALSE)
+    word_sub <- world %>% 
+      st_make_valid() %>% 
+      st_intersection(st_bbox(c(xmin = xlim[1], xmax = xlim[2],
+                                ymin = ylim[1], ymax = ylim[2]), crs = 4326) %>%
+                        st_as_sfc()) %>% 
+      suppressWarnings() %>% 
+      suppressMessages()
   }
   
   
-  if(sum(names(args)%in%"add")==1) add <- args$add else add = FALSE
+  colorSites <- do.call(palette, args = list(n = length(unique(dat$site))))
   
+  #### ToDo: Theme - axis not more than map
+  base <- ggplot() +
+    theme_bw() +
+    labs(x = ifelse(sum(names(args) %in% "xlab") == 1, args$xlab, "Longitude"),
+         y = ifelse(sum(names(args) %in% "ylab") == 1, args$ylab, "Latitude"),
+         title = ifelse(sum(names(args) %in% "main") == 1, args$main, "")) +
+    geom_sf(data = word_sub, fill = "lightgray", color = "white") +
+    scale_x_continuous(expand = c(0,0)) +
+    scale_y_continuous(expand = c(0,0))
   
-  if(!add) {
-    opar <- par(mar = c(6,5,1,1))
-    plot(NA, xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), xaxt = "n", yaxt = "n", xlab = "", ylab = "", bty = "n")
-    map(xlim=c(range[1],range[2]), ylim=c(range[3],range[4]), fill=T, lwd=0.01, col=c("grey90"), add=TRUE)
-    mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude"), side=1, line=2.2, font=3)
-    mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude"), side=2, line=2.5, font=3)
-    map.axes()
-    mtext(ifelse(sum(names(args)%in%"main")==1, args$main, ""), line=0.6, cex=1.2)
+  if(type == "points") {
+    
+    dat_sf <- dat %>% st_as_sf(coords = c('lon', 'lat'), crs = 4326)
+    
+    gg <- base +
+      geom_sf(data = dat_sf, mapping = aes(geometry = .data$geometry, color = as.factor(site)),
+              size = ifelse(any(names(args) == "size"),
+                            args$size, 0.5),
+              shape = ifelse(any(names(args) == "shape"), args$shape, 16),
+              show.legend = ifelse(any(names(args) == "show.legend"), args$show.legend, FALSE)) +
+      scale_color_manual(values = colorSites)
   }
   
-  
-  if(type=="points") {
-    points(crds[site>0, ], 
-           cex = ifelse(any(names(args)=="cex"), args$cex, 0.5),
-           pch = ifelse(any(names(args)=="pch"), args$pch, 16),
-           col = col[as.numeric(site)])
+  if(type == "cross") {
+    
+    dat_cross <- dat %>% group_split(site) %>%
+      lapply(., function(x) {
+        x[,1:2] %>% apply(., 2, function(y) quantile(y, probs =  c(quantiles, 0.5), na.rm = T)) %>% 
+          as_tibble() %>% mutate(probs =  c(quantiles, 0.5), site = (x %>% pull(site))[1])
+      }) %>% Reduce('rbind', .)
+    
+    dat_pts <- dat_cross %>% filter(.data$probs == 0.5) %>% st_as_sf(coords = c('lon', 'lat'), crs = 4326)
+    dat_lns <- dat_cross %>% group_split(site) %>% 
+      lapply(., function(x) {
+        c(c(st_point(as.numeric(c(x[1,1], x[3,2]))),
+            st_point(as.numeric(c(x[2,1], x[3,2])))) %>% st_cast('LINESTRING'),
+          c(st_point(as.numeric(c(x[3,1], x[1,2]))),
+            st_point(as.numeric(c(x[3,1], x[2,2])))) %>% st_cast('LINESTRING')) %>%
+          st_sfc() %>% st_sf() %>% mutate(site = x$site[1])
+      }) %>% Reduce('rbind',.) %>% st_set_crs(4326)
+    
+    gg <- base +
+      geom_sf(data = dat_pts, mapping = aes(geometry = .data$geometry, color = as.factor(site)),
+              size = ifelse(any(names(args) == "size"),
+                            args$size, 0.5),
+              shape = ifelse(any(names(args) == "shape"), args$shape, 16),
+              show.legend = ifelse(any(names(args) == "show.legend"), args$show.legend, FALSE)) +
+      geom_sf(data = dat_lns, mapping = aes(geometry = .data$geometry, color = as.factor(site)),
+              linewidth = ifelse(any(names(args) == "linewidth"),
+                                 args$linewidth, 0.5),
+              linetype = ifelse(any(names(args) == "linetype"), args$linetype, 1),
+              show.legend = ifelse(any(names(args) == "show.legend"), args$show.legend, FALSE)) +
+      scale_color_manual(values = colorSites)
+    
   }
-  if(type=="cross") {
-    for (i in 1:max(site)){
-      if(!all(is.na(crds[site==i, 2]))){
-        tmp.lon <- quantile(crds[site == i, 1], probs = c(quantiles, 0.5), na.rm = T)
-        tmp.lat <- quantile(crds[site == i, 2], probs = c(quantiles, 0.5), na.rm = T)
-        points(tmp.lon[3], tmp.lat[3],
-               col = col[i],
-               cex = ifelse(any(names(args)=="cex"), args$cex, 1),
-               pch = ifelse(any(names(args)=="pch"), args$pch, 16))
-        segments(tmp.lon[1], tmp.lat[3], tmp.lon[2], tmp.lat[3],
-               col = col[i],
-               lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
-        segments(tmp.lon[3], tmp.lat[1], tmp.lon[3], tmp.lat[2],
-               col = col[i],
-               lwd = ifelse(any(names(args)=="lwd"), args$lwd, 2))
-      }
-    }
-  }    
-  
   
   if(hull) {
-    for(j in unique(site)){
-          if(!all(is.na(crds[site==j, 2]))){
-          if(j>0){
-            X <- na.omit(crds[site==j,])
-            hpts <- chull(X)
-            hpts <- c(hpts,hpts[1])
-            lines(X[hpts,], 
-                 lty = ifelse(sum(names(args)%in%"lty")==1, args$lty, 1),
-                       lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 1),
-                       col = col[j])
-        }
-      }
-    }
+    
+    dat_sf <- dat %>% st_as_sf(coords = c('lon', 'lat'), crs = 4326)
+    
+    dat_hull <- dat_sf %>%
+      group_split(site) %>%
+      lapply(., function(x) {
+        st_convex_hull(st_union(x[,2])) %>% 
+          st_sfc() %>% 
+          st_sf() %>% 
+          mutate(site = x$site[1])
+      })  %>% 
+      Reduce('rbind',.) %>% suppressMessages()
+    #st_set_crs(4326)
+    
+    gg <- gg +
+      geom_sf(data = dat_hull, 
+              mapping = aes(geometry = .data$geometry, color = as.factor(site)),
+              alpha = ifelse(any(names(args) == "alpha"), args$alpha, 0.1), 
+              linewidth = ifelse(any(names(args) == "linewidth"), args$linewidth, 0.5),
+              linetype = ifelse(any(names(args) == "linetype"), args$linetype, 1),
+              show.legend = ifelse(any(names(args) == "show.legend"), args$show.legend, FALSE)) 
+    
   }
   
-  legend("bottomright", letters[1:max(site)], 
-         pch = ifelse(sum(names(args)%in%"pch")==1, args$pch, 16),
-         col=col[1:max(as.numeric(site))])
-  
-  if(!add) par(opar)
+  print(gg)
 }
-
-
 
 ##' Write a file which plots a trip in Google Earth
 ##'
@@ -2421,7 +2750,6 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull
 ##' defined path.
 ##' @author Simeon Lisovski and Michael U. Kemp
 ##' @examples
-##' \donttest{
 ##' data(hoopoe2)
 ##'   hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
 ##'   hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
@@ -2430,7 +2758,6 @@ siteMap <- function(crds, site, type = "points", quantiles = c(0.25, 0.75), hull
 ##' ## trip2kml("trip.kml", hoopoe2$tFirst[filter], hoopoe2$tSecond[filter], hoopoe2$type[filter],
 ##' ##		degElevation=-6, col.scheme="heat.colors", cex=0.7,
 ##' ##		line.col="goldenrod")
-##'}
 ##' @importFrom grDevices rgb
 ##' @export trip2kml
 trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat.colors", point.alpha=0.7, cex=1, line.col="goldenrod")
@@ -2573,81 +2900,165 @@ trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat
 #' and y coordinates (in that order).
 #' @param equinox logical; if \code{TRUE}, the equinox period(s) is shown as a
 #' broken blue line.
-#' @param map.range some possibilities to choose defined areas (default:
-#' "World").
 #' @param ... Arguments to be passed to methods, such as graphical parameters (see par).
 #' @param legend \code{logical}; if \code{TRUE}, a legend will be added to the plot.
+#' @param xlim Longitude limits of map.
+#' @param ylim Latitude limits of map.
 #' @author Simeon Lisovski
 #' @examples
-#'
+#' 
 #' data(hoopoe2)
-#'  hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
-#'  hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
+#' hoopoe2$tFirst <- as.POSIXct(hoopoe2$tFirst, tz = "GMT")
+#' hoopoe2$tSecond <- as.POSIXct(hoopoe2$tSecond, tz = "GMT")
 #' crds <- coord(hoopoe2, degElevation = -6)
-#' tripMap(crds, xlim = c(-20,20), ylim = c(0,60), main="hoopoe2")
-#'
-#' @importFrom maps map map.axes
-#' @importFrom graphics lines legend mtext par plot points
+#' try(tripMap(crds, xlim = c(-20,20), ylim = c(0,60), main="hoopoe2"))
+#' @importFrom ggplot2 ggtitle xlab ylab geom_path
+#' @importFrom sf st_make_valid st_as_sf st_set_crs  st_sf st_sfc st_linestring st_coordinates st_point st_combine
+#' @importFrom dplyr summarize  %>% 
 #' @export tripMap
-tripMap <- function(crds, equinox=TRUE, map.range=c("EuroAfrica","AustralAsia","America","World"), legend = TRUE, ...) {
+tripMap <- function(crds, equinox=TRUE, xlim = NULL, ylim = NULL, legend = TRUE, ...) {
   
   args <- list(...)
-  if(all(map.range==c("EuroAfrica", "AustralAsia", "America", "World")) & sum(names(args)%in%c("xlim", "ylim"))!=2) {
-    range <- c(-180, 180, -80, 90)
-  } 
-  if(all(map.range=="EuroAfrica")) range <- c(-24, 55, -55, 70)
-  if(all(map.range=="AustralAsia")) range <- c(60, 190, -55, 78)
-  if(all(map.range=="America")) range <- c(-170, -20, -65, 78)
-  if(all(map.range=="World")) range <- c(-180, 180, -75, 90)
   
-  if(sum(names(args)%in%c("xlim", "ylim"))==2) range <- c(args$xlim, args$ylim)
+  world <- ne_countries(scale = "medium", returnclass = "sf")
   
-  if(sum(names(args)%in%"add")==1) add <- args$add else add = FALSE
+  dat <- crds %>% 
+    as_tibble() %>% 
+    filter(!is.nan(.data$lat))
   
-  if(!add) {
-    opar <- par(mar = c(6,5,1,1))
-    plot(NA,xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-    map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]), fill=T,lwd=0.01,col=c("grey90"),add=TRUE)
-    map(xlim=c(range[1],range[2]),ylim=c(range[3],range[4]),interior=TRUE,col=c("darkgrey"),add=TRUE)
-    mtext(ifelse(sum(names(args)%in%"xlab")==1, args$xlab, "Longitude"), side=1, line=2.2, font=3)
-    mtext(ifelse(sum(names(args)%in%"ylab")==1, args$ylab, "Latitude"), side=2, line=2.5, font=3)
-    map.axes()
-    
-    mtext(ifelse(sum(names(args)%in%"main")==1, args$main, ""), line=0.6, cex=1.2)
+  if(is.null(xlim) | is.null(ylim)) {
+    world_sub <- world %>% 
+      st_make_valid() %>% 
+      st_intersection(st_bbox(dat %>% 
+                                st_as_sf(coords = c('lon', 'lat'), crs = 4326)) %>%
+                        st_as_sfc()) %>% 
+      suppressWarnings() %>% suppressMessages()
+  } else {
+    world_sub <- world %>% st_make_valid() %>%
+      st_intersection(st_bbox(c(xmin = xlim[1], 
+                                xmax = xlim[2],
+                                ymin = ylim[1],
+                                ymax = ylim[2]), 
+                              crs = 4326) %>%
+                        st_as_sfc()) %>% 
+      suppressWarnings() %>% 
+      suppressMessages()
   }
   
-  points(crds, 
-         pch = ifelse(sum(names(args)%in%"pch")==1, args$pch, 3),
-         cex = ifelse(sum(names(args)%in%"cex")==1, args$cex, 0.7))
-  lines(crds,
-        lwd = ifelse(sum(names(args)%in%"lwd")==1, args$lwd, 0.5),
-        col = ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"))
+  # Base map
+  base <- ggplot() +
+    theme_bw() +
+    labs(x = ifelse(sum(names(args) %in% "xlab") == 1, args$xlab, "Longitude"),
+         y = ifelse(sum(names(args) %in% "ylab") == 1, args$ylab, "Latitude"),
+         title = ifelse(sum(names(args) %in% "main") == 1, args$main, "")) +
+    geom_sf(data = world_sub, fill = "lightgray", color = "white") +
+    scale_x_continuous(expand = c(0,0)) +
+    scale_y_continuous(expand = c(0,0)) 
+  
+  # crds to sf
+  points_sf <- dat %>%
+    na.omit() %>% 
+    st_as_sf(coords = c("lon","lat")) %>% 
+    st_set_crs(4326) 
+  
+  # crosses
+  pointPlot <- base +
+    geom_sf(data = points_sf, mapping = aes(geometry = .data$geometry),
+            size = ifelse(any(names(args) == "size"),
+                          args$size, 1),
+            shape = ifelse(any(names(args) == "shape"), args$shape, 3),
+            show.legend = ifelse(any(names(args) == "show.legend"), args$show.legend, FALSE)) 
+  
+  # lines between crosses
+  line_sf <- points_sf %>% 
+    summarize() %>% 
+    st_cast("LINESTRING") %>% 
+    suppressMessages()
+  
+  linePlot <- pointPlot +
+    geom_path(data = dat %>% na.omit(), mapping = aes(x = dat$lon, y = dat$lat),
+              color = ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),
+              linewidth = ifelse(sum(names(args)%in%"linewidth")==1, args$linewidth, 0.25),
+              linetype = ifelse(sum(names(args)%in%"linetype")==1, args$linetype, 1))
   
   if(equinox){
-    nrow <- 1
-    repeat{
-      while(is.na(crds[nrow,2])==FALSE) {
-        nrow <- nrow + 1
-        if(nrow==nrow(crds)) break
-      }
-      if(nrow==nrow(crds)) break
-      start   <- nrow-1
-      while(is.na(crds[nrow,2])) {
-        nrow <- nrow + 1
-        if(nrow==nrow(crds)) break
-      }
-      if(nrow==nrow(crds)) break
-      end    <- nrow
-      
-      lines(c(crds[start,1], crds[end,1]),c(crds[start,2], crds[end,2]), col="blue", lwd=3, lty=1)
-    }
     
-    if(legend) legend("bottomright", lty=c(0,1,1), pch=c(3,-1,-1), lwd=c(1,0.5,3), col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),c("Positions","Trip","Equinox"),bty="n",bg="grey90",border="grey90",cex=0.8)
-  } else {
-    if(legend) 	  legend("bottomright",lty=c(0,1),pch=c(3,-1),lwd=c(1,0.5),col=c("black",ifelse(sum(names(args)%in%"col")==1, args$col, "grey10"),"blue"),c("Positions","Trip"),bty="n",bg="grey90",border="grey90",cex=0.8)
+    dat_eq <- apply(cbind(which(is.nan(crds[,2]) & !is.na(c(NaN, crds[-nrow(crds),2])))-1,
+                          which(is.nan(crds[,2]) & !is.na(c(crds[-1,2], NaN)))+1), 1, 
+                    function(x) st_as_sf(crds[c(x[1], x[2]),] %>% 
+                                           as_tibble(), coords = c('lon', 'lat'), crs = 4326) %>%
+                      st_combine() %>% st_cast("LINESTRING")) %>% Reduce("c",.)
+    
+    # Plot the ggplot with sf geometries
+    equiPlot <- linePlot +
+      geom_sf(data = dat_eq, mapping = aes(geometry = .data$geometry),
+              color = "blue",
+              linewidth = ifelse(sum(names(args)%in%"linewidth")==1, args$linewidth, 0.5), 
+              linetype = ifelse(sum(names(args)%in%"linetype")==1, args$linetype, 1)) +
+      labs(color = "Legend") 
+    
   }
-  if(!add) par(opar)
-  
+  # Check if legend should be added
+  if(legend) {
+    
+    max_x <- max(st_coordinates(points_sf)[, "X"]) - 3
+    min_y <- min(st_coordinates(points_sf)[, "Y"])
+    
+    independent_point <- st_sf(geometry = st_sfc(st_point(c(max_x - 10, min_y + 5)))) %>% 
+      st_set_crs(4326)
+    
+    if(equinox) {
+      
+      legendPlot <- equiPlot + 
+        geom_text(data = independent_point, 
+                  aes(geometry = .data$geometry, label = "+ Position"), 
+                  stat = "sf_coordinates", 
+                  vjust = 0, 
+                  hjust = 0) +
+        geom_text(data = independent_point, 
+                  aes(geometry = .data$geometry, label = "_____ Trip"), #used to be ——— but is not ASCII character 
+                  stat = "sf_coordinates", 
+                  vjust = 1.2, 
+                  hjust = 0) +
+        geom_text(data = independent_point, 
+                  aes(geometry = .data$geometry, label = "_____ Equinox"), #used to be ——— but is not ASCII character
+                  col = "blue", 
+                  stat = "sf_coordinates", 
+                  vjust = 2.4, 
+                  hjust = 0) 
+      
+    } else {
+      
+      legendPlot <- linePlot + 
+        geom_text(data = independent_point, 
+                  aes(geometry = .data$geometry, label = "+ Position"), 
+                  stat = "sf_coordinates", 
+                  vjust = 0, 
+                  hjust = 0) +
+        geom_text(data = independent_point, 
+                  aes(geometry = .data$geometry, label = "____ Trip"), 
+                  stat = "sf_coordinates", 
+                  vjust = 1.2, 
+                  hjust = 0) 
+      
+    }
+    print(legendPlot) %>% 
+      suppressMessages() %>% 
+      suppressWarnings()
+    
+  } else { #if not plot without legend
+    if(ggplot) {
+      if(equinox) {
+        print(equiPlot) %>% 
+          suppressWarnings() %>% 
+          suppressMessages()
+      } else {
+        print(linePlot) %>% 
+          suppressWarnings() %>% 
+          suppressMessages()
+      }
+    }
+  }
 }
 
 #' Calculate twilight events (sunrise/sunset) from light intensity measurements
