@@ -32,6 +32,9 @@ or a gamma ("gamma") error distribution. It is recommended to try both and evalu
 
 \item{plot}{\code{logical}, if TRUE a plot will be produced.}
 }
+\value{
+A \code{data.frame} containing the sun elevation anhle (0), the Sun elevation angle (mean), shape and scale
+}
 \description{
 Function to calculate the sun elevation angle for light measurements at a
 known location and the choosen light threshold.

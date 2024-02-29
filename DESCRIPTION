@@ -2,11 +2,36 @@ Package: GeoLight
 Type: Package
 Title: Analysis of Light Based Geolocator Data
 Version: 2.1.0
-Author: Simeon Lisovski, Simon Wotherspoon, Michael Sumner, Silke Bauer, Tamara Emmenegger, Paul Ritter
-Maintainer: Simeon Lisovski <simeon.lisovski@gmail.com>
+Authors@R: 
+  c(person(given = "Simeon",
+           family = "Lisovski",
+           role = c("aut", "cre"),
+           email = "Simeon.Lisovski@gmail.com"),
+    person(given = "Simon",
+           family = "Wotherspoon",
+           role = "aut"),
+    person(given = "Michael",
+           family = "Sumner",
+           role = "aut"),
+    person(given = "Silke",
+           family = "Bauer",
+           role = "aut"),
+    person(given = "Tamara",
+           family = "Emmenegger",
+           role = "aut"),
+    person(given = "Paul",
+           family = "Ritter",
+           role = "aut"))
 Description: Provides basic functions for global positioning based on light intensity measurements over time. 
     Positioning process includes the determination of sun events, a discrimination of residency and movement periods, 
     the calibration of period-specific data and, finally, the calculation of positions.
+    Ekstrom, P.A. (2004) <https://api.semanticscholar.org/CorpusID:55779732> "An advance in geolocation by light."
+    Fudickar, A.M., Wikelski, M., Partecke, J. (2011) <doi:10.1111/j.2041-210X.2011.00136.x> "Tracking migratory songbirds: accuracy of light-level loggers."
+    Hill, C. & Braun, M.J. (2001) <doi:doi.org/10.1007/978-94-017-1402-0_1> "Geolocation by light level - the next step: Latitude."
+    Hill, R.D. (1994) <doi:...> "Theory of geolocation by light levels."
+    Lisovski, S. and Hahn, S. (2012) <doi:10.1111/j.2041-210X.2012.00248.x> "GeoLight - processing and analysing light-based geolocator data in R."
+    Lisovski, S., Hewson, C.M, Klaassen, R.H.G., Korner-Nievergelt, F., Kristensen, M.W & Hahn, S. (2012) <doi:10.1111/j.2041-210X.2012.00185.x> "Geolocation by light: Accuracy and precision affected by environmental factors."
+    Wilson, R.P., Ducamp, J.J., Rees, G., Culik, B.M. & Niekamp, K. (1992) <doi:...> "Estimation of location: global coverage using light intensity."
 License: GPL (>= 2)
 Depends: 
     R (>= 4.2.0)

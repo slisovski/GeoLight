@@ -102,15 +102,15 @@
 #' @section References:
 #' Ekstrom, P.A. (2004) An advance in geolocation by light. \emph{Memoirs of the National Institute of Polar Research}, Special Issue, \bold{58}, 210-226.
 #' 
-#' Fudickar, A.M., Wikelski, M., Partecke, J. (2011) Tracking migratory songbirds: accuracy of light-level loggers (geolocators) in forest habitats. \emph{Methods in Ecology and Evolution}, DOI: 10.1111/j.2041-210X.2011.00136.x.
+#' Fudickar, A.M., Wikelski, M., Partecke, J. (2011) Tracking migratory songbirds: accuracy of light-level loggers. (geolocators) in forest habitats. \emph{Methods in Ecology and Evolution}, DOI: 10.1111/j.2041-210X.2011.00136.x.
 #'
 #' Hill, C. & Braun, M.J. (2001) Geolocation by light level - the next step: Latitude. \emph{Electronic Tagging and Tracking in Marine Fisheries} (eds J.R. Sibert & J. Nielsen), pp. 315-330. Kluwer Academic Publishers, The Netherlands.
 #'
 #' Hill, R.D. (1994) Theory of geolocation by light levels. \emph{Elephant Seals: Population Ecology, Behavior, and Physiology} (eds L. Boeuf, J. Burney & R.M. Laws), pp. 228-237. University of California Press, Berkeley.
 #'  
-#' Lisovski, S. and Hahn, S. (2012) GeoLight - processing and analysing light-based geolocator data in R. \emph{Methods in Ecology and Evolution}, doi: 10.1111/j.2041-210X.2012.00248.x
+#' Lisovski, S. and Hahn, S. (2012) GeoLight - processing and analysing light-based geolocator data in R. \emph{Methods in Ecology and Evolution}, doi: 10.1111/j.2041-210X.2012.00248.x.
 #' 
-#' Lisovski, S., Hewson, C.M, Klaassen, R.H.G., Korner-Nievergelt, F., Kristensen, M.W & Hahn, S. (2012) Geolocation by light: Accuracy and precision affected by environmental factors. \emph{Methods in Ecology and Evolution}, doi: 10.1111/j.2041-210X.2012.00185.x
+#' Lisovski, S., Hewson, C.M, Klaassen, R.H.G., Korner-Nievergelt, F., Kristensen, M.W & Hahn, S. (2012) Geolocation by light: Accuracy and precision affected by environmental factors. \emph{Methods in Ecology and Evolution}, doi: 10.1111/j.2041-210X.2012.00185.x.
 #' 
 #' Wilson, R.P., Ducamp, J.J., Rees, G., Culik, B.M. & Niekamp, K. (1992) Estimation of location: global coverage using light intensity. \emph{Wildlife telemetry: remote monitoring and tracking of animals} (eds I.M. Priede & S.M. Swift), pp. 131-134. Ellis Horward, Chichester.
 
@@ -331,6 +331,7 @@ coord2 <- function(tFirst, tSecond, type, degElevation=-6) {
 ##' @param method the function can either estimate the sun elevation angle and the twilight error parameters using a log-normal ("log-norm")
 ##' or a gamma ("gamma") error distribution. It is recommended to try both and evaluate the fit using the plot.
 ##' @param plot \code{logical}, if TRUE a plot will be produced.
+##' @return A \code{data.frame} containing the sun elevation anhle (0), the Sun elevation angle (mean), shape and scale 
 ##' @author Simeon Lisovski
 ##' @references Lisovski, S., Hewson, C.M, Klaassen, R.H.G., Korner-Nievergelt,
 ##' F., Kristensen, M.W & Hahn, S. (2012) Geolocation by light: Accuracy and
@@ -403,7 +404,7 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
         labs(title =  "Twilight Model (log-norm)",
              x = "twilight error (min)",
              y = "Density",
-             subtitle = paste("0. Sun elevation angle (zero):", round(90 - a1.1, 3), "|",
+             subtitle = paste("0. Sun elevation angle (zero):", round(90 - a1.0, 3), "|",
                               "1. Sun elevation angle (median):", round(90 - a1.1, 3), "|", 
                               "Log-mean:", round(fitml_ng$estimate[1], 3), "|", 
                               "; Log-sd:", round(fitml_ng$estimate[2], 3)))
@@ -413,7 +414,7 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
         labs(title =  "Twilight Model (gamma)",
              x = "twilight error (min)",
              y = "Density",
-             subtitle = paste("0. Sun elevation angle (zero):", round(90 - a1.1, 3), "|",
+             subtitle = paste("0. Sun elevation angle (zero):", round(90 - a1.0, 3), "|",
                               "1. Sun elevation angle (median):", round(90 - a1.1, 3), "|",
                               "Shape:", round(fitml_ng$estimate[1], 3), "|", 
                               "Scale:", round(fitml_ng$estimate[2], 3)))
@@ -421,8 +422,6 @@ getElevation <- function(tFirst, tSecond, type, twl, known.coord, method = "log-
     # base plot + red lines, two points, legends 
     labels <- round(90-predict(mod, newdata = data.frame(min = seq(0, max(twl_dev), 6))),1) # labels for sun elevation degree 
     at <- seq(0, max(twl_dev), 6) # x values for sun elevation degree 
-    
-    twl_dev <<- twl_dev
     
     # here we get the warning: "argument ‘freq’ is not made use of", because we use freq and turn of plotting, as freq also adjusts something in the graphic representation. Therefore I silenced the warnings in the following chunk
     height <- suppressWarnings({ rep((max(hist(twl_dev,
@@ -922,6 +921,9 @@ siteEstimate <- function(tFirst, tSecond, type, twl,
 #' @importFrom stats optim dnorm
 mergeSites <- function(tFirst, tSecond, type, twl, site, degElevation, distThreshold = 250, 
                        fixed = NULL, alpha = c(0, 15), plot = TRUE) {
+  
+  oldpar <- par(no.readonly = TRUE) # code line i
+  on.exit(par(oldpar)) # code line i + 1
   
   tab <- i.argCheck(as.list(environment())[sapply(environment(), 
                                                   FUN = function(x) any(class(x) != "name"))])
@@ -1779,6 +1781,9 @@ glfTrans <- function(file="/path/file.glf") {
 ##' @export HillEkstromCalib
 HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, distanceFilter=FALSE, distance, plot=TRUE) {
   
+  oldpar <- par(no.readonly = TRUE) 
+  on.exit(par(oldpar)) 
+  
   tab <- i.argCheck(as.list(environment())[sapply(environment(), FUN = function(x) any(class(x)!='name'))])   
   
   tFirst <- tab$tFirst
@@ -1899,6 +1904,9 @@ HillEkstromCalib <- function(tFirst, tSecond, type, twl, site, start.angle=-6, d
 
 i.JC2000 <- function(jD) {
   
+  old <- options() # code line i
+  on.exit(options(old)) # code line i+1
+  
   #--------------------------------------------------------------------------------------------------------
   # jD: julian Date
   #--------------------------------------------------------------------------------------------------------
@@ -1914,6 +1922,9 @@ i.JC2000 <- function(jD) {
 
 i.deg <- function(Rad) {
   
+  old <- options() # code line i
+  on.exit(options(old)) # code line i+1
+  
   #------------------------------------------------------------
   # Deg: 	The input angle in radian
   #------------------------------------------------------------
@@ -1926,6 +1937,9 @@ i.deg <- function(Rad) {
 }
 
 i.frac <- function(In) {
+  
+  old <- options() # code line i
+  on.exit(options(old)) # code line i+1
   
   #------------------------------------------------------------
   # In: 	numerical Number
@@ -1952,6 +1966,9 @@ i.get.outliers<-function(residuals, k=3) {
 }
 
 i.julianDate <- function(year,month,day,hour,min) {
+  
+  old <- options() # code line i
+  on.exit(options(old)) # code line i+1
   
   #--------------------------------------------------------------------------------------------------------
   # Year:		Year as numeric e.g. 2010
@@ -2046,6 +2063,9 @@ i.preSelection <- function(datetime, light, LightThreshold){
 
 i.rad <- function(Deg) {
   
+  old <- options() # code line i
+  on.exit(options(old)) # code line i+1
+  
   #------------------------------------------------------------
   # Deg: 	The input angle in degrees
   #------------------------------------------------------------
@@ -2058,6 +2078,9 @@ i.rad <- function(Deg) {
 }
 
 i.radDeclination <- function(radEclipticalLength,radObliquity) {
+  
+  old <- options() # code line i
+  on.exit(options(old)) # code line i+1
   
   #-------------------------------------------------------------------------------------------------------------------
   # RadEclipticLength: The angle between an object's rotational axis, and a line perpendicular to its orbital plane.
@@ -2073,6 +2096,9 @@ i.radDeclination <- function(radEclipticalLength,radObliquity) {
 }
 
 i.radEclipticLongitude <- function(jC) {
+  
+  old <- options() # code line i
+  on.exit(options(old)) # code line i+1
   
   #-------------------------------------------------------------------------------------------------------------------
   # jC: Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00
@@ -2090,6 +2116,9 @@ i.radEclipticLongitude <- function(jC) {
 }
 
 i.radGMST <- function(jD,jD0,jC,jC0) {
+  
+  old <- options() # code line i
+  on.exit(options(old)) # code line i+1
   
   #--------------------------------------------------------------------------------------------------------
   # jD:  Julian Date with Hour and Minute
@@ -2111,6 +2140,9 @@ i.radGMST <- function(jD,jD0,jC,jC0) {
 
 i.radObliquity <- function(jC) {
   
+  old <- options() # code line i
+  on.exit(options(old)) # code line i+1
+  
   #--------------------------------------------------------------------------------------------------------
   # jC: Number of julian centuries from the julianian epoch J2000 (2000-01-01 12:00)
   #--------------------------------------------------------------------------------------------------------
@@ -2126,6 +2158,9 @@ i.radObliquity <- function(jC) {
 }
 
 i.radRightAscension <- function(RadEclipticalLength,RadObliquity) {
+  
+  old <- options() # code line i
+  on.exit(options(old)) # code line i+1
   
   #-------------------------------------------------------------------------------------------------------------------
   # RadEclipticLength: The angle between an object's rotational axis, and a line perpendicular to its orbital plane.
@@ -2154,6 +2189,9 @@ i.radRightAscension <- function(RadEclipticalLength,RadObliquity) {
 }
 
 i.setToRange <- function(Start,Stop,Angle) {
+  
+  old <- options() # code line i
+  on.exit(options(old)) # code line i+1
   
   #-------------------------------------------------------------------------------------------------------------------
   # Start:	 Minimal value of the range in degrees
@@ -2588,6 +2626,7 @@ i.twilightEvents <- function (datetime, light, LightThreshold)
 #' @param hull \code{logical}, if TRUE a convex hull will be plotted around the points of each site.
 #' @param palette Color palette for sites.
 #' @param ... Arguments to be passed to methods, such as graphical parameters (see par).
+#' @return A \code{list} containing a ggplot object/plot of the defined stationary sites  
 #' @details Standard graphical paramters like \code{pch}, \code{cex}, \code{lwd}, \code{lty} and \code{col} are implemented. 
 #' The color can be specified as either a vector of colors (e.g. c("blue", "red", ...)) or as a character string indicating a color ramp (at the moment only "random" and "rainbow" is available )
 #' @author Simeon Lisovski & Tamara Emmenegger
@@ -2904,6 +2943,7 @@ trip2kml <- function(file, tFirst, tSecond, type, degElevation, col.scheme="heat
 #' @param legend \code{logical}; if \code{TRUE}, a legend will be added to the plot.
 #' @param xlim Longitude limits of map.
 #' @param ylim Latitude limits of map.
+#' @return A \code{list} containing a ggplot object/plot of the calculated positions connected by a line
 #' @author Simeon Lisovski
 #' @examples
 #' 

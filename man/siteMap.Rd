@@ -38,6 +38,9 @@ migration/movement periods 0.}
 
 \item{...}{Arguments to be passed to methods, such as graphical parameters (see par).}
 }
+\value{
+A \code{list} containing a ggplot object/plot of the defined stationary sites
+}
 \description{
 Draw a map (from the \code{R} Package \code{maps}) showing the defined
 stationary sites

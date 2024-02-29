@@ -21,6 +21,9 @@ broken blue line.}
 
 \item{...}{Arguments to be passed to methods, such as graphical parameters (see par).}
 }
+\value{
+A \code{list} containing a ggplot object/plot of the calculated positions connected by a line
+}
 \description{
 Draw a map (from the \code{R} Package \code{maps}) with calculated positions
 connected by a line
