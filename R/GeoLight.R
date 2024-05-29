@@ -43,7 +43,7 @@
 #' \tab \code{\link{glfTrans}} \tab transformation of light intensity measurements over time* \cr
 #' \tab \code{\link{luxTrans}} \tab transformation of light intensity measurements over time** \cr
 #' \tab \code{\link{lightFilter}} \tab filter to remove noise in light intensity measurements during the night \cr
-#' \tab \code{\link{twilightCalc}} \tab definition of twilight events (\emph{sunrise, sunset}) from light intensity measurements \cr
+#' \tab \code{\link{twilightCalc}} \tab no longer supported, please use functions in R Package TwGeos \cr
 #' }
 #' 
 #' * written for data recorded by geolocator devices from the \bold{Swiss Ornithological Institute} \cr
@@ -3065,50 +3065,22 @@ tripMap <- function(crds, equinox=TRUE, xlim = NULL, ylim = NULL, legend = TRUE,
 #' Calculate twilight events (sunrise/sunset) from light intensity measurements
 #' over time
 #'
-#' Defines twilight events (sunrise/sunset) at times when the light intensity
+#' Deprecated function to define twilight events (sunrise/sunset) at times when the light intensity
 #' measurements (\emph{light}) pass the defined light intensity threshold. An
 #' interactive plot can be drawn to assess the calculations and improve e.g.
 #' select only the realistic events.
 #'
 #'
-#' @param datetime date and time of light intensity measurements e.g.
-#' 2008-12-01 08:30 "UTC" (see:
-#' \code{\link{as.POSIXct}},\link[=Sys.timezone]{time zones}).
-#' @param light \code{numerical} value of the light intensity (usually
-#' arbitrary units).
-#' @param preSelection codelogical, if TRUE a pre selection of all calculated
-#' twiligth events will be offered within the interactive process (ask=TRUE).
-#' @param LightThreshold the light intensity threshold for the twilight event
-#' calibration. If \code{Default}, it will be set slightly above (3 units) the
-#' baseline level (measurement during the night).
-#' @param maxLight if the geolocator record the maximum light value of a
-#' certain time span, give the interval of maximum recordings in minutes (e.g.
-#' 5).
-#' @param ask \code{logical}, if TRUE the interactive plot will start after the
-#' calculation.
-#' @param nsee number of points to plot per screen.
-#' @param allTwilights \code{logical}, if TRUE the function returns a list with
-#' two tables
-#' @return if allTwilights=FALSE, a \code{data frame}. Each row contains two
-#' subsequent twilight events (\emph{tFirst, tSecond}) and \emph{type} defining
-#' wether \emph{tFirst} refers to sunrise (1) or sunset (2). If
-#' allTwilights=TRUE, a \code{list} with the data frame described in the
-#' previous sentence and a data frame with all light intensities and a column
-#' describing whether each row refers to sunrise (1), sunset (2) or to none of
-#' these categories (0).
-#' @note Depending on shading during light intensity measurements (e.g. due to
-#' vegetation, weather, etc., see Lisovski et \emph{al.} 2012) the light
-#' intensities may pass the light intensity threshold several times during the
-#' day, resulting false sunrises and sunsets. It is highly recommended to check
-#' the derived events visually (\code{ask=TRUE}).Twilight events can be deleted
-#' and undeleted by clicking the (first) mouse button at the particular
-#' position in the graph. The second mouse buttom (or esc) moves the time
-#' series forward. Note, that a backward option is not included.
+#' @param ... No input required
+#' @return message: This function is no longer supported. The R Package TwGeos has far better ways to calculate twilight times from ligth recordings.
+#' see https://geolocationmanual.vogelwarte.ch/ for details.
+#' @note This function is no longer supported. See R Package TwGeos for much better
+#' ways to define twilight times.
 #' @author Simeon Lisovski
 #' @export twilightCalc
 #' @importFrom grDevices graphics.off
 #' @importFrom graphics abline axis identify legend plot points 
-twilightCalc <- function(datetime, light, LightThreshold=TRUE, preSelection=TRUE, maxLight=NULL, ask=TRUE, nsee=500, allTwilights=FALSE)
+twilightCalc <- function(...)
 {
   
   message("This function is no longer supported. The R Package TwGeos has far better ways to calculate twilight times from ligth recordings.\n see https://geolocationmanual.vogelwarte.ch/ for details.")
