@@ -14,6 +14,11 @@ The package is easily installed from GitHub, using the devtools package.
 devtools::install_github("SLisovski/GeoLight")
 ```
 
+Please try the newest version by installing:
+```R
+devtools::install_github("SLisovski/GeoLight", ref = "GeoLight_2.0")
+```
+
 If you don't have `devtools` installed already, install it first. 
 
 ```R
